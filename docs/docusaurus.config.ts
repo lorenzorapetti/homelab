@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'Lorenzo\'s Homelab',
   tagline: '',
-  favicon: 'img/favicon.ico',
+  // favicon: 'img/favicon.ico',
   url: 'https://docs.lorenzolab.com',
   baseUrl: '/',
 
@@ -39,8 +39,6 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
     navbar: {
       title: "Lorenzo's Homelab",
       logo: {
