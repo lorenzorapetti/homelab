@@ -4,5 +4,5 @@ metadata:
   name: sealed-secrets-repo
   namespace: kube-system
 spec:
-  interval: 1m0s
+  interval: 1h
   url: https://bitnami-labs.github.io/sealed-secrets

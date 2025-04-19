@@ -11,6 +11,10 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: sealed-secrets-repo
-  interval: 1m0s
+  interval: 1h
+  install:
+    crds: Create
+  upgrade:
+    crds: CreateReplace
   values:
     fullnameOverride: sealed-secrets-controller
