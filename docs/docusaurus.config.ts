@@ -39,12 +39,12 @@ const config: Config = {
   ],
 
   themeConfig: {
+    colorMode: {
+      defaultMode: 'dark',
+      respectPrefersColorScheme: true,
+    },
     navbar: {
       title: "Lorenzo's Homelab",
-      logo: {
-        alt: "Lorenzo's Homelab",
-        src: 'img/logo.svg',
-      },
       items: [
         {
           type: 'docSidebar',
