@@ -6,7 +6,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 5m
-  path: "./kube-system/sealed-secrets"
+  path: "./kubernetes/kube-system/sealed-secrets"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -26,7 +26,7 @@ spec:
   dependsOn:
     - name: sealed-secrets
   interval: 5m
-  path: "./cert-manager"
+  path: "./kubernetes/cert-manager"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -46,7 +46,7 @@ spec:
   dependsOn:
     - name: cert-manager
   interval: 5m
-  path: "./kube-system/traefik"
+  path: "./kubernetes/kube-system/traefik"
   prune: true
   sourceRef:
     kind: GitRepository
@@ -61,7 +61,7 @@ spec:
   dependsOn:
     - name: cert-manager
   interval: 5m
-  path: "./longhorn-system"
+  path: "./kubernetes/longhorn-system"
   prune: true
   sourceRef:
     kind: GitRepository
