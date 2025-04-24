@@ -18,7 +18,7 @@ apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: capacitor-dashboard-ingress
-  namespace: capacitor-system
+  namespace: flux-system
 spec:
   entryPoints:
     - websecure
