@@ -37,14 +37,12 @@ spec:
       enabled: false
     tasksRedis:
       host: redis-1.cluster.lorenzolab.com
-      username: netbox
-      existingSecretName: netbox-secret
-      existingSecretKey: redisPassword
+      username:
+      password:
     cachingRedis:
       host: redis-1.cluster.lorenzolab.com
-      username: netbox
-      existingSecretName: netbox-secret
-      existingSecretKey: redisPassword
+      username:
+      password:
     ingress:
       enabled: true
       hosts:
