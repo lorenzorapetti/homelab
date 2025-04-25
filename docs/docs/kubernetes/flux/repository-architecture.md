@@ -24,6 +24,7 @@ When fluxed is bootstrapped with `--path=kubernetes/cluster`, the controller che
 
 - `sealed-secrets` is the first one to be reconciled because every other object depends on it.
 - `cert-manager` comes after, because it needs the Cloudflare token Sealed Secret to work with the DNS challenge.
-- `apps` is the last one to be reconciled. It contains all the applications that are deployed in the cluster. It has a dependency on both `cert-manager` and `sealed-secrets`, so it is the last one to be reconciled.
+- `longhorn` installs the Longhorn operator and the CRDs.
+- `apps` is the last one to be reconciled. It contains all the applications that are deployed in the cluster. It has a dependency on `cert-manager`,  `sealed-secrets`, and `longhorn`, so it is the last one to be reconciled.
 
 This structure ensures that objects that are required to deploy apps (CRDs like `SealedSecret`, `Certificate`, etc.) are always deployed before the apps themselves.

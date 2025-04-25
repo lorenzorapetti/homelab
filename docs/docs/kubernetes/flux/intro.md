@@ -9,16 +9,34 @@ sidebar_label: Introduction
 
 When you first create the cluster, Flux will bootstrap all the objects declared in the [`kubernetes`](https://github.com/lorenzorapetti/homelab/tree/main/kubernetes) folder.
 
-## Install
+## Installation
 
 Follow the [Install k3s](/kubernetes/getting-started/install-k3s#kubectl-and-utilities) section to install the Flux CLI.
 
 ### Existing repo with the Flux manifests
 
-If you have a repo with the Flux manifests already present, you only need to apply them to the cluster:
+If you have a repo with the Flux manifests already present and you saved the private key secret, you first need to apply the secret to the cluster (I saved mine in 1password):
 
 ```bash
-kubectl apply -k kubernetes/apps/flux-system
+op document get --vault Homelab "Flux Key" | kubectl apply -f -
+```
+
+Then, you can apply the Flux manifests:
+
+:::warning
+
+Remember to [apply the Sealed Secrets private key](/kubernetes/sealed-secrets#existing-repository) first! `sealed-secrets-controller` needs it to be able to decrypt `SealedSecrets` objects.
+
+:::
+
+:::warning
+
+Make sure you use the `-k` flag instead of `-f` to tell Kubernetes to use the `kustomization.yaml` file.
+
+:::
+
+```bash
+kubectl apply -k kubernetes/cluster/flux-system
 ```
 
 ### Existing repo without the Flux manifests
