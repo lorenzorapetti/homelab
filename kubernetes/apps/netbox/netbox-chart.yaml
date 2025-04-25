@@ -1,0 +1,56 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: OCIRepository
+metadata:
+  name: netbox
+  namespace: netbox
+spec:
+  interval: 1h
+  url: oci://ghcr.io/netbox-community/netbox-chart/netbox
+  ref:
+    semver: ">5.0.0"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: netbox
+  namespace: netbox
+spec:
+  interval: 1h
+  releaseName: netbox
+  chartRef:
+    kind: OCIRepository
+    name: netbox
+  values:
+    cors:
+      originAllowAll: true
+    postgresql:
+      enabled: false
+    externalDatabase:
+      host: db-1.cluster.lorenzolab.com
+      database: netbox
+      username: netbox
+      existingSecretName: netbox-secret
+      existingSecretKey: dbPassword
+    redis:
+      enabled: false
+    tasksRedis:
+      host: redis-1.cluster.lorenzolab.com
+      username: netbox
+      existingSecretName: netbox-secret
+      existingSecretKey: redisPassword
+    cachingRedis:
+      host: redis-1.cluster.lorenzolab.com
+      username: netbox
+      existingSecretName: netbox-secret
+      existingSecretKey: redisPassword
+    ingress:
+      enabled: true
+      hosts:
+        - host: netbox.home.lorenzolab.com
+          paths:
+            - /
+      tls:
+        - hosts:
+            - netbox.home.lorenzolab.com
+          secretName: netbox-certificate-secret
