@@ -4,5 +4,5 @@ resources:
   - namespace.yaml
   - grafana-admin-secret.yaml
   - grafana-certificate.yaml
-  - gratana-repository.yaml
+  - grafana-repository.yaml
   - grafana-chart.yaml
