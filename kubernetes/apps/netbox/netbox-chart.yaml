@@ -37,12 +37,8 @@ spec:
       enabled: false
     tasksRedis:
       host: redis-1.cluster.lorenzolab.com
-      username:
-      password:
     cachingRedis:
       host: redis-1.cluster.lorenzolab.com
-      username:
-      password:
     ingress:
       enabled: true
       hosts:
