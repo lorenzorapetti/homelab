@@ -1,0 +1,38 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  chart:
+    spec:
+      chart: grafana
+      reconcileStrategy: ChartVersion
+      sourceRef:
+        kind: HelmRepository
+        name: grafana-repo
+      version: "8.13.1"
+  interval: 1h
+  values:
+    ingress:
+      enabled: true
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      hosts:
+        - grafana.home.lorenzolab.com
+      tls:
+        - hosts:
+            - grafana.home.lorenzolab.com
+          secretName: grafana-certificate-secret
+    admin:
+      existingSecret: grafana-admin-secret
+    grafana.ini:
+      server:
+        domain: grafana.home.lorenzolab.com
+    persistence:
+      type: pvc
+      enabled: true
+    plugins:
+      - grafana-clock-panel
+      - redis-explorer-app
+      - redis-app
