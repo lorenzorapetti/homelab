@@ -43,6 +43,10 @@ spec:
       host: redis-1.cluster.lorenzolab.com
     persistence:
       accessMode: ReadWriteMany
+    reportsPersistence:
+      accessMode: ReadWriteMany
+    scriptsPersistence:
+      accessMode: ReadWriteMany
     ingress:
       enabled: true
       hosts:
