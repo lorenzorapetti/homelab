@@ -26,6 +26,8 @@ spec:
   test:
     enable: true
   values:
+    global:
+      storageClass: longhorn
     cors:
       originAllowAll: true
     postgresql:

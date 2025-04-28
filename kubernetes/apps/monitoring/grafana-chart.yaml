@@ -23,7 +23,7 @@ spec:
       tls:
         - hosts:
             - grafana.home.lorenzolab.com
-          secretName: grafana-certificate-secret
+          secretName: home-certificate-secret
     admin:
       existingSecret: grafana-admin-secret
     grafana.ini:
@@ -31,6 +31,7 @@ spec:
         domain: grafana.home.lorenzolab.com
     persistence:
       type: pvc
+      storageClassName: longhorn
       enabled: true
     plugins:
       - grafana-clock-panel
