@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - cloudflare-secret.yaml
   - cluster-issuer.yaml
+  - home-certificate.yaml

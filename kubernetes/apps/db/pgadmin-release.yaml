@@ -27,4 +27,4 @@ spec:
       tls:
         - hosts:
             - pgadmin.home.lorenzolab.com
-          secretName: pgadmin-certificate-secret
+          secretName: home-certificate-secret

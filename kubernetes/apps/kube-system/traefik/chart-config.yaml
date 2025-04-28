@@ -13,7 +13,7 @@ spec:
           - web
           - websecure
         tls:
-          secretName: traefik-dashboard-certificate-secret
+          secretName: home-certificate-secret
     ports:
       web:
         redirections:

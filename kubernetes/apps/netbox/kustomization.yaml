@@ -3,5 +3,4 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - netbox-secret.yaml
-  - netbox-certificate.yaml
   - netbox-chart.yaml
