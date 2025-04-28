@@ -41,6 +41,8 @@ spec:
       host: redis-1.cluster.lorenzolab.com
     cachingRedis:
       host: redis-1.cluster.lorenzolab.com
+    persistence:
+      accessMode: ReadWriteMany
     ingress:
       enabled: true
       hosts:
