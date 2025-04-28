@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: longhorn-dashboard-certificate
+  namespace: longhorn-system
+spec:
+  # Secret names are always required.
+  secretName: longhorn-dashboard-certificate-secret
+  issuerRef:
+    name: cloudflare-cluster-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - longhorn.home.lorenzolab.com

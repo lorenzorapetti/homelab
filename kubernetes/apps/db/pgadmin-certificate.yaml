@@ -1,13 +1,13 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: home-certificate
-  namespace: cert-manager
+  name: pgadmin-certificate
+  namespace: db
 spec:
   # Secret names are always required.
-  secretName: home-certificate-secret
+  secretName: pgadmin-certificate-secret
   issuerRef:
     name: cloudflare-cluster-issuer
     kind: ClusterIssuer
   dnsNames:
-    - "*.home.lorenzolab.com"
+    - pgadmin.home.lorenzolab.com

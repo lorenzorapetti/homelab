@@ -22,9 +22,6 @@ spec:
         name: netbox-repo
       version: "5.0.71"
   interval: 1h
-  timeout: 10m
-  test:
-    enable: true
   values:
     global:
       storageClass: longhorn
@@ -53,4 +50,4 @@ spec:
       tls:
         - hosts:
             - netbox.home.lorenzolab.com
-          secretName: home-certificate-secret
+          secretName: netbox-certificate-secret

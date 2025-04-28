@@ -29,4 +29,4 @@ spec:
         - name: capacitor
           port: 9000
   tls:
-    secretName: home-certificate-secret
+    secretName: capacitor-certificate-secret
