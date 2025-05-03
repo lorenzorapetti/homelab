@@ -5,7 +5,7 @@ metadata:
   name: sealed-secrets
   namespace: flux-system
 spec:
-  interval: 5m
+  interval: 1h
   path: "./kubernetes/infrastructure/sealed-secrets"
   prune: true
   sourceRef:
@@ -25,7 +25,7 @@ metadata:
 spec:
   dependsOn:
     - name: sealed-secrets
-  interval: 5m
+  interval: 1h
   path: "./kubernetes/infrastructure/cert-manager"
   prune: true
   sourceRef:
@@ -43,7 +43,7 @@ metadata:
   name: longhorn
   namespace: flux-system
 spec:
-  interval: 5m
+  interval: 1h
   path: "./kubernetes/infrastructure/longhorn-system"
   prune: true
   sourceRef:
@@ -58,6 +58,24 @@ spec:
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
+  name: mattermost-operator
+  namespace: mattermost
+spec:
+  interval: 1h
+  path: "./kubernetes/infrastructure/mattermost"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mattermost-operator
+      namespace: mattermost
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
   name: apps
   namespace: flux-system
 spec:
@@ -65,6 +83,7 @@ spec:
     - name: sealed-secrets
     - name: cert-manager
     - name: longhorn
+    - name: mattermost-operator
   interval: 5m
   path: "./kubernetes/apps"
   prune: true

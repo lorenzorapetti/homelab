@@ -23,4 +23,3 @@ spec:
         name: mattermost-repo
       version: '1.0.2'
   interval: 1h
-  values:
