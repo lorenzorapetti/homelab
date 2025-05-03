@@ -2,6 +2,7 @@ apiVersion: installation.mattermost.com/v1beta1
 kind: Mattermost
 metadata:
   name: mattermost        # Example: mm-example-full
+  namespace: mattermost
 spec:
   size: 20users               # Example: 5000users
   ingress:
