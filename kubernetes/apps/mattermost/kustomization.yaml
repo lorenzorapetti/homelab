@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - mattermost-db-secret.yaml
+  - mattermost-filestore-secret.yaml
+  - mattermost-certificate.yaml
+  - mattermost-chart.yaml
+  - installation.yaml
