@@ -73,6 +73,15 @@ const config: Config = {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
     },
+    algolia: {
+      // The application ID provided by Algolia
+      appId: 'DPT1DVSPF1',
+
+      // Public API key: it is safe to commit it
+      apiKey: '86136a49cafc657a4ad224ecb945de54',
+
+      indexName: 'lorenzolab',
+    }
   } satisfies Preset.ThemeConfig,
 };
 
