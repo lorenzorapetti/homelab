@@ -19,4 +19,4 @@ spec:
     defaultBackupStore:
       backupTarget: s3://longhorn-backup@us-west-1/
       backupTargetCredentialSecret: longhorn-backup-target
-      pollInterval: 300s
+      pollInterval: 300
