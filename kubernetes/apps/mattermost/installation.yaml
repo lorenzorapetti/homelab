@@ -1,10 +1,10 @@
 apiVersion: installation.mattermost.com/v1beta1
 kind: Mattermost
 metadata:
-  name: mattermost        # Example: mm-example-full
+  name: mattermost # Example: mm-example-full
   namespace: mattermost
 spec:
-  size: 100users               # Example: 5000users
+  size: 100users # Example: 5000users
   ingress:
     enabled: true
     host: mattermost.lorenzolab.com
@@ -20,4 +20,4 @@ spec:
       url: minio.lorenzolab.com
       bucket: mattermost
       secret: mattermost-filestore-secret
-  version: 10.7.1
+  version: 10.8.1

@@ -21,5 +21,5 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: mattermost-repo
-      version: '1.0.2'
+      version: "1.0.3"
   interval: 1h
