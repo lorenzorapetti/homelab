@@ -33,6 +33,10 @@ spec:
           paths:
             - path: /
               pathType: Prefix
+      tls:
+        - hosts:
+            - actual.home.lorenzolab.com
+          secretName: actual-certificate-secret
     persistence:
       enabled: true
       existingClaim: actualbudget-volume
