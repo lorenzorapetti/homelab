@@ -10,4 +10,4 @@ spec:
     name: cloudflare-cluster-issuer
     kind: ClusterIssuer
   dnsNames:
-    - actual.home.lorenzolab.com
+    - actual.lorenzolab.com
