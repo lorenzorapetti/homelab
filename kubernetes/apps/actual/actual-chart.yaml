@@ -20,7 +20,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: actual-repo
-      version: "1.5.1"
+      version: "1.5.2"
   interval: 1h
   values:
     files:
