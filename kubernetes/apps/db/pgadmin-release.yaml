@@ -11,7 +11,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: pgadmin-repo
-      version: '1.38.0'
+      version: "1.47.0"
   interval: 1h
   values:
     existingSecret: pgadmin-secret
