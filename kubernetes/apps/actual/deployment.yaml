@@ -24,7 +24,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: ACTUAL_PORT
-              value: 5006
+              value: "5006"
             - name: ACTUAL_DATA_DIR
               value: /data
             - name: ACTUAL_SERVER_FILES
@@ -32,11 +32,11 @@ spec:
             - name: ACTUAL_USER_FILES
               value: /data/user-files
             - name: ACTUAL_UPLOAD_FILE_SYNC_SIZE_LIMIT_MB
-              value: 20
+              value: "20"
             - name: ACTUAL_UPLOAD_SYNC_ENCRYPTED_FILE_SYNC_SIZE_LIMIT_MB
-              value: 50
+              value: "50"
             - name: ACTUAL_UPLOAD_FILE_SIZE_LIMIT_MB
-              value: 20
+              value: "20"
             - name: ACTUAL_LOGIN_METHOD
               value: openid
             - name: ACTUAL_ALLOWED_LOGIN_METHODS
