@@ -35,11 +35,11 @@ spec:
       username: netbox
       existingSecretName: netbox-secret
       existingSecretKey: dbPassword
-    redis:
+    valkey:
       enabled: false
-    tasksRedis:
+    tasksDatabase:
       host: redis-1.cluster.lorenzolab.com
-    cachingRedis:
+    cachingDatabase:
       host: redis-1.cluster.lorenzolab.com
     persistence:
       accessMode: ReadWriteMany
