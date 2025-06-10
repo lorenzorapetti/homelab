@@ -1,0 +1,23 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: actualbudget
+  namespace: actual
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`actual.lorenzolab.com`)
+      services:
+        - kind: Service
+          name: actualbudget
+          namespace: actual
+          passHostHeader: true
+          port: 5006
+          scheme: https
+          healthCheck:
+            path: /
+            interval: 15s
+  tls:
+    secretName: actual-certificate-secret
