@@ -44,7 +44,7 @@ spec:
               - auth.lorenzolab.com
             secretName: auth-certificate-secret
       volumes:
-        - name: guthentik-db-creds
+        - name: authentik-db-creds
           secret:
             secretName: authentik-db-credentials
         - name: authentik-email-creds
