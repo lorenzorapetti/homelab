@@ -17,6 +17,7 @@ spec:
     existingSecret: pgadmin-secret
     persistentVolume:
       storageClass: longhorn
+      existingClaim: pgadmin-pgadmin4
     ingress:
       enabled: true
       annotations:
