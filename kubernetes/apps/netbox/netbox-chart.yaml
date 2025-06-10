@@ -20,7 +20,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: netbox-repo
-      version: "5.0.71"
+      version: "6.0.30"
   interval: 1h
   values:
     global:
@@ -35,11 +35,11 @@ spec:
       username: netbox
       existingSecretName: netbox-secret
       existingSecretKey: dbPassword
-    redis:
+    valkey:
       enabled: false
-    tasksRedis:
+    tasksDatabase:
       host: redis-1.cluster.lorenzolab.com
-    cachingRedis:
+    cachingDatabase:
       host: redis-1.cluster.lorenzolab.com
     persistence:
       accessMode: ReadWriteMany
