@@ -23,7 +23,7 @@ spec:
       tls:
         - hosts:
             - grafana.home.lorenzolab.com
-          secretName: home-certificate-secret
+          secretName: grafana-certificate-secret
     admin:
       existingSecret: grafana-admin-secret
     grafana.ini:
