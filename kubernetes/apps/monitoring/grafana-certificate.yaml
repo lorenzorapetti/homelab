@@ -2,7 +2,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: grafana-certificate
-  namespace: actual
+  namespace: monitoring
 spec:
   # Secret names are always required.
   secretName: grafana-certificate-secret
