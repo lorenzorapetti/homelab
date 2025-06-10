@@ -38,7 +38,7 @@ spec:
         annotations:
           traefik.ingress.kubernetes.io/router.entrypoints: websecure
         hosts:
-          - host: auth.lorenzolab.com
+          - auth.lorenzolab.com
         tls:
           - hosts:
               - auth.lorenzolab.com
