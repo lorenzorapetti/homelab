@@ -61,7 +61,7 @@ spec:
           mountPath: /authentik-email-creds
           readOnly: true
         - name: authentik-secret-key
-          mountPath: /key
+          mountPath: /authentik-secret-key
           readOnly: true
     worker:
       volumes:
@@ -82,5 +82,5 @@ spec:
           mountPath: /authentik-email-creds
           readOnly: true
         - name: authentik-secret-key
-          mountPath: /key
+          mountPath: /authentik-secret-key
           readOnly: true
