@@ -32,6 +32,9 @@ spec:
       server:
         domain: grafana.home.lorenzolab.com
         root_url: https://grafana.home.lorenzolab.com
+      users:
+        auto_assign_org: true
+        auto_assign_org_role: Viewer
       auth.generic_oauth:
         name: authentik
         enabled: true
@@ -43,6 +46,7 @@ spec:
         client_id: "$__file{/etc/secrets/grafana_oauth_credentials/client_id}"
         client_secret: "$__file{/etc/secrets/grafana_oauth_credentials/client_secret}"
         scopes: openid,profile,email
+        role_attribute_path: "contains(groups, 'Grafana Admins') && 'Admin' || contains(groups, 'Grafana Editors') && 'Editor' || 'Viewer'"
     persistence:
       type: pvc
       storageClassName: longhorn
