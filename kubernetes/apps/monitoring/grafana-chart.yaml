@@ -42,6 +42,7 @@ spec:
         api_url: "https://auth.lorenzolab.com/application/o/userinfo/"
         client_id: "$__file{/etc/secrets/grafana_oauth_credentials/client_id}"
         client_secret: "$__file{/etc/secrets/grafana_oauth_credentials/client_secret}"
+        scopes: openid,profile,email
     persistence:
       type: pvc
       storageClassName: longhorn
