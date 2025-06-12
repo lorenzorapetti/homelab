@@ -29,6 +29,17 @@ spec:
     grafana.ini:
       server:
         domain: grafana.home.lorenzolab.com
+      auth:
+        signout_redirect_url: "https://auth.lorenzolab.com/application/o/grafana/end-session/"
+        oauth_auto_login: true
+      auth.generic_oauth:
+        name: authentik
+        enabled: true
+        auth_url: "https://auth.lorenzolab.com/application/o/authorize/"
+        token_url: "https://auth.lorenzolab.com/application/o/token/"
+        api_url: "https://auth.lorenzolab.com/application/o/userinfo/"
+        client_id: "$__file{/etc/secrets/grafana_oauth_credentials/client_id}"
+        client_secret: "$__file{/etc/secrets/grafana_oauth_credentials/client_secret}"
     persistence:
       type: pvc
       storageClassName: longhorn
@@ -37,3 +48,9 @@ spec:
       - grafana-clock-panel
       - redis-explorer-app
       - redis-app
+    extraSecretMounts:
+      - name: grafana-oauth-credentials
+        secretName: grafana-oauth-secret
+        defaultMode: 0440
+        mountPath: /etc/secrets/grafana_oauth_credentials
+        readOnly: true

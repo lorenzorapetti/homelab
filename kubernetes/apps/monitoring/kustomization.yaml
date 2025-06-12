@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - grafana-certificate.yaml
+  - grafana-oauth-secret.yaml
   - grafana-admin-secret.yaml
   - grafana-repository.yaml
   - grafana-chart.yaml
