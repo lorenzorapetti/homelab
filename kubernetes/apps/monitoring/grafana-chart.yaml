@@ -31,6 +31,7 @@ spec:
     grafana.ini:
       server:
         domain: grafana.home.lorenzolab.com
+        root_url: https://grafana.home.lorenzolab.com
       auth.generic_oauth:
         name: authentik
         enabled: true
