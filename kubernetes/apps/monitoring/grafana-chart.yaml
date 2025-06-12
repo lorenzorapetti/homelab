@@ -47,6 +47,10 @@ spec:
         client_secret: "$__file{/etc/secrets/grafana_oauth_credentials/client_secret}"
         scopes: openid,profile,email
         role_attribute_path: "contains(groups, 'Grafana Admins') && 'Admin' || contains(groups, 'Grafana Editors') && 'Editor' || 'Viewer'"
+        login_attribute_path: preferred_username
+        name_attribute_path: name
+        email_attribute_path: email
+        groups_attribute_path: groups
     persistence:
       type: pvc
       storageClassName: longhorn
