@@ -8,6 +8,8 @@ spec:
     providers:
       kubernetesGateway:
         enabled: true
+      kubernetesCRD:
+        allowCrossNamespace: true
     gateway:
       namespacePolicy: All
     ingressRoute:
@@ -20,8 +22,7 @@ spec:
         tls:
           secretName: traefik-dashboard-certificate-secret
         middlewares:
-          - name: authentik
-            namespace: auth
+          - name: auth-authentik@kubernetescrd
     ports:
       web:
         redirections:
