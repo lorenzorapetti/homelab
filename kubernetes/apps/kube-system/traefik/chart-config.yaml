@@ -19,6 +19,9 @@ spec:
           - websecure
         tls:
           secretName: traefik-dashboard-certificate-secret
+        middlewares:
+          - name: authentik
+            namespace: auth
     ports:
       web:
         redirections:
