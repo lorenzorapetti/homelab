@@ -20,7 +20,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: netbox-repo
-      version: "6.0.31"
+      version: "6.0.35"
   interval: 1h
   values:
     global:
