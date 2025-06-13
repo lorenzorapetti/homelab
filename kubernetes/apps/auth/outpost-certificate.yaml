@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: authentik-outpost-tls
+  namespace: auth
+spec:
+  secretName: authentik-outpost-tls
+  issuerRef:
+    name: cloudflare-cluster-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.home.lorenzolab.com"

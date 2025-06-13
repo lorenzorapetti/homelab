@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - certificate.yaml
+  - outpost-certificate.yaml
   - db-credentials.yaml
   - email-credentials.yaml
   - secret-key.yaml
