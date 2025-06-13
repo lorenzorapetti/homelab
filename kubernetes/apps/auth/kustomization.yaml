@@ -4,6 +4,7 @@ resources:
   - namespace.yaml
   - certificate.yaml
   - outpost-certificate.yaml
+  - authentik-middleware.yaml
   - db-credentials.yaml
   - email-credentials.yaml
   - secret-key.yaml
