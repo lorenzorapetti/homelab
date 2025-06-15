@@ -23,7 +23,7 @@ spec:
     - name: mattermost-operator
       namespace: mattermost
   targetNamespace: *namespace
-  timeout: 5m
+  timeout: 30m
   healthChecks:
     - apiVersion: apps/v1
       kind: Deployment
