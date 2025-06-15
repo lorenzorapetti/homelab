@@ -22,6 +22,8 @@ spec:
       namespace: kube-system
     - name: cert-manager
       namespace: cert-manager
+    - name: longhorn
+      namespace: longhorn-system
   targetNamespace: *namespace
   timeout: 5m
   healthChecks:
