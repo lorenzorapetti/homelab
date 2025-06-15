@@ -27,9 +27,6 @@ spec:
       kind: HelmRelease
       name: *app
       namespace: *namespace
-    - apiVersion: cert-manager.io/v1
-      kind: ClusterIssuer
-      name: cloudflare-cluster-issuer
     - apiVersion: apps/v1
       kind: Deployment
       name: cert-manager
