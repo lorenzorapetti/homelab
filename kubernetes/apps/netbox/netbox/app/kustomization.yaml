@@ -2,8 +2,9 @@
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: mattermost
+namespace: netbox
 resources:
-  - ./namespace.yaml
-  - ./mattermost-operator/ks.yaml
-  - ./mattermost/ks.yaml
+  - ./netbox-secret.yaml
+  - ./netbox-certificate.yaml
+  - ./helmrepository.yaml
+  - ./helmrelease.yaml

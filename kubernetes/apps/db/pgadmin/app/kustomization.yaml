@@ -2,8 +2,10 @@
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: mattermost
+namespace: db
 resources:
-  - ./namespace.yaml
-  - ./mattermost-operator/ks.yaml
-  - ./mattermost/ks.yaml
+  - ./pgadmin-certificate.yaml
+  - ./pgadmin-secret.yaml
+  - ./pvc.yaml
+  - ./helmrepository.yaml
+  - ./helmrelease.yaml

@@ -1,0 +1,88 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: authentik
+  namespace: auth
+spec:
+  chart:
+    spec:
+      chart: authentik
+      sourceRef:
+        kind: HelmRepository
+        name: authentik
+      version: "2025.6.1"
+  interval: 1h
+  values:
+    authentik:
+      error_reporting:
+        enabled: false
+      postgresql:
+        name: authentik
+        host: db-1.cluster.lorenzolab.com
+        user: file:///authentik-db-creds/username
+        password: file:///authentik-db-creds/password
+      redis:
+        host: redis-1.cluster.lorenzolab.com
+      email:
+        from: "Authentik authentik@transactional.lorenzolab.com"
+        host: smtp.resend.com
+        port: 2587
+        use_tls: true
+        username: file:///authentik-email-creds/username
+        password: file:///authentik-email-creds/password
+      secret_key: file:///authentik-secret-key/key
+    server:
+      ingress:
+        enabled: true
+        ingressClassName: traefik
+        annotations:
+          traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        hosts:
+          - auth.lorenzolab.com
+        tls:
+          - hosts:
+              - auth.lorenzolab.com
+            secretName: auth-certificate-secret
+      volumes:
+        - name: authentik-db-creds
+          secret:
+            secretName: authentik-db-credentials
+        - name: authentik-email-creds
+          secret:
+            secretName: authentik-email-credentials
+        - name: authentik-secret-key
+          secret:
+            secretName: authentik-secret-key
+      volumeMounts:
+        - name: authentik-db-creds
+          mountPath: /authentik-db-creds
+          readOnly: true
+        - name: authentik-email-creds
+          mountPath: /authentik-email-creds
+          readOnly: true
+        - name: authentik-secret-key
+          mountPath: /authentik-secret-key
+          readOnly: true
+    worker:
+      volumes:
+        - name: authentik-db-creds
+          secret:
+            secretName: authentik-db-credentials
+        - name: authentik-email-creds
+          secret:
+            secretName: authentik-email-credentials
+        - name: authentik-secret-key
+          secret:
+            secretName: authentik-secret-key
+      volumeMounts:
+        - name: authentik-db-creds
+          mountPath: /authentik-db-creds
+          readOnly: true
+        - name: authentik-email-creds
+          mountPath: /authentik-email-creds
+          readOnly: true
+        - name: authentik-secret-key
+          mountPath: /authentik-secret-key
+          readOnly: true

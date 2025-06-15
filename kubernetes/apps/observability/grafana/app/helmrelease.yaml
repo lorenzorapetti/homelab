@@ -1,0 +1,69 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  chart:
+    spec:
+      chart: grafana
+      reconcileStrategy: ChartVersion
+      sourceRef:
+        kind: HelmRepository
+        name: grafana-repo
+      version: "9.2.3"
+  interval: 1h
+  values:
+    deploymentStrategy:
+      type: Recreate
+    ingress:
+      enabled: true
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      hosts:
+        - grafana.home.lorenzolab.com
+      tls:
+        - hosts:
+            - grafana.home.lorenzolab.com
+          secretName: grafana-certificate-secret
+    admin:
+      existingSecret: grafana-admin-secret
+    grafana.ini:
+      server:
+        domain: grafana.home.lorenzolab.com
+        root_url: https://grafana.home.lorenzolab.com
+      users:
+        auto_assign_org: true
+        auto_assign_org_role: Viewer
+      auth.generic_oauth:
+        name: authentik
+        enabled: true
+        auto_login: true
+        signout_redirect_url: "https://auth.lorenzolab.com/application/o/grafana/end-session/"
+        auth_url: "https://auth.lorenzolab.com/application/o/authorize/"
+        token_url: "https://auth.lorenzolab.com/application/o/token/"
+        api_url: "https://auth.lorenzolab.com/application/o/userinfo/"
+        client_id: "$__file{/etc/secrets/grafana_oauth_credentials/client_id}"
+        client_secret: "$__file{/etc/secrets/grafana_oauth_credentials/client_secret}"
+        scopes: openid,profile,email
+        role_attribute_path: "contains(groups, 'Grafana Admins') && 'Admin' || contains(groups, 'Grafana Editors') && 'Editor' || 'Viewer'"
+        login_attribute_path: preferred_username
+        name_attribute_path: name
+        email_attribute_path: email
+        groups_attribute_path: groups
+    persistence:
+      type: pvc
+      storageClassName: longhorn
+      enabled: true
+    plugins:
+      - grafana-clock-panel
+      - redis-explorer-app
+      - redis-app
+    extraSecretMounts:
+      - name: grafana-oauth-credentials
+        secretName: grafana-oauth-secret
+        defaultMode: 0440
+        mountPath: /etc/secrets/grafana_oauth_credentials
+        readOnly: true

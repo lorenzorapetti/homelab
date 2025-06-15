@@ -1,12 +1,8 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: auth
 resources:
-  - namespace.yaml
-  - certificate.yaml
-  - outpost-certificate.yaml
-  - authentik-middleware.yaml
-  - db-credentials.yaml
-  - email-credentials.yaml
-  - secret-key.yaml
-  - chart-repo.yaml
-  - chart-release.yaml
+  - ./namespace.yaml
+  - ./authentik/ks.yaml

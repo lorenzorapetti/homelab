@@ -4,6 +4,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: mattermost
 resources:
-  - ./namespace.yaml
-  - ./mattermost-operator/ks.yaml
-  - ./mattermost/ks.yaml
+  - ./mattermost-db-secret.yaml
+  - ./mattermost-filestore-secret.yaml
+  - ./mattermost-certificate.yaml
+  - ./installation.yaml
