@@ -6,4 +6,3 @@ resources:
   - ./helmrepository.yaml
   - ./helmrelease.yaml
   - ./cloudflare-secret.yaml
-  - ./cluster-issuer.yaml
