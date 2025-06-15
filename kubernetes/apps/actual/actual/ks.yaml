@@ -29,10 +29,6 @@ spec:
   targetNamespace: *namespace
   timeout: 5m
   healthChecks:
-    - apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      name: *app
-      namespace: *namespace
     - apiVersion: apps/v1
       kind: Deployment
       name: actualbudget

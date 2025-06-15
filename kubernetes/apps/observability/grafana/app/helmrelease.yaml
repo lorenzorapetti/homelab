@@ -12,7 +12,7 @@ spec:
       reconcileStrategy: ChartVersion
       sourceRef:
         kind: HelmRepository
-        name: grafana-repo
+        name: grafana
       version: "9.2.3"
   interval: 1h
   values:
