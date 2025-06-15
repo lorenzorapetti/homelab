@@ -11,7 +11,7 @@ spec:
       chart: netbox
       sourceRef:
         kind: HelmRepository
-        name: netbox-repo
+        name: netbox
       version: "6.0.31"
   interval: 1h
   values:

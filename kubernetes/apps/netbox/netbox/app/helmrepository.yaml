@@ -3,7 +3,7 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
-  name: netbox-repo
+  name: netbox
   namespace: netbox
 spec:
   interval: 1h

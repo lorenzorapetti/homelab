@@ -13,3 +13,16 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
+  patches:
+    - # Add Sops decryption to child Kustomizations
+      patch: |-
+        apiVersion: kustomize.toolkit.fluxcd.io/v1
+        kind: Kustomization
+        spec:
+          decryption:
+            provider: sops
+            secretRef:
+              name: sops-age
+      target:
+        group: kustomize.toolkit.fluxcd.io
+        kind: Kustomization
