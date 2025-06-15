@@ -20,7 +20,7 @@ spec:
   dependsOn:
     - name: sealed-secrets
       namespace: kube-system
-    - name: cert-manager
+    - name: cluster-issuer
       namespace: cert-manager
     - name: mattermost-operator
       namespace: mattermost
