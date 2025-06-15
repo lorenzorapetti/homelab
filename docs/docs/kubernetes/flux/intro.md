@@ -18,7 +18,7 @@ Follow the [Install k3s](/kubernetes/getting-started/install-k3s#kubectl-and-uti
 If you have a repo with the Flux manifests already present and you saved the private key secret, you first need to apply the secret to the cluster (I saved mine in 1password):
 
 ```bash
-op document get --vault Homelab "Flux Key" | kubectl apply -f -
+kubectl create ns flux-system && op document get --vault Homelab "Flux Key" | kubectl apply -f -
 ```
 
 Then, you can apply the Flux manifests:
