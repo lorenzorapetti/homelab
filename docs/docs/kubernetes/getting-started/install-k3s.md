@@ -70,8 +70,8 @@ kubectl get nodes
 You should see something like this:
 
 ```bash
-NAME           STATUS   ROLES                  AGE   VERSION
-k8s-master-1   Ready    control-plane,master   38h   v1.33.1+k3s1
+NAME           STATUS   ROLES                       AGE   VERSION
+k8s-master-1   Ready    control-plane,etcd,master   38h   v1.33.1+k3s1
 ```
 
 Once you have the master node up and running, you can let the other nodes join the cluster with:
@@ -113,10 +113,10 @@ k3sup join \
 Now you should see all the worker nodes together with the master:
 
 ```bash
-NAME           STATUS   ROLES                  AGE   VERSION
-k8s-master-1   Ready    control-plane,master   38h   v1.33.1+k3s1
-k8s-master-2   Ready    control-plane,master   38h   v1.33.1+k3s1
-k8s-master-3   Ready    control-plane,master   38h   v1.33.1+k3s1
+NAME           STATUS   ROLES                       AGE   VERSION
+k8s-master-1   Ready    control-plane,etcd,master   38h   v1.33.1+k3s1
+k8s-master-2   Ready    control-plane,etcd,master   38h   v1.33.1+k3s1
+k8s-master-3   Ready    control-plane,etcd,master   38h   v1.33.1+k3s1
 ```
 
 To see more installation options, you can check the [`k3sup` GitHub page](https://github.com/alexellis/k3sup#-setup-a-kubernetes-server-with-k3sup).
