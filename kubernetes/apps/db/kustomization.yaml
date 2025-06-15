@@ -6,8 +6,3 @@ namespace: db
 resources:
   - ./namespace.yaml
   - ./pgadmin/ks.yaml
-  - pgadmin-certificate.yaml
-  - pgadmin-secret.yaml
-  - pvc.yaml
-  - pgadmin-repository.yaml
-  - pgadmin-release.yaml
