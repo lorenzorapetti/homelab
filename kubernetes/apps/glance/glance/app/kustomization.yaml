@@ -6,7 +6,7 @@ configMapGenerator:
   - name: glance-config
     namespace: glance
     files:
-      - glance.yaml
+      - glance.yml:glance.yaml
 resources:
   - ./serviceaccount.yaml
   - ./glance-certificate.yaml
