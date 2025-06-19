@@ -5,6 +5,7 @@ metadata:
   namespace: glance
 spec:
   entryPoints:
+    - web
     - websecure
   routes:
     - kind: Rule
@@ -14,3 +15,5 @@ spec:
           port: 8080
   tls:
     secretName: glance-certificate-secret
+  middlewares:
+    - name: auth-authentik@kubernetescrd
