@@ -13,7 +13,7 @@ spec:
       services:
         - name: glance
           port: 8080
+      middlewares:
+        - name: auth-authentik@kubernetescrd
   tls:
     secretName: glance-certificate-secret
-  middlewares:
-    - name: auth-authentik@kubernetescrd
