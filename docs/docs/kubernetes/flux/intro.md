@@ -25,7 +25,7 @@ Then, you can apply the Flux manifests:
 
 :::warning
 
-Remember to [apply the Sealed Secrets private key](/kubernetes/sealed-secrets#existing-repository) first! `sealed-secrets-controller` needs it to be able to decrypt `SealedSecrets` objects.
+Remember to [apply the SOPS secret](/kubernetes/sops) first!
 
 :::
 
