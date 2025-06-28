@@ -10,6 +10,7 @@ configMapGenerator:
 resources:
   - ./serviceaccount.yaml
   - ./glance-certificate.yaml
+  - ./glance-keys.yaml
   - ./deployment.yaml
   - ./service.yaml
   - ./route.yaml
