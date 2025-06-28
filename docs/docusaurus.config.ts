@@ -14,6 +14,17 @@ const config: Config = {
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
 
+  future: {
+    v4: {
+      removeLegacyPostBuildHeadAttribute: true,
+    },
+    experimental_faster: {
+      rspackBundler: true,
+      rspackPersistentCache: true,
+      ssgWorkerThreads: true,
+    },
+  },
+
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
   // may want to replace "en" with "zh-Hans".
@@ -81,7 +92,7 @@ const config: Config = {
       apiKey: '86136a49cafc657a4ad224ecb945de54',
 
       indexName: 'lorenzolab',
-    }
+    },
   } satisfies Preset.ThemeConfig,
 };
 
