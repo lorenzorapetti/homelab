@@ -34,10 +34,7 @@ spec:
     cachingDatabase:
       host: redis-1.cluster.lorenzolab.com
     persistence:
-      accessMode: ReadWriteMany
-    reportsPersistence:
-      accessMode: ReadWriteMany
-    scriptsPersistence:
+      existingClaim: netbox-media
       accessMode: ReadWriteMany
     ingress:
       enabled: true
