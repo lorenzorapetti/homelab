@@ -18,28 +18,50 @@ pages:
               - url: https://selfh.st/rss/
                 title: selfh.st
                 limit: 4
-              - url: https://ciechanow.ski/atom.xml
               - url: https://www.joshwcomeau.com/rss.xml
                 title: Josh Comeau
               - url: https://samwho.dev/rss.xml
-              - url: https://ishadeed.com/feed.xml
-                title: Ahmad Shadeed
 
           - type: twitch-channels
             channels:
               - theprimeagen
-              - j_blow
-              - piratesoftware
-              - cohhcarnage
+              - heyandras
               - christitustech
-              - EJ_SA
+              - theo
+              - geega
 
       - size: full
         widgets:
+          - type: search
+            new-tab: true
+            search-engine: duckduckgo
+            bangs:
+              - title: YouTube
+                shortcut: ":y"
+                url: https://www.youtube.com/results?search_query={QUERY}
+              - title: Reddit
+                shortcut: ":r"
+                url: https://www.reddit.com/search/?q={QUERY}
+              - title: GitHub
+                shortcut: ":g"
+                url: https://github.com/search?q={QUERY}
+              - title: Perplexity
+                shortcut: ":p"
+                url: https://perplexity.ai/search?q={QUERY}
+
           - type: group
             widgets:
               - type: hacker-news
               - type: lobsters
+              - type: reddit
+                subreddit: selfhosted
+                show-thumbnails: true
+              - type: reddit
+                subreddit: homelab
+                show-thumbnails: true
+              - type: reddit
+                subreddit: technology
+                show-thumbnails: true
 
           - type: videos
             channels:
@@ -49,36 +71,22 @@ pages:
               - UCBJycsmduvYEL83R_U4JriQ # Marques Brownlee
               - UCHnyfMqiRRG1u-2MsSQLbXA # Veritasium
 
-          - type: group
-            widgets:
-              - type: reddit
-                subreddit: technology
-                show-thumbnails: true
-              - type: reddit
-                subreddit: selfhosted
-                show-thumbnails: true
-
       - size: small
         widgets:
           - type: weather
-            location: London, United Kingdom
+            location: Latina, Italy
             units: metric # alternatively "imperial"
-            hour-format: 12h # alternatively "24h"
+            hour-format: 24h # alternatively "12h"
             # Optionally hide the location from being displayed in the widget
-            # hide-location: true
+            hide-location: true
 
-          - type: markets
-            markets:
-              - symbol: SPY
-                name: S&P 500
-              - symbol: BTC-USD
-                name: Bitcoin
-              - symbol: NVDA
-                name: NVIDIA
-              - symbol: AAPL
-                name: Apple
-              - symbol: MSFT
-                name: Microsoft
+          - type: bookmarks
+            groups:
+              - links:
+                  - title: Home Assistant
+                    url: https://ha.francescorapetti.dev
+                  - title: Immich
+                    url: https://photos.lorenzorapetti.com
 
           - type: releases
             cache: 1d
@@ -87,9 +95,161 @@ pages:
             # token: ...
             repositories:
               - glanceapp/glance
-              - go-gitea/gitea
+              - gethomepage/homepage
               - immich-app/immich
-              - syncthing/syncthing
+              - jellyfin/jellyfin
+
+  - name: Media
+    columns:
+      - size: small
+        widgets:
+          - type: custom-api
+            title: Immich stats
+            cache: 1d
+            url: https://photos.lorenzorapetti.com/api/server/statistics
+            headers:
+              x-api-key: ${GLANCE_IMMICH_KEY}
+              Accept: application/json
+            template: |
+              <div class="flex justify-between text-center">
+                <div>
+                  <div class="color-highlight size-h3">{{ .JSON.Int "photos" | formatNumber }}</div>
+                    <div class="size-h6">PHOTOS</div>
+                  </div>
+                  <div>
+                  <div class="color-highlight size-h3">{{ .JSON.Int "videos" | formatNumber }}</div>
+                    <div class="size-h6">VIDEOS</div>
+                  </div>
+                <div>
+                <div class="color-highlight size-h3">{{ div (.JSON.Int "usage" | toFloat) 1073741824 | toInt | formatNumber }}GB</div>
+                  <div class="size-h6">USAGE</div>
+                </div>
+              </div>
+
+      - size: full
+        widgets:
+          - type: split-column
+            widgets:
+              - type: monitor
+                title: Media
+                sites:
+                  - title: Opencloud
+                    # Temporary until i deploy opencloud
+                    url: https://google.com
+                    icon: sh:opencloud
+                  - title: Immich
+                    url: https://photos.lorenzorapetti.com
+                    icon: sh:immich
+                  - title: Jellyfin
+                    url: https://media.lorenzorapetti.com
+                    icon: sh:jellyfin
+                  - title: Audiobookshelf
+                    url: https://books.lorenzorapetti.com
+                    icon: sh:audiobookshelf
+                  - title: Kavita
+                    url: https://kavita.lorenzorapetti.com
+                    icon: sh:kavita
+              - type: monitor
+                title: Media Management
+                sites:
+                  - title: Qbittorrent
+                    url: https://torrent.h.lorenzorapetti.com
+                    icon: sh:qbittorrent
+                  - title: Jellyseerr
+                    url: https://jellyseerr.h.lorenzorapetti.com
+                    icon: sh:jellyseerr
+                  - title: Radarr
+                    url: https://radarr.h.lorenzorapetti.com
+                    icon: sh:radarr
+                  - title: Sonarr
+                    url: https://sonarr.h.lorenzorapetti.com
+                    icon: sh:sonarr
+                  - title: Prowlarr
+                    url: https://prowlarr.h.lorenzorapetti.com
+                    icon: sh:prowlarr
+
+      - size: small
+        widgets:
+          - type: bookmarks
+            groups:
+              - links:
+                  - title: IMDb
+                    url: https://imdb.com
+                  - title: The Movie Database
+                    url: https://www.themoviedb.org
+
+  - name: Homelab
+    columns:
+      - size: small
+        widgets:
+
+      - size: full
+        widgets:
+          - type: monitor
+            title: Infrastructure
+            sites:
+              - title: Proxmox
+                url: https://10.0.2.1:8006
+                allow-insecure: true
+                icon: sh:proxmox
+              - title: Unraid
+                url: http://10.0.1.10
+                icon: sh:unraid
+              - title: AdGuard Home
+                url: https://dns.h.lorenzorapetti.com
+                icon: sh:adguard-home
+              - title: Remote AdGuard Home
+                url: https://dns.lorenzorapetti.com
+                icon: sh:adguard-home
+              - title: Nginx Proxy Manager
+                url: https://proxy.h.lorenzorapetti.com
+                icon: sh:nginx-proxy-manager
+              - title: Remote Nginx Proxy Manager
+                url: https://proxy.lorenzorapetti.com
+                icon: sh:nginx-proxy-manager
+              - title: Traefik
+                url: https://traefik.home.lorenzolab.com
+                icon: sh:traefik
+              - title: Longhorn
+                url: https://longhorn.home.lorenzolab.com
+                icon: sh:rancher-longhorn
+              - title: Grafana
+                url: https://grafana.home.lorenzolab.com
+                icon: sh:grafana
+              - title: Uptime Kuma
+                url: https://status.lorenzorapetti.com
+                icon: sh:uptime-kuma
+              - title: PGAdmin
+                url: https://pgadmin.home.lorenzolab.com
+                icon: sh:pgadmin
+          - type: monitor
+            title: Apps
+            sites:
+              - title: Actual Budget
+                url: https://actual.lorenzolab.com
+                icon: sh:actual-budget
+              - title: Linkwarden
+                url: https://links.lorenzorapetti.com
+                icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/linkwarden.png
+              - title: MySpeed
+                url: https://speed.h.lorenzorapetti.com
+                icon: https://cdn.jsdelivr.net/gh/selfhst/icons/png/myspeed.png
+              - title: Mattermost
+                url: https://mattermost.lorenzolab.com
+                icon: sh:mattermost
+              - title: Authentik
+                url: https://auth.lorenzolab.com
+                icon: sh:authentik
+              - title: Netbox
+                url: https://netbox.home.lorenzolab.com
+                icon: sh:netbox
+              - title: n8n
+                url: https://n8n.lorenzorapetti.com
+                icon: sh:n8n
+
+      - size: small
+        widgets:
+          # Add widgets here
 
   # Add more pages here:
   # - name: Your page name
