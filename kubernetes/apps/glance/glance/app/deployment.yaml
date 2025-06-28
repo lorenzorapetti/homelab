@@ -49,8 +49,9 @@ spec:
           volumeMounts:
             - name: glance-config
               mountPath: /app/config
-          # envFrom:
-          #   - secretRef: glance-keys
+          envFrom:
+            - secretRef:
+                name: glance-keys
       volumes:
         - name: glance-config
           configMap:
