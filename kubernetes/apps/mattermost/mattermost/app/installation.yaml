@@ -20,4 +20,4 @@ spec:
       url: minio.lorenzolab.com
       bucket: mattermost
       secret: mattermost-filestore-secret
-  version: 10.8.1
+  version: 10.9.1
