@@ -13,7 +13,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: grafana
-      version: "9.2.9"
+      version: "9.2.10"
   interval: 1h
   values:
     deploymentStrategy:
