@@ -7,5 +7,6 @@ resources:
   - ./netbox-secret.yaml
   - ./netbox-certificate.yaml
   - ./pvc.yaml
+  - ./ceph-pvc.yaml
   - ./helmrepository.yaml
   - ./helmrelease.yaml
