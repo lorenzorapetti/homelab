@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: pgadmin
+  name: pgadmin-pvc
   namespace: db
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   volumeMode: Filesystem
   resources:
     requests:
       storage: 10Gi
-  storageClassName: longhorn
+  storageClassName: ceph-rbd
