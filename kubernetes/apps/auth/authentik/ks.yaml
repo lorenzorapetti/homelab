@@ -22,8 +22,6 @@ spec:
       namespace: cert-manager
     - name: traefik
       namespace: kube-system
-    - name: longhorn
-      namespace: longhorn-system
   targetNamespace: *namespace
   timeout: 20m
   healthChecks:
