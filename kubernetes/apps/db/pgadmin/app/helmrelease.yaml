@@ -16,6 +16,8 @@ spec:
       version: "1.47.0"
   interval: 1h
   values:
+    strategy:
+      type: Recreate
     existingSecret: pgadmin-secret
     persistentVolume:
       storageClass: longhorn

@@ -7,5 +7,6 @@ resources:
   - ./pgadmin-certificate.yaml
   - ./pgadmin-secret.yaml
   - ./pvc.yaml
+  - ./ceph-pvc.yaml
   - ./helmrepository.yaml
   - ./helmrelease.yaml
