@@ -20,8 +20,7 @@ spec:
       type: Recreate
     existingSecret: pgadmin-secret
     persistentVolume:
-      storageClass: longhorn
-      existingClaim: pgadmin
+      existingClaim: pgadmin-pvc
     ingress:
       enabled: true
       annotations:
