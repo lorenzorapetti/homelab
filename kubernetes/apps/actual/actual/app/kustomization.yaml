@@ -7,7 +7,6 @@ resources:
   - ./openid-secret.yaml
   - ./actual-certificate.yaml
   - ./actual-pvc.yaml
-  - ./actual-ceph-pvc.yaml
   - ./deployment.yaml
   - ./service.yaml
   - ./route.yaml

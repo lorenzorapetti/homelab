@@ -1,13 +1,14 @@
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: actualbudget-volume
+  name: actualbudget
   namespace: actual
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   volumeMode: Filesystem
   resources:
     requests:
       storage: 10Gi
-  storageClassName: longhorn
+  storageClassName: ceph-rbd
