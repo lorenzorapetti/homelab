@@ -6,3 +6,4 @@ resources:
   - ./csi-config-map.yaml
   - ./csi-kms-config-map.yaml
   - ./ceph-config-map.yaml
+  - ./csi-rbd-secret.yaml
