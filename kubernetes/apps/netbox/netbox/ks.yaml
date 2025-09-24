@@ -20,8 +20,8 @@ spec:
   dependsOn:
     - name: cluster-issuer
       namespace: cert-manager
-    - name: longhorn
-      namespace: longhorn-system
+    - name: ceph
+      namespace: ceph
   targetNamespace: *namespace
   timeout: 30m
   healthChecks:

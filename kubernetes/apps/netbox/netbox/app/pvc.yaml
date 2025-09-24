@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: netbox-media
+  name: netbox
   namespace: netbox
 spec:
   accessModes:
@@ -10,4 +10,4 @@ spec:
   resources:
     requests:
       storage: 20Gi
-  storageClassName: longhorn-static
+  storageClassName: cephfs
