@@ -7,8 +7,14 @@ resources:
   - ./csi-kms-config-map.yaml
   - ./ceph-config-map.yaml
   - ./csi-rbd-secret.yaml
+  - ./csi-cephfs-secret.yaml
   - ./csi-provisioner-rbac.yaml
   - ./csi-nodeplugin-rbac.yaml
   - ./csi-rbdplugin-provisioner.yaml
   - ./csi-rbdplugin.yaml
-  - ./ceph-rbd-sc.yaml
+  - ./csi-rbddriver.yaml
+  - ./csi-cephfsplugin-provisioner.yaml
+  - ./csi-cephfsplugin.yaml
+  - ./csi-cephfsdriver.yaml
+  - ./rbd-sc.yaml
+  - ./cephfs-sc.yaml

@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rbd-csi-provisioner
+  name: csi-provisioner
   # replace with non-default namespace name
   namespace: ceph
 
@@ -10,7 +10,7 @@ metadata:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rbd-external-provisioner-runner
+  name: external-provisioner-runner
 rules:
   - apiGroups: [""]
     resources: ["nodes"]
@@ -85,15 +85,15 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rbd-csi-provisioner-role
+  name: csi-provisioner-role
 subjects:
   - kind: ServiceAccount
-    name: rbd-csi-provisioner
+    name: csi-provisioner
     # replace with non-default namespace name
     namespace: ceph
 roleRef:
   kind: ClusterRole
-  name: rbd-external-provisioner-runner
+  name: external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 
 ---
@@ -102,7 +102,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   # replace with non-default namespace name
   namespace: ceph
-  name: rbd-external-provisioner-cfg
+  name: external-provisioner-cfg
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -115,15 +115,15 @@ rules:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rbd-csi-provisioner-role-cfg
+  name: csi-provisioner-role-cfg
   # replace with non-default namespace name
   namespace: ceph
 subjects:
   - kind: ServiceAccount
-    name: rbd-csi-provisioner
+    name: csi-provisioner
     # replace with non-default namespace name
     namespace: ceph
 roleRef:
   kind: Role
-  name: rbd-external-provisioner-cfg
+  name: external-provisioner-cfg
   apiGroup: rbac.authorization.k8s.io
