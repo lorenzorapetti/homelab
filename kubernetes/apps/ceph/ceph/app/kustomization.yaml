@@ -11,3 +11,4 @@ resources:
   - ./csi-nodeplugin-rbac.yaml
   - ./csi-rbdplugin-provisioner.yaml
   - ./csi-rbdplugin.yaml
+  - ./ceph-rbd-sc.yaml
