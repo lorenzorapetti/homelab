@@ -18,4 +18,21 @@ spec:
     name: flux-system
     namespace: flux-system
   targetNamespace: *namespace
-  timeout: 15m
+  timeout: 1h
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: csi-rbdplugin-provisioner
+      namespace: *namespace
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: csi-cephfsplugin-provisioner
+      namespace: *namespace
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: csi-rbdplugin
+      namespace: *namespace
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: csi-cephfsplugin
+      namespace: *namespace
