@@ -13,7 +13,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: pgadmin
-      version: "1.47.0"
+      version: "1.50.0"
   interval: 1h
   values:
     strategy:
