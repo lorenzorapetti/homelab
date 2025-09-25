@@ -26,6 +26,11 @@ spec:
     matchLabels:
       app: csi-cephfsplugin-provisioner
   replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
   template:
     metadata:
       labels:

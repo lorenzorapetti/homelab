@@ -24,6 +24,11 @@ metadata:
   # replace with non-default namespace name
   namespace: ceph
 spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 0
   replicas: 3
   selector:
     matchLabels:
