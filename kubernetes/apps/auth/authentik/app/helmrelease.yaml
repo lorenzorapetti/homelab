@@ -12,7 +12,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: authentik
-      version: "2025.6.3"
+      version: "2025.8.3"
   interval: 1h
   values:
     authentik:
