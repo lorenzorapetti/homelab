@@ -14,4 +14,4 @@ configMapGenerator:
     files:
       - values.yaml=./resources/values.yaml
 configurations:
-  - kustomizaconfig.yaml
+  - kustomizeconfig.yaml
