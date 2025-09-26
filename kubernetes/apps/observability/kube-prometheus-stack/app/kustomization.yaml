@@ -5,12 +5,14 @@ kind: Kustomization
 namespace: observability
 resources:
   - ./grafana-certificate.yaml
+  - ./prometheus-certificate.yaml
+  - ./alertmanager-certificate.yaml
   - ./grafana-oauth-secret.yaml
   - ./grafana-admin-secret.yaml
   - ./helmrepository.yaml
   - ./helmrelease.yaml
 configMapGenerator:
-  - name: grafana-values
+  - name: kube-prometheus-stack-values
     files:
       - values.yaml=./resources/values.yaml
 configurations:

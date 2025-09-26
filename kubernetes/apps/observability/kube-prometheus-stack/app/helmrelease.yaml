@@ -3,18 +3,18 @@
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: grafana
+  name: kube-prometheus-stack
   namespace: observability
 spec:
   chart:
     spec:
-      chart: grafana
+      chart: kube-prometheus-stack
       reconcileStrategy: ChartVersion
       sourceRef:
         kind: HelmRepository
-        name: grafana
-      version: "10.0.0"
+        name: prometheus-community
+      version: "77.11.1"
   interval: 1h
   valuesFrom:
     - kind: ConfigMap
-      name: grafana-values
+      name: kube-prometheus-stack-values

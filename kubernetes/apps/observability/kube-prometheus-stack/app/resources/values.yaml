@@ -1,0 +1,248 @@
+defaultRules:
+  rules:
+    etcd: false
+
+## Configuration for alertmanager
+## ref: https://prometheus.io/docs/alerting/alertmanager/
+##
+alertmanager:
+  ## Deploy alertmanager
+  ##
+  enabled: true
+
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    hosts:
+      - alertmanager.home.lorenzolab.com
+    paths:
+      - /
+    tls:
+      - hosts:
+          - alertmanager.home.lorenzolab.com
+        secretName: alertmanager-certificate-secret
+
+  ## Settings affecting alertmanagerSpec
+  ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#alertmanagerspec
+  ##
+  alertmanagerSpec:
+    alertmanagerConfiguration:
+      name: alertmanager
+    logLevel: info
+    ## Storage is the definition of how storage will be used by the Alertmanager instances.
+    ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/platform/storage.md
+    ##
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: ceph-rbd
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+    ## The external URL the Alertmanager instances will be available under. This is necessary to generate correct URLs. This is necessary if Alertmanager is not served from root of a DNS name. string  false
+    ##
+    externalUrl: https://alertmanager.home.lorenzolab.com
+
+## Using default values from https://github.com/grafana/helm-charts/blob/main/charts/grafana/values.yaml
+##
+grafana:
+  enabled: true
+  deploymentStrategy:
+    type: Recreate
+
+  ## Timezone for the default dashboards
+  ## Other options are: browser or a specific timezone, i.e. Europe/Luxembourg
+  ##
+  defaultDashboardsTimezone: Europe/Rome
+
+  adminUser: admin
+  adminPassword: prom-operator
+
+  ingress:
+    enabled: true
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    hosts:
+      - grafana.home.lorenzolab.com
+    tls:
+      - hosts:
+          - grafana.home.lorenzolab.com
+        secretName: grafana-certificate-secret
+
+  admin:
+    existingSecret: grafana-admin-secret
+  grafana.ini:
+    server:
+      domain: grafana.home.lorenzolab.com
+      root_url: https://grafana.home.lorenzolab.com
+    users:
+      auto_assign_org: true
+      auto_assign_org_role: Viewer
+    auth.generic_oauth:
+      name: authentik
+      enabled: true
+      auto_login: true
+      signout_redirect_url: "https://auth.lorenzolab.com/application/o/grafana/end-session/"
+      auth_url: "https://auth.lorenzolab.com/application/o/authorize/"
+      token_url: "https://auth.lorenzolab.com/application/o/token/"
+      api_url: "https://auth.lorenzolab.com/application/o/userinfo/"
+      client_id: "$__file{/etc/secrets/grafana_oauth_credentials/client_id}"
+      client_secret: "$__file{/etc/secrets/grafana_oauth_credentials/client_secret}"
+      scopes: openid,profile,email
+      role_attribute_path: "contains(groups, 'Grafana Admins') && 'Admin' || contains(groups, 'Grafana Editors') && 'Editor' || 'Viewer'"
+      login_attribute_path: preferred_username
+      name_attribute_path: name
+      email_attribute_path: email
+      groups_attribute_path: groups
+  persistence:
+    enabled: false
+  plugins:
+    - grafana-clock-panel
+    - redis-explorer-app
+    - redis-app
+  extraSecretMounts:
+    - name: grafana-oauth-credentials
+      secretName: grafana-oauth-secret
+      defaultMode: 0440
+      mountPath: /etc/secrets/grafana_oauth_credentials
+      readOnly: true
+
+  sidecar:
+    dashboards:
+      # Support for new table panels, when enabled grafana auto migrates the old table panels to newer table panels
+      enableNewTablePanelSyntax: true
+
+kubeEtcd:
+  enabled: false
+
+kubeControllerManager:
+  enabled: true
+  endpoints:
+    - 10.0.2.10
+    - 10.0.2.11
+    - 10.0.2.12
+  service:
+    enabled: true
+    port: 10252
+    targetPort: 10252
+  serviceMonitor:
+    enabled: true
+    https: false
+
+kubeScheduler:
+  enabled: true
+  endpoints:
+    - 10.0.2.10
+    - 10.0.2.11
+    - 10.0.2.12
+  service:
+    enabled: true
+    port: 10251
+    targetPort: 10251
+  serviceMonitor:
+    enabled: true
+    https: false
+
+kubeProxy:
+  enabled: true
+  endpoints:
+    - 10.0.2.10
+    - 10.0.2.11
+    - 10.0.2.12
+  service:
+    enabled: true
+    port: 10249
+    targetPort: 10249
+
+kubeStateMetrics:
+  enabled: true
+
+## Manages Prometheus and Alertmanager components
+##
+prometheusOperator:
+  enabled: true
+
+  ## Number of old replicasets to retain ##
+  ## The default value is 10, 0 will garbage-collect old replicasets ##
+  revisionHistoryLimit: 1
+
+## Deploy a Prometheus instance
+##
+prometheus:
+  enabled: true
+
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    hosts:
+      - prometheus.home.lorenzolab.com
+    tls:
+      - hosts:
+          - prometheus.home.lorenzolab.com
+        secretName: prometheus-certificate-secret
+    paths:
+      - /
+
+  ## Settings affecting prometheusSpec
+  ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api-reference/api.md#prometheusspec
+  ##
+  prometheusSpec:
+    ## External URL at which Prometheus will be reachable.
+    ##
+    externalUrl: prometheus.home.lorenzolab.com
+
+    ## If true, a nil or {} value for prometheus.prometheusSpec.serviceMonitorSelector will cause the
+    ## prometheus resource to be created with selectors based on values in the helm deployment,
+    ## which will also match the servicemonitors created
+    ##
+    serviceMonitorSelectorNilUsesHelmValues: false
+
+    ## If true, a nil or {} value for prometheus.prometheusSpec.podMonitorSelector will cause the
+    ## prometheus resource to be created with selectors based on values in the helm deployment,
+    ## which will also match the podmonitors created
+    ##
+    podMonitorSelectorNilUsesHelmValues: false
+
+    ## If true, a nil or {} value for prometheus.prometheusSpec.probeSelector will cause the
+    ## prometheus resource to be created with selectors based on values in the helm deployment,
+    ## which will also match the probes created
+    ##
+    probeSelectorNilUsesHelmValues: false
+
+    ## If true, a nil or {} value for prometheus.prometheusSpec.scrapeConfigSelector will cause the
+    ## prometheus resource to be created with selectors based on values in the helm deployment,
+    ## which will also match the scrapeConfigs created
+    ##
+    ## If null and scrapeConfigSelector is also null, exclude field from the prometheusSpec
+    ## (keeping downward compatibility with older versions of CRD)
+    ##
+    scrapeConfigSelectorNilUsesHelmValues: false
+
+    ## How long to retain metrics
+    ##
+    retention: 10d
+
+    ## Maximum size of metrics
+    ## Unit format should be in the form of "50GiB"
+    retentionSize: 50GiB
+
+    ## Prometheus StorageSpec for persistent data
+    ## ref: https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/platform/storage.md
+    ##
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: ceph-rbd
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+
+## Setting to true produces cleaner resource names, but requires a data migration because the name of the persistent volume changes. Therefore this should only be set once on initial installation.
+##
+cleanPrometheusOperatorObjectNames: true
