@@ -35,7 +35,7 @@ spec:
         server:
           PROTOCOL: http
           DOMAIN: git.lorenzolab.com
-          SSH_DOMAIN: git.lorenzolab.com
+          SSH_DOMAIN: git-ssh.lorenzolab.com
           ROOT_URL: https://git.lorenzolab.com
           SSH_PORT: 55522
           SSH_LISTEN_PORT: 2222
