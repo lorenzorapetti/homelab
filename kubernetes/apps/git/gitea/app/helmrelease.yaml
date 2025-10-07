@@ -38,6 +38,7 @@ spec:
           SSH_DOMAIN: git.lorenzolab.com
           ROOT_URL: https://git.lorenzolab.com
           SSH_PORT: 55522
+          SSH_LISTEN_PORT: 2222
           LANDING_PAGE: explore
         service:
           DISABLE_REGISTRATION: true
