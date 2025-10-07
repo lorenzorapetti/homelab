@@ -33,3 +33,4 @@ spec:
       gitea-ssh:
         port: 55522
         expose: true
+        exposedPort: 55522
