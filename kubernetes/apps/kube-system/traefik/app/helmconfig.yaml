@@ -32,5 +32,6 @@ spec:
             permanent: true
       gitea-ssh:
         port: 55522
-        expose: true
+        expose:
+          default: true
         exposedPort: 55522
