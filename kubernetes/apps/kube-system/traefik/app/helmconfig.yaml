@@ -23,6 +23,9 @@ spec:
           secretName: traefik-dashboard-certificate-secret
         middlewares:
           - name: auth-authentik@kubernetescrd
+    logs:
+      access:
+        enabled: true
     ports:
       web:
         redirections:
