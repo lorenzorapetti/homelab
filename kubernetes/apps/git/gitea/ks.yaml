@@ -29,3 +29,15 @@ spec:
       kind: HelmRelease
       name: *app
       namespace: *namespace
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: *app
+      namespace: *namespace
+    - apiVersion: v1
+      kind: Service
+      name: gitea-http
+      namespace: *namespace
+    - apiVersion: v1
+      kind: Service
+      name: gitea-ssh
+      namespace: *namespace
