@@ -30,3 +30,6 @@ spec:
             to: websecure
             scheme: https
             permanent: true
+      gitea-ssh:
+        port: 55522
+        expose: true

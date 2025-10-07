@@ -1,0 +1,66 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gitea
+  namespace: git
+spec:
+  chart:
+    spec:
+      chart: gitea
+      sourceRef:
+        kind: HelmRepository
+        name: gitea
+      version: "12.4.0"
+  interval: 1h
+  values:
+    postgresql:
+      enabled: false
+    postgresql-ha:
+      enabled: false
+    valkey-cluster:
+      enabled: false
+    persistence:
+      enabled: true
+      storageClass: ceph-rbd
+      claimName: gitea
+    strategy:
+      type: Recreate
+    gitea:
+      admin:
+        existingSecret: gitea-admin-credentials
+        passwordMode: initialOnlyRequireReset
+      config:
+        server:
+          PROTOCOL: https
+          DOMAIN: git.lorenzolab.com
+          SSH_DOMAIN: git.lorenzolab.com
+          ROOT_URL: https://git.lorenzolab.com
+          SSH_PORT: 55522
+          LANDING_PAGE: explore
+        service:
+          DISABLE_REGISTRATION: true
+          ENABLE_NOTIFY_MAIL: true
+      additionalConfigSources:
+        - secret:
+            secretName: gitea-db-credentials
+        - secret:
+            secretName: gitea-mailer-credentials
+        - secret:
+            secretName: gitea-cache-credentials
+    service:
+      ssh:
+        type: ClusterIP
+        port: 22
+        clusterIP:
+    ingress:
+      enabled: true
+      hosts:
+        - host: git.lorenzolab.com
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      tls:
+        - hosts:
+            - git.lorenzolab.com
+          secretName: git-certificate-secret
