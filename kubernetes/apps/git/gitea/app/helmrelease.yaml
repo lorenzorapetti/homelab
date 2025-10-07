@@ -43,6 +43,7 @@ spec:
         service:
           DISABLE_REGISTRATION: true
           ENABLE_NOTIFY_MAIL: true
+          REQUIRE_SIGNIN_VIEW: true
       additionalConfigSources:
         - secret:
             secretName: gitea-db-credentials
