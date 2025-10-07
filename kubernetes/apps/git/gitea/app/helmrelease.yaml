@@ -33,7 +33,7 @@ spec:
         passwordMode: initialOnlyRequireReset
       config:
         server:
-          PROTOCOL: https
+          PROTOCOL: http
           DOMAIN: git.lorenzolab.com
           SSH_DOMAIN: git.lorenzolab.com
           ROOT_URL: https://git.lorenzolab.com
