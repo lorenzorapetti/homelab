@@ -36,14 +36,11 @@ spec:
     postgres:
       enabled: false
     onlyoffice:
-      db:
-        existingSecret: onlyoffice-db-credentials
       config:
-        coAuthoring:
-          sql:
-            dbHost: db-1.cluster.lorenzolab.com
         rabbitmq:
           existingSecret: onlyoffice-rabbitmq-credentials
+    image:
+      tag: "3.5.0"
     opencloud:
       insecure: false
       persistence:

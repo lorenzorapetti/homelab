@@ -5,7 +5,6 @@ kind: Kustomization
 resources:
   - ./certificate.yaml
   - ./gitrepository.yaml
-  - ./onlyoffice-db-credentials.yaml
   - ./onlyoffice-rabbitmq-credentials.yaml
   - ./opencloud-config-pvc.yaml
   - ./opencloud-data-pvc.yaml
