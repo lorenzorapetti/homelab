@@ -19,8 +19,7 @@ spec:
       security:
         allowInsecureImages: true
     image:
-      repository: rabbitmq
-      tag: 4.1.4
+      repository: bitnamilegacy/rabbitmq
     auth:
       username: rabbitmq
       existingPasswordSecret: rabbitmq-user-credentials
