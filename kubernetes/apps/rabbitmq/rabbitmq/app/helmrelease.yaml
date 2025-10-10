@@ -11,6 +11,7 @@ spec:
     name: rabbitmq
     namespace: rabbitmq
   interval: 1h
+  timeout: 20m
   values:
     global:
       defaultStorageClass: ceph-rbd
