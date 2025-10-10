@@ -16,6 +16,11 @@ spec:
     global:
       defaultStorageClass: ceph-rbd
       storageClass: ceph-rbd
+      security:
+        allowInsecureImages: true
+    image:
+      repository: rabbitmq
+      tag: 4.1.4
     auth:
       username: rabbitmq
       existingPasswordSecret: rabbitmq-user-credentials
