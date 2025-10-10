@@ -195,6 +195,7 @@ prometheus:
     ## External URL at which Prometheus will be reachable.
     ##
     externalUrl: prometheus.home.lorenzolab.com
+    routePrefix: /
 
     ## If true, a nil or {} value for prometheus.prometheusSpec.serviceMonitorSelector will cause the
     ## prometheus resource to be created with selectors based on values in the helm deployment,

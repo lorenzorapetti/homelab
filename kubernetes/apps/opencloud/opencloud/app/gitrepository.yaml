@@ -6,7 +6,7 @@ metadata:
   namespace: opencloud
 spec:
   interval: 1m
-  url: https://github.com/opencloud-eu/helm
+  url: ssh://git@github.com/opencloud-eu/helm.git
   ref:
     branch: main
   ignore: |
