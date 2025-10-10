@@ -7,5 +7,5 @@ resources:
   - ./certificate.yaml
   - ./pvc.yaml
   - ./rabbitmq-user-credentials.yaml
-  - ./helmrepository.yaml
+  - ./ocirepository.yaml
   - ./helmrelease.yaml
