@@ -1,0 +1,75 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: opencloud
+  namespace: opencloud
+spec:
+  chart:
+    spec:
+      chart: ./charts/opencloud
+      reconcileStrategy: ChartVersion
+      sourceRef:
+        kind: GitRepository
+        name: opencloud-helm
+  interval: 1h
+  values:
+    global:
+      domain:
+        opencloud: cloud.lorenzolab.com
+        wopi: wopi.lorenzolab.com
+        onlyoffice: onlyoffice.lorenzolab.com
+        companion: companion.lorenzolab.com
+      tls:
+        enabled: true
+        secretName: opencloud-certificate-secret
+      oidc:
+        issuer: https://auth.lorenzolab.com/application/o/opencloud/
+        clientId: jSTdQP9LyBpM4iP0SB5ywv2kOp8Eog6TizyUbPv1
+        accountUrl: https://auth.lorenzolab.com/application/o/userinfo/
+      storage:
+        storageClass: ceph-rbd
+    keycloak:
+      internal:
+        enabled: false
+    postgres:
+      enabled: false
+    onlyoffice:
+      db:
+        existingSecret: onlyoffice-db-credentials
+      config:
+        coAuthoring:
+          sql:
+            dbHost: db-1.cluster.lorenzolab.com
+        rabbitmq:
+          existingSecret: onlyoffice-rabbitmq-credentials
+    opencloud:
+      insecure: false
+      persistence:
+        config:
+          existingClaim: opencloud-config
+        data:
+          existingClaim: opencloud-data
+      smtp:
+        enabled: true
+        host: smtp.resend.com
+        port: "587"
+        sender: "opencloud@transactional.lorenzolab.com"
+        existingSecret: opencloud-smtp-credentials
+      storage:
+        s3:
+          internal:
+            enabled: false
+          external:
+            enabled: true
+            endpoint: minio-1.cluster.lorenzolab.com:9000
+            existingSecret: opencloud-s3-credentials
+            bucket: opencloud
+        posixfs:
+          persistence:
+            existingClaim: opencloud-cache
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      annotationsPreset: traefik

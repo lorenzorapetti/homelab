@@ -11,3 +11,6 @@ spec:
     kind: ClusterIssuer
   dnsNames:
     - cloud.lorenzolab.com
+    - wopi.lorenzolab.com
+    - onlyoffice.lorenzolab.com
+    - companion.lorenzolab.com
