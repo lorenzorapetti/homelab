@@ -6,14 +6,10 @@ metadata:
   name: rabbitmq
   namespace: rabbitmq
 spec:
-  chart:
-    spec:
-      chart: rabbitmq
-      reconcileStrategy: ChartVersion
-      sourceRef:
-        kind: HelmRepository
-        name: bitnami
-      version: "16.0.14"
+  chartRef:
+    kind: OCIRepository
+    name: rabbitmq
+    namespace: rabbitmq
   interval: 1h
   values:
     global:

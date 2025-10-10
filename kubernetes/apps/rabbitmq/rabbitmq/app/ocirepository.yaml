@@ -1,0 +1,11 @@
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: rabbitmq
+  namespace: rabbitmq
+spec:
+  interval: 5m
+  url: oci://registry-1.docker.io/bitnamicharts/rabbitmq
+  ref:
+    tag: latest
