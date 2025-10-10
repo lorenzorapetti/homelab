@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: opencloud-certificate
+  namespace: opencloud
+spec:
+  # Secret names are always required.
+  secretName: opencloud-certificate-secret
+  issuerRef:
+    name: cloudflare-cluster-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - cloud.lorenzolab.com

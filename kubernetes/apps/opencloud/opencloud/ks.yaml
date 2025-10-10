@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app opencloud
+  namespace: &namespace opencloud
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  interval: 1h
+  path: ./kubernetes/apps/opencloud/opencloud/app
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  dependsOn:
+    - name: cluster-issuer
+      namespace: cert-manager
+    - name: ceph
+      namespace: ceph
+    - name: traefik
+      namespace: kube-system
+    - name: authentik
+      namespace: auth
+  targetNamespace: *namespace
+  timeout: 10m
