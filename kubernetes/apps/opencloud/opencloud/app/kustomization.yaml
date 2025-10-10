@@ -8,7 +8,6 @@ resources:
   - ./onlyoffice-db-credentials.yaml
   - ./onlyoffice-rabbitmq-credentials.yaml
   - ./opencloud-config-pvc.yaml
-  - ./opencloud-data-pv.yaml
   - ./opencloud-data-pvc.yaml
   - ./opencloud-cache-pvc.yaml
   - ./opencloud-smtp-credentials.yaml
