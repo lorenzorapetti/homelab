@@ -28,10 +28,7 @@ spec:
       pathType: Prefix
       annotations:
         traefik.ingress.kubernetes.io/router.entrypoints: websecure
-      extraTls:
-        - hosts:
-            - rabbitmq.home.lorenzolab.com
-          secretName: rabbitmq-certificate-secret
+      existingSecret: rabbitmq-certificate-secret
     metrics:
       enabled: true
       serviceMonitor:
