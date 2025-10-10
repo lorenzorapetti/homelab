@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rabbitmq-certificate
+  namespace: netbox
+spec:
+  # Secret names are always required.
+  secretName: rabbitmq-certificate-secret
+  issuerRef:
+    name: cloudflare-cluster-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - rabbitmq.home.lorenzolab.com

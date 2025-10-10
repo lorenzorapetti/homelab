@@ -1,0 +1,80 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: rabbitmq
+  namespace: rabbitmq
+spec:
+  chart:
+    spec:
+      chart: rabbitmq
+      reconcileStrategy: ChartVersion
+      sourceRef:
+        kind: HelmRepository
+        name: bitnami
+      version: "16.0.14"
+  interval: 1h
+  values:
+    global:
+      defaultStorageClass: ceph-rbd
+      storageClass: ceph-rbd
+    auth:
+      username: rabbitmq
+      existingPasswordSecret: rabbitmq-user-credentials
+    clustering:
+      enabled: false
+    persistence:
+      existingClaim: rabbitmq
+    ingress:
+      enabled: true
+      hostname: rabbitmq.home.lorenzolab.com
+      pathType: Prefix
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      tls:
+        - hosts:
+            - rabbitmq.home.lorenzolab.com
+          secretName: rabbitmq-certificate-secret
+    metrics:
+      enabled: true
+      serviceMonitor:
+        namespace: rabbitmq
+        jobLabel: rabbitmq
+        default:
+          enabled: true
+      prometheusRule:
+        enabled: true
+        namespace: rabbitmq
+        rules:
+          - alert: RabbitmqDown
+            expr: rabbitmq_up{service="{{ template "common.names.fullname" . }}"} == 0
+            for: 5m
+            labels:
+              severity: error
+            annotations:
+              summary: Rabbitmq down (instance {{ "{{ $labels.instance }}" }})
+              description: RabbitMQ node down
+          - alert: OutOfMemory
+            expr: |
+              rabbitmq_node_mem_used{service="{{ template "common.names.fullname" . }}"}
+              / rabbitmq_node_mem_limit{service="{{ template "common.names.fullname" . }}"}
+              * 100 > 90
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: Out of memory (instance {{ "{{ $labels.instance }}" }})
+              description: |
+                Memory available for RabbmitMQ is low (< 10%)\n  VALUE = {{ "{{ $value }}" }}
+                LABELS: {{ "{{ $labels }}" }}
+          - alert: TooManyConnections
+            expr: rabbitmq_connectionsTotal{service="{{ template "common.names.fullname" . }}"} > 1000
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: Too many connections (instance {{ "{{ $labels.instance }}" }})
+              description: |
+                RabbitMQ instance has too many connections (> 1000)
+                VALUE = {{ "{{ $value }}" }}\n  LABELS: {{ "{{ $labels }}" }}
