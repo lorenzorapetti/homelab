@@ -12,7 +12,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: netbox
-      version: "7.1.8"
+      version: "7.1.9"
   install:
     remediation:
       retries: 3
