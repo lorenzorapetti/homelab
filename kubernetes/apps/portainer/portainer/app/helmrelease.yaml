@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: portainer
+  namespace: portainer
+spec:
+  chart:
+    spec:
+      chart: portainer
+      reconcileStrategy: ChartVersion
+      sourceRef:
+        kind: HelmRepository
+        name: portainer
+      version: "2.33.1"
+  interval: 1h
+  values:
+    ingress:
+      enabled: true
+      hosts:
+        - host: portainer.home.lorenzolab.com
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      tls:
+        - hosts:
+            - portainer.home.lorenzolab.com
+          secretName: portainer-certificate-secret
+    persistence:
+      existingClaim: portainer
+      storageClass: ceph-rbd
