@@ -20,6 +20,8 @@ spec:
       enabled: true
       hosts:
         - host: portainer.home.lorenzolab.com
+          paths:
+            - path: /
       annotations:
         traefik.ingress.kubernetes.io/router.entrypoints: websecure
       tls:
