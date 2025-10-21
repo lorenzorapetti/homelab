@@ -7,6 +7,20 @@ services:
     ports:
       - 3001:3001
     restart: unless-stopped
+    labels:
+      - docker-volume-backup.stop-during-backup=true
+
+  backup:
+    image: offen/docker-volume-backup:2.45.0
+    restart: unless-stopped
+    environment:
+      - SSH_HOST_NAME
+      - SSH_REMOTE_PATH
+      - SSH_USER
+      - SSH_PASSWORD
+    volumes:
+      - uptime-kuma:/backup/uptime-kuma:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 
 volumes:
   uptime-kuma:
