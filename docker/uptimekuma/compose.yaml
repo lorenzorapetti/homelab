@@ -11,7 +11,7 @@ services:
       - docker-volume-backup.stop-during-backup=true
 
   backup:
-    image: offen/docker-volume-backup:v2.45.0
+    image: offen/docker-volume-backup:v2.47.0
     restart: unless-stopped
     environment:
       - SSH_HOST_NAME
