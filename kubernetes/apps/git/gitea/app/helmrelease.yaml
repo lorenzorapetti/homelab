@@ -12,7 +12,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: gitea
-      version: "12.4.0"
+      version: "12.7.0"
   interval: 1h
   values:
     postgresql:
