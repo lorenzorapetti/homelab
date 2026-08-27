@@ -13,7 +13,7 @@ spec:
       sourceRef:
         kind: HelmRepository
         name: portainer
-      version: "2.33.3"
+      version: "245.0.0"
   interval: 1h
   values:
     ingress:
