@@ -22,7 +22,7 @@ spec:
       serviceAccountName: *name
       containers:
         - name: *name
-          image: "glanceapp/glance:v0.8.4"
+          image: "glanceapp/glance:v0.8.6"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
