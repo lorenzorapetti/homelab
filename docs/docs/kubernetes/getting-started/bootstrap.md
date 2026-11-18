@@ -263,7 +263,7 @@ Like Jonas ([post 3](https://jonashietala.se/blog/2026/05/28/just_command_runner
 `justfile`:
 
 ```just
-mod tf 'terraform/mod.just'
+mod tf 'infrastructure/mod.just'
 mod talos 'talos/mod.just'
 mod bootstrap 'bootstrap/mod.just'
 
@@ -275,23 +275,50 @@ default:
 full: tf::apply talos::create bootstrap::apps
 ```
 
-`terraform/mod.just` (state and Proxmox token kept SOPS-encrypted, as in Jonas's `tf::apply`):
+`infrastructure/mod.just` (state and Proxmox token kept SOPS-encrypted, as in Jonas's `tf::apply`). This is the built version. Only the `tf` module exists so far, so today's root `justfile` has just `mod tf` and the `default` recipe:
 
 ```just
 init *args:
-    terraform init {{args}}
+    terraform init {{ args }}
 
-[doc("terraform apply; state is decrypted for the run and re-encrypted on exit, even on failure")]
-apply *args:
+plan *args: (_run "plan" args)
+apply *args: (_run "apply" args)
+
+[confirm("Destroy all Talos VMs?")]
+destroy *args: (_run "destroy" args)
+
+output *args: (_run "output" args)
+
+[private]
+_run command *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    export TF_VAR_proxmox_api_token="$(sops decrypt --extract '["proxmox_api_token"]' secrets.sops.yaml)"
+    umask 077
+    if [[ -e terraform.tfstate ]]; then
+      echo "error: plaintext terraform.tfstate already exists (an earlier run was interrupted?)." >&2
+      exit 1
+    fi
+    TF_VAR_proxmox_api_token="$(sops decrypt --extract '["proxmox_api_token"]' secrets.sops.yaml)"
+    export TF_VAR_proxmox_api_token
     if [[ -f terraform.tfstate.sops.json ]]; then
       sops decrypt --input-type json --output-type json terraform.tfstate.sops.json > terraform.tfstate
     fi
-    trap 'sops encrypt --input-type json --output-type json --filename-override terraform.tfstate.sops.json terraform.tfstate > terraform.tfstate.sops.json && rm -f terraform.tfstate terraform.tfstate.backup' EXIT
-    terraform apply {{args}}
+    reencrypt() {
+      [[ -f terraform.tfstate ]] || return 0
+      if sops encrypt --filename-override terraform.tfstate.sops.json \
+          --input-type json --output-type json terraform.tfstate > terraform.tfstate.sops.json.tmp; then
+        mv terraform.tfstate.sops.json.tmp terraform.tfstate.sops.json
+        rm -f terraform.tfstate terraform.tfstate.backup
+      else
+        rm -f terraform.tfstate.sops.json.tmp
+        return 1   # keep the plaintext state rather than lose it
+      fi
+    }
+    trap reencrypt EXIT
+    terraform {{ command }} {{ args }}
 ```
+
+Compared with the first draft (a single `trap '... > terraform.tfstate.sops.json && rm ...'`), the encryption writes to a temp file first. A failed `sops encrypt` therefore can't truncate the committed state and then delete the plaintext copy. The trap is also set only after the state has been decrypted completely, so a failed decrypt never re-encrypts a partial file over the good one.
 
 `talos/mod.just`:
 
@@ -355,5 +382,5 @@ reconcile:
 Notes on the justfile:
 
 - **Where the commands come from.** The topf invocations follow cluster-template's `bootstrap:talos` tasks, including `--confirm=false` for non-interactive runs and the 8760h kubeconfig. `upgrade-k8s` mirrors its Talos task ([bootstrap tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/mise.toml), [talos tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/mise.toml)).
-- **The Terraform state rule.** The state is encrypted as JSON (`--input-type json`), which needs its own `terraform/` rule in [`.sops.yaml`](/kubernetes/sops#sopsyaml). **Unverified:** the exact `--filename-override` flag name for matching a creation rule when encrypting from a file with a different name. Check `sops encrypt --help` for v3.13.
+- **The Terraform state rule.** The state is encrypted as JSON (`--input-type json`), which needs its own `infrastructure/` rule in [`.sops.yaml`](/kubernetes/sops#sopsyaml). `--filename-override` is the right flag in sops 3.13: "Use this filename instead of the provided argument for loading configuration". Run from `infrastructure/`, `--filename-override terraform.tfstate.sops.json` picks up rule 2, which encrypts to both the GPG key and the age key. I checked this by encrypting a dummy file.
 - **The root `justfile` exports nothing**, since each module sets the variables it needs. **Unverified:** whether a root-level `export` would reach module recipes. The README only documents that environment *files* from parent modules are visible in child modules.

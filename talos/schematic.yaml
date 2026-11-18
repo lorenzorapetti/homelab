@@ -1,0 +1,8 @@
+# Image Factory schematic. ID: 88d1f7a5c4f1d3aba7df787c448c1d3d008ed29cfb34af53fa0df4336a56040b
+# (already submitted to factory.talos.dev; must match talos_schematic_id in infrastructure/variables.auto.tfvars)
+customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/iscsi-tools        # Longhorn: iscsid + iscsiadm
+      - siderolabs/qemu-guest-agent   # Proxmox guest agent
+      - siderolabs/util-linux-tools   # Longhorn: fstrim

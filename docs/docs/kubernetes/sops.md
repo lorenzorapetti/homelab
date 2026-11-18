@@ -58,42 +58,28 @@ What each part does:
 
 ## `.sops.yaml`
 
-Current file in the repo:
+The file in the repo. `CFACE1C58F406FD74713AB0BF1F680022C252805` is the YubiKey GPG key's fingerprint:
 
 ```yaml
 ---
 creation_rules:
-  - path_regex: \.ya?ml$
-    encrypted_regex: ^(data|stringData)$
-    mac_only_encrypted: true
-    age: age1dkx5fryjw78lpvu4fkk59k4ljl24a5cnsd5nj5sefh05p3xn9anszpqxuq
-stores:
-  yaml:
-    indent: 2
-```
-
-New file. `GPG_FINGERPRINT` is the YubiKey key's fingerprint:
-
-```yaml
----
-creation_rules:
-  # 1. Flux's age private key: GPG (YubiKey) ONLY, never the age key itself
+  # 1. Flux's age private key: GPG (YubiKey) only, never the age key itself
   - path_regex: bootstrap/sops-age\.sops\.yaml$
     encrypted_regex: ^(data|stringData)$
     mac_only_encrypted: true
-    pgp: GPG_FINGERPRINT
+    pgp: CFACE1C58F406FD74713AB0BF1F680022C252805
 
   # 2. Workstation-only files: Talos secrets bundle, Terraform secrets + state (whole file)
-  - path_regex: (talos|terraform)/.*\.sops\.(ya?ml|json)$
+  - path_regex: (talos|infrastructure)/.*\.sops\.(ya?ml|json)$
     mac_only_encrypted: true
-    pgp: GPG_FINGERPRINT
+    pgp: CFACE1C58F406FD74713AB0BF1F680022C252805
     age: age1dkx5fryjw78lpvu4fkk59k4ljl24a5cnsd5nj5sefh05p3xn9anszpqxuq
 
   # 3. Kubernetes Secrets: GPG for me, age for Flux
   - path_regex: (bootstrap|kubernetes)/.*\.sops\.ya?ml$
     encrypted_regex: ^(data|stringData)$
     mac_only_encrypted: true
-    pgp: GPG_FINGERPRINT
+    pgp: CFACE1C58F406FD74713AB0BF1F680022C252805
     age: age1dkx5fryjw78lpvu4fkk59k4ljl24a5cnsd5nj5sefh05p3xn9anszpqxuq
 stores:
   yaml:
@@ -103,17 +89,19 @@ stores:
 How the rules work:
 
 - **Rule order matters.** "Creation rules are evaluated sequentially, the first match wins" ([SOPS config file docs](https://getsops.io/docs/usage/identities/config-file/)). Rule 1 must come before rule 3, which would otherwise also match `bootstrap/sops-age.sops.yaml` and make the age key a recipient of itself.
-- **Only `*.sops.*` files match.** The old catch-all `\.ya?ml$` also matched plain manifests. The structure follows [cluster-template's `.sops.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/.sops.yaml.j2): a whole-file rule for `talos/`, and `encrypted_regex` for `bootstrap|kubernetes`. The PGP recipient, rule 1 and the `terraform/` path are my additions. cluster-template encrypts its `bootstrap/sops-age.sops.yaml` to the age key itself ([source](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/sops-age.sops.yaml.j2)), so you need the age key to bootstrap. Rule 1 means you need the YubiKey instead.
+- **Only `*.sops.*` files match.** The old catch-all `\.ya?ml$` also matched plain manifests. The structure follows [cluster-template's `.sops.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/.sops.yaml.j2): a whole-file rule for `talos/`, and `encrypted_regex` for `bootstrap|kubernetes`. The PGP recipient, rule 1 and the `infrastructure/` (Terraform) path are my additions. cluster-template encrypts its `bootstrap/sops-age.sops.yaml` to the age key itself ([source](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/sops-age.sops.yaml.j2)), so you need the age key to bootstrap. Rule 1 means you need the YubiKey instead.
 - **topf writes `talos/secrets.sops.yaml` through rule 2.** The bundle is "SOPS-encrypted on write if a corresponding SOPS config is found" ([topf secrets](https://github.com/postfinance/topf/blob/main/docs/commands/secrets.md)).
 - **Rule 2 includes the age key on purpose.** Flux never reads these files, but the offline age backup gives a second way back to the Talos CA and the Terraform state if both YubiKeys *and* the GPG backup are lost. The cost: if the in-cluster age key leaked, it could decrypt the Talos CA too. I accept that, since the same key already decrypts every app secret.
 - **The age recipient is unchanged**, so the existing 1Password backup of the age key still works.
 
 ## Re-encrypting existing files
 
-After changing recipients, run `updatekeys` on every encrypted file. It adds or removes master keys "without rotating the data key", and `-y` skips the confirmation prompt ([SOPS key management](https://getsops.io/docs/usage/key-management/)):
+The k3s-era secrets were moved with the old manifests to `kubernetes_old/`. They are unused and stay encrypted to the age key only. No rule in `.sops.yaml` matches that path any more, so they are never re-encrypted. Every file under the new paths is created after the rules above, so nothing needs `updatekeys` today.
+
+Later, after changing recipients, run `updatekeys` on every encrypted file. It adds or removes master keys "without rotating the data key", and `-y` skips the confirmation prompt ([SOPS key management](https://getsops.io/docs/usage/key-management/)):
 
 ```bash
-find talos terraform bootstrap kubernetes -name '*.sops.*' -print0 | xargs -0 -n1 sops updatekeys -y
+find talos infrastructure bootstrap kubernetes -name '*.sops.*' -print0 | xargs -0 -n1 sops updatekeys -y
 ```
 
 `updatekeys` has to decrypt the data key first. For files that are still encrypted to age only, the first run needs the age key locally (e.g. `SOPS_AGE_KEY_FILE` pointing at the 1Password export). After a recipient is *removed*, also run `sops rotate --in-place` on each file. SOPS documents the order as first `updatekeys`, then `rotate` ([SOPS key management](https://getsops.io/docs/usage/key-management/)).

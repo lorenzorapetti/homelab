@@ -11,7 +11,7 @@ Jonas Hietala's [Modern Kubernetes homelab](https://www.jonashietala.se/series/k
 
 | Jonas (ArgoCD) | This repo (Flux) |
 | --- | --- |
-| Terraform (`bpg/proxmox` + `siderolabs/talos`) creates VMs, generates Talos config, bootstraps | Terraform (`bpg/proxmox` only) creates the VMs ([Preparing the servers](/kubernetes/getting-started/preparing-the-servers)). **topf** generates, applies and bootstraps Talos ([Install Talos](/kubernetes/getting-started/install-talos)) |
+| Terraform (`bpg/proxmox` + `siderolabs/talos`) creates VMs, generates Talos config, bootstraps | Terraform (`bpg/proxmox` only) creates the VMs ([Deploying the infrastructure](/kubernetes/getting-started/deploying-the-infrastructure)). **topf** generates, applies and bootstraps Talos ([Install Talos](/kubernetes/getting-started/install-talos)) |
 | `just` modules (`bootstrap::full`, `tf::apply`, …) | `just` modules `tf`, `talos`, `bootstrap`, plus `just full` ([justfile](/kubernetes/getting-started/bootstrap#the-justfile)) |
 | SOPS + age for Talos/Terraform files, **Sealed Secrets** for in-cluster secrets | SOPS for everything. Flux decrypts natively, the YubiKey GPG key is for humans ([SOPS](/kubernetes/sops)) |
 | `helm install argo-cd`, then `kubectl apply root.yaml` | helmfile installs `flux-operator` + `flux-instance`. `FluxInstance.spec.sync` creates the root sync, so there's nothing to apply by hand |
@@ -59,7 +59,7 @@ Everything else matches his choices: Talos on Proxmox via Terraform, Cilium for 
 - **Newer versions.** Cilium 1.20 needs Gateway API v1.6.3 CRDs ([Cilium docs](https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/)).
 - **Bootstrap path.** Cilium is installed by helmfile from values that Flux later owns ([Bootstrap](/kubernetes/getting-started/bootstrap)).
 
-See [Preparing the servers](/kubernetes/getting-started/preparing-the-servers) and [Install Talos](/kubernetes/getting-started/install-talos).
+See [Deploying the infrastructure](/kubernetes/getting-started/deploying-the-infrastructure) and [Install Talos](/kubernetes/getting-started/install-talos).
 
 ## 3. Just: command runner & documentation
 

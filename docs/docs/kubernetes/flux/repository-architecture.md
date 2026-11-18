@@ -8,12 +8,13 @@ The repository follows the "home-ops" layout from [onedr0p/cluster-template](htt
 
 ```
 .
+├─ devenv.nix, devenv.yaml        # tools: terraform, sops, gpg, age, just, talosctl, topf
 ├─ justfile                       # mod tf / talos / bootstrap
 ├─ .sops.yaml                     # SOPS rules (GPG + age)
 ├─ renovate.json
-├─ terraform/                     # Proxmox VMs (bpg/proxmox)
+├─ infrastructure/                # Terraform: Proxmox VMs (bpg/proxmox)
 │  ├─ mod.just
-│  ├─ *.tf
+│  ├─ *.tf, variables.auto.tfvars
 │  ├─ secrets.sops.yaml           # Proxmox API token
 │  └─ terraform.tfstate.sops.json
 ├─ talos/                         # topf
@@ -52,7 +53,8 @@ This tree is the **end state**. After the [bootstrap](/kubernetes/getting-starte
 | Path | What it is |
 | --- | --- |
 | `justfile`, `*/mod.just` | Task runner modules ([justfile](/kubernetes/getting-started/bootstrap#the-justfile)) |
-| `terraform/` | Proxmox VMs ([Preparing the servers](/kubernetes/getting-started/preparing-the-servers)) |
+| `devenv.nix` | Every CLI tool, pinned. Run commands in `devenv shell` |
+| `infrastructure/` | Terraform for the Proxmox VMs ([Deploying the infrastructure](/kubernetes/getting-started/deploying-the-infrastructure)). Named after Jonas's repo, as is `kubernetes/` (his `gitops/`) |
 | `talos/` | topf config, patches and the SOPS-encrypted secrets bundle ([Install Talos](/kubernetes/getting-started/install-talos)) |
 | `bootstrap/` | Everything needed **before** Flux runs: the age key, the Git pull secret, and the helmfile for Cilium and Flux |
 | `kubernetes/apps/` | The path the `FluxInstance` syncs directly. There is no `kubernetes/flux/cluster/ks.yaml` |
