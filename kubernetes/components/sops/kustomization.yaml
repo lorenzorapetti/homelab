@@ -1,0 +1,9 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# Included by every namespace's kustomization.yaml, so each namespace gets its own
+# copy of cluster-secrets for postBuild.substituteFrom.
+# Docs: docs/docs/kubernetes/flux/repository-architecture.md
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ./secret.sops.yaml

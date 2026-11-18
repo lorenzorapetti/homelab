@@ -1,0 +1,11 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# No namespace.yaml: kube-system is created by Kubernetes, so Flux never owns or
+# prunes it. `namespace:` only sets metadata.namespace on the objects below.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: kube-system
+components:
+  - ../../components/sops
+resources:
+  - ./cilium/ks.yaml
