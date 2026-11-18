@@ -1,0 +1,9 @@
+---
+# Throwaway: proves Flux prunes removed files without touching flux-system (#180).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prune-test
+  namespace: default
+data:
+  purpose: prune-guard-test

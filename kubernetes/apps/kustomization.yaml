@@ -7,3 +7,4 @@ kind: Kustomization
 resources:
   - ./kube-system
   - ./flux-system
+  - ./prune-test.yaml
