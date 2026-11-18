@@ -33,9 +33,9 @@ diff *args:
 upgrade *args:
     topf upgrade {{ args }}
 
-[doc("Upgrade Kubernetes to kubernetesVersion from topf.yaml")]
-upgrade-k8s:
-    talosctl --nodes 10.0.11.1 upgrade-k8s --to "$(yq '.kubernetesVersion' topf.yaml)"
+[doc("Upgrade Kubernetes to kubernetesVersion from topf.yaml (pass --dry-run to preview)")]
+upgrade-k8s *args:
+    talosctl --nodes 10.0.11.1 upgrade-k8s --to "$(yq '.kubernetesVersion' topf.yaml)" {{ args }}
 
 # --full=false wipes only STATE and EPHEMERAL: a full wipe would also erase the
 # Talos install on sda, and the VMs have no other boot media.

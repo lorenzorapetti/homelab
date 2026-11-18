@@ -14,7 +14,7 @@ Current release: **v0.6.2** ([releases](https://github.com/postfinance/topf/rele
 
 :::note Versions
 
-topf v0.6.2 reports `topf version 0.6.2 (Talos v1.14.4)`: it is built against the Talos 1.14 machinery. The cluster runs **Talos 1.14.5**, the version the VMs booted and the `talosctl` in devenv. `talosVersion` in `talos/topf.yaml` and `talos_version` in `infrastructure/variables.auto.tfvars` must stay in step. **Kubernetes 1.37.2**: `talosctl` 1.14.5 defaults to 1.37.1, and the `ghcr.io/siderolabs/kubelet:v1.37.2` image exists. A rendered config with 1.37.2 passes `talosctl validate --mode metal --strict`. Check topf's release notes before moving to a new Talos minor version.
+topf v0.6.2 reports `topf version 0.6.2 (Talos v1.14.4)`: it is built against the Talos 1.14 machinery. The cluster runs **Talos 1.14.5**, the version the VMs booted and the `talosctl` in devenv. `talos_version` in `infrastructure/variables.auto.tfvars` matched `talosVersion` in `talos/topf.yaml` when the VMs were created, but it is only the boot image for new VMs. Upgrades bump `topf.yaml` alone: changing the tfvars recreates every VM ([Upgrades](/kubernetes/upgrades)). **Kubernetes 1.37.2**: `talosctl` 1.14.5 defaults to 1.37.1, and the `ghcr.io/siderolabs/kubelet:v1.37.2` image exists. A rendered config with 1.37.2 passes `talosctl validate --mode metal --strict`. Check topf's release notes before moving to a new Talos minor version.
 
 :::
 
@@ -48,7 +48,7 @@ Rendered machine configs contain the cluster CA keys in plain text. `.gitignore`
 clusterName: homelab
 clusterEndpoint: https://10.0.11.10:6443   # the API VIP
 kubernetesVersion: 1.37.2
-talosVersion: 1.14.5                       # = talos_version in infrastructure/variables.auto.tfvars
+talosVersion: 1.14.5                       # bump + `just talos::upgrade`; NOT talos_version in the tfvars (docs: Upgrades)
 schematicId: "@schematic.yaml"
 platform: nocloud                          # matches the nocloud image Terraform boots
 secretsPath: secrets.sops.yaml
@@ -212,8 +212,8 @@ The Proxmox UI then shows each VM's IP under **Summary**, reported by the guest 
 | --- | --- | --- |
 | Change config | edit a patch, `just talos::diff`, then `just talos::apply` | [apply](https://github.com/postfinance/topf/blob/main/docs/commands/apply.md) |
 | One node only | `just talos::apply --nodes-filter '^talos-2$'` | [global flags](https://github.com/postfinance/topf/blob/main/docs/configuration.md#global-flags) |
-| Upgrade Talos / change extensions | bump `talosVersion` (and `talos_version` in the tfvars) or edit `schematic.yaml`, then `just talos::upgrade`. Nodes go one at a time, with cordon/drain on Talos ≥ 1.13 | [upgrade](https://github.com/postfinance/topf/blob/main/docs/commands/upgrade.md) |
-| Upgrade Kubernetes | bump `kubernetesVersion` in `topf.yaml`, then `just talos::upgrade-k8s` (`talosctl upgrade-k8s --to` that version) | [Kubernetes upgrade](https://github.com/postfinance/topf/blob/main/docs/kubernetes-upgrade.md), [cluster-template task](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/mise.toml) |
+| Upgrade Talos / change extensions | bump `talosVersion` or edit `schematic.yaml`, then `just talos::upgrade`. Nodes go one at a time, with cordon/drain on Talos ≥ 1.13. **Don't** change `talos_version`/`talos_schematic_id` in the tfvars: that recreates the VMs. Full steps: [Upgrades](/kubernetes/upgrades#talos) | [upgrade](https://github.com/postfinance/topf/blob/main/docs/commands/upgrade.md) |
+| Upgrade Kubernetes | bump `kubernetesVersion` in `topf.yaml`, then `just talos::upgrade-k8s --dry-run` and `just talos::upgrade-k8s` (`talosctl upgrade-k8s --to` that version). Full steps: [Upgrades](/kubernetes/upgrades#kubernetes) | [Kubernetes upgrade](https://github.com/postfinance/topf/blob/main/docs/kubernetes-upgrade.md), [cluster-template task](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/mise.toml) |
 | New talosconfig / kubeconfig | `just talos::configs` | |
 | Render configs offline | `topf render` (writes `talos/output/`, gitignored) | [cluster-template tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/mise.toml) |
 | Start over | `just talos::reset`: `topf reset --full=false`, which wipes only STATE and EPHEMERAL. A full wipe would also erase the Talos install on `sda`, and the VMs have no other boot media | [reset](https://github.com/postfinance/topf/blob/main/docs/commands/reset.md) |

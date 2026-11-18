@@ -13,6 +13,10 @@ wait-for-nodes:
 crds: wait-for-nodes
     kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml
 
+[doc("Show what `cilium` would change (helm diff)")]
+diff:
+    helmfile --file helmfile/apps.yaml diff
+
 [doc("Install or upgrade Cilium; a no-op when nothing changed")]
 cilium: wait-for-nodes
     helmfile --file helmfile/apps.yaml apply --hide-notes --skip-diff-on-install

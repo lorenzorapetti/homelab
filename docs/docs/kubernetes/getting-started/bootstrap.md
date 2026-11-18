@@ -138,6 +138,9 @@ These are verbatim from cluster-template ([default.yaml](https://github.com/oned
 `values/cilium.yaml`, which later becomes `kubernetes/apps/kube-system/cilium/app/helmrelease.yaml`:
 
 ```yaml
+# The Cilium version this cluster was first installed with. Never bump it.
+upgradeCompatibility: "1.20"
+
 # Talos requirements (Talos Cilium guide)
 ipam:
   mode: kubernetes

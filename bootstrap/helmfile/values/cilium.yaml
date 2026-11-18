@@ -2,6 +2,11 @@
 # Cilium values. Later moved into kubernetes/apps/kube-system/cilium/app/helmrelease.yaml.
 # Docs: docs/docs/kubernetes/getting-started/bootstrap.md#cilium-networking
 
+# The Cilium version this cluster was first installed with. Cilium's upgrade
+# guide says to keep it at that version, to minimise datapath disruption on
+# upgrades. Never bump it.
+upgradeCompatibility: "1.20"
+
 # Talos requirements (Talos Cilium guide)
 ipam:
   mode: kubernetes
