@@ -23,7 +23,7 @@ Every node needs:
 - `siderolabs/iscsi-tools`, which "provides iscsid and iscsiadm for persistent volume operations"
 - `siderolabs/util-linux-tools`, which "provides fstrim for filesystem trimming"
 
-([Talos guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md), [Longhorn page](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/)). They are in `talos/schematic.yaml` next to `qemu-guest-agent` ([Preparing the servers](/kubernetes/getting-started/preparing-the-servers#talos-image-the-schematic)). Adding them later means changing the schematic and running `topf upgrade`.
+([Talos guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md), [Longhorn page](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/)). They are in `talos/schematic.yaml` next to `qemu-guest-agent` ([Deploying the infrastructure](/kubernetes/getting-started/deploying-the-infrastructure#talos-image-the-schematic)). Adding them later means changing the schematic and running `topf upgrade`.
 
 ### Talos machine config
 
@@ -64,7 +64,7 @@ Talos v1.8+ sets `--preserve` automatically on upgrade. Before that, an upgrade 
 
 ### VM disks
 
-Each VM has a separate Longhorn virtual disk (`scsi1`) next to the Talos system disk (`scsi0`); see [sizing](/kubernetes/getting-started/preparing-the-servers#sizing).
+Each VM has a separate Longhorn virtual disk (`scsi1`) next to the Talos system disk (`scsi0`); see [sizing](/kubernetes/getting-started/deploying-the-infrastructure#sizing).
 
 - The Talos guide recommends "at least one dedicated disk per storage node" ([guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md)).
 - Longhorn recommends an optional `VolumeConfig` to size Talos's own system volumes, so you don't need `storageReservedPercentageForDefaultDisk` ([Longhorn page](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/)). With a dedicated data disk, this doesn't apply.

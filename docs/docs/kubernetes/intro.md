@@ -20,7 +20,7 @@ The old k3s cluster is gone. The new cluster starts as a [bare skeleton](/kubern
 
 ## Hardware
 
-I have three HP EliteDesk 800 G4 mini PCs, each equipped with an Intel i5-8500T CPU, 16GB of RAM, and a 1TB SSD. They run Proxmox. Right now only the first host (`10.0.10.1`) is in use, and it runs all three Talos VMs (see [Preparing the servers](/kubernetes/getting-started/preparing-the-servers#nodes)).
+I have three HP EliteDesk 800 G4 mini PCs, each equipped with an Intel i5-8500T CPU, 16GB of RAM, and a 1TB SSD. They run Proxmox. Right now only the first host (`10.0.10.1`) is in use, and it runs all three Talos VMs (see [Deploying the infrastructure](/kubernetes/getting-started/deploying-the-infrastructure#nodes)).
 
 ## Network map
 

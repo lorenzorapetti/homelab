@@ -1,2 +1,16 @@
 .DS_Store
 node_modules
+
+# devenv
+.devenv*
+devenv.local.nix
+.direnv
+.pre-commit-config.yaml
+
+# Terraform: only the SOPS-encrypted state is committed
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.sops.json.tmp
+*.tfplan
+crash.log

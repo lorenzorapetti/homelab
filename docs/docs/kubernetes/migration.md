@@ -6,6 +6,8 @@ sidebar_position: 6
 
 The Talos cluster starts as a [bare skeleton](/kubernetes/getting-started/bootstrap): Talos, Cilium, the Flux Operator with a `FluxInstance` syncing an empty `kubernetes/apps/`, and the `sops-age` Secret. The k3s cluster is gone, so nothing runs in parallel. Apps are added **by hand, one app per commit/PR**, in the order below. Each step is small enough to review, reconcile and check before the next one. Nothing here is meant to be dropped in all at once.
 
+The k3s manifests are kept for reference in `kubernetes_old/`. Nothing reconciles from there, and its SOPS secrets are still encrypted to the age key only.
+
 ## Adding one app
 
 1. **Namespace** (for the first app in it): create `kubernetes/apps/<ns>/kustomization.yaml` (with `components: [../../components/sops]`) and `namespace.yaml`, then add `./<ns>` to `kubernetes/apps/kustomization.yaml` ([Repository Architecture](/kubernetes/flux/repository-architecture#a-namespace)).
@@ -103,7 +105,7 @@ rules:
 
 | Area | k3s repo | Talos rebuild |
 | --- | --- | --- |
-| Machines | k3s VMs installed with `k3sup` | Terraform (`bpg/proxmox`) VMs, Talos v1.14 configured by topf ([Preparing the servers](/kubernetes/getting-started/preparing-the-servers), [Install Talos](/kubernetes/getting-started/install-talos)) |
+| Machines | k3s VMs installed with `k3sup` | Terraform (`bpg/proxmox`) VMs, Talos v1.14 configured by topf ([Deploying the infrastructure](/kubernetes/getting-started/deploying-the-infrastructure), [Install Talos](/kubernetes/getting-started/install-talos)) |
 | CNI / LB / ingress | k3s defaults + bundled Traefik (`HelmChartConfig`) | Cilium: kube-proxy replacement, LB IPAM + L2 on `10.0.12.0/24`, Gateway API on `10.0.12.1`. No Traefik |
 | Routes and TLS | Traefik `IngressRoute`, one `Certificate` per app | `HTTPRoute` per app, wildcard cert on the Gateway |
 | Storage | External Ceph via raw ceph-csi manifests | Longhorn in-cluster ([Storage: Longhorn](/kubernetes/storage-longhorn)) |
@@ -117,7 +119,7 @@ rules:
 
 - **App layout and conventions**: the per-app `ks.yaml` + `app/` layout, `&app` anchors, `commonMetadata`, `retryInterval`, timeouts, `healthChecks`/`healthCheckExprs`, cross-namespace `dependsOn`, and the `yaml-language-server` headers.
 - **External services and identities**: the age recipient, the Cloudflare DNS-01 `ClusterIssuer`, the domains, the external Postgres/Redis endpoints, the GitHub repo URL and the deploy key.
-- **`renovate.json`.** Its `flux`, `kubernetes` and `helm-values` managers already match `kubernetes/**`. **To check:** add `bootstrap/helmfile/**`, `talos/topf.yaml` and `terraform/` coverage. cluster-template annotates `topf.yaml` versions with `# renovate:` comments ([topf.yaml](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/topf.yaml.j2)) and uses `home-operations/renovate-presets` ([`.renovaterc.json5`](https://github.com/onedr0p/cluster-template/blob/main/.renovaterc.json5)).
+- **`renovate.json`.** Its `flux`, `kubernetes` and `helm-values` managers already match `kubernetes/**`. **To check:** add `bootstrap/helmfile/**`, `talos/topf.yaml` and `infrastructure/` coverage. cluster-template annotates `topf.yaml` versions with `# renovate:` comments ([topf.yaml](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/topf.yaml.j2)) and uses `home-operations/renovate-presets` ([`.renovaterc.json5`](https://github.com/onedr0p/cluster-template/blob/main/.renovaterc.json5)).
 
 **Dropped:**
 
@@ -130,7 +132,7 @@ rules:
 
 1. **Gitea SSH.** It was Traefik entrypoint `gitea-ssh` on port 55522. Options: a dedicated `LoadBalancer` Service with its own pool IP (e.g. `10.0.12.2` via `lbipam.cilium.io/ips`), or a `TCPRoute` on the Gateway. Cilium treats TCPRoute as optional and needs its experimental CRD ([Cilium Gateway API docs](https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/)).
 2. **Authentik forward auth.** Does the `ExternalAuth` + embedded outpost combination actually work, including the login redirect? If not, use proxy mode for those apps ([above](#authentik-forward-auth-with-cilium-gateway)).
-3. **VM sizing while on one host.** 2 cores, 4.5GB RAM, 50GB system disk and 200GB Longhorn disk per VM is tight. Do I run fewer apps until hosts `.2`/`.3` exist, or start with a single Talos VM? ([sizing](/kubernetes/getting-started/preparing-the-servers#sizing))
+3. **VM sizing while on one host.** 2 cores, 4.5GB RAM, 50GB system disk and 200GB Longhorn disk per VM is tight. Do I run fewer apps until hosts `.2`/`.3` exist, or start with a single Talos VM? ([sizing](/kubernetes/getting-started/deploying-the-infrastructure#sizing))
 4. **Longhorn on Talos 1.14.** Is the kubelet extra mount for `/var/mnt/longhorn` needed, and does `!system_disk` select only the data disk? ([Storage: Longhorn](/kubernetes/storage-longhorn#about-kubelet-extramounts))
 5. **topf and Talos 1.14.** topf officially lists Talos v1.13. Is that acceptable, or should I pin Talos to 1.13 until topf lists 1.14?
 6. **UEFI vs SeaBIOS** for the `nocloud` raw image in Terraform, and the image's real compression (`.raw.xz` vs `zst`).

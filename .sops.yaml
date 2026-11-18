@@ -1,8 +1,24 @@
 ---
+# GPG key CFACE1C5…2805 lives on the YubiKeys; the age key is Flux's in-cluster key.
+# First matching rule wins. See docs/docs/kubernetes/sops.md.
 creation_rules:
-  - path_regex: \.ya?ml$
+  # 1. Flux's age private key: GPG (YubiKey) only, never the age key itself
+  - path_regex: bootstrap/sops-age\.sops\.yaml$
     encrypted_regex: ^(data|stringData)$
     mac_only_encrypted: true
+    pgp: CFACE1C58F406FD74713AB0BF1F680022C252805
+
+  # 2. Workstation-only files: Talos secrets bundle, Terraform secrets + state (whole file)
+  - path_regex: (talos|infrastructure)/.*\.sops\.(ya?ml|json)$
+    mac_only_encrypted: true
+    pgp: CFACE1C58F406FD74713AB0BF1F680022C252805
+    age: age1dkx5fryjw78lpvu4fkk59k4ljl24a5cnsd5nj5sefh05p3xn9anszpqxuq
+
+  # 3. Kubernetes Secrets: GPG for me, age for Flux
+  - path_regex: (bootstrap|kubernetes)/.*\.sops\.ya?ml$
+    encrypted_regex: ^(data|stringData)$
+    mac_only_encrypted: true
+    pgp: CFACE1C58F406FD74713AB0BF1F680022C252805
     age: age1dkx5fryjw78lpvu4fkk59k4ljl24a5cnsd5nj5sefh05p3xn9anszpqxuq
 stores:
   yaml:
