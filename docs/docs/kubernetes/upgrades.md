@@ -5,7 +5,7 @@ sidebar_label: Upgrades
 
 # Upgrading the cluster
 
-How to upgrade Talos, Kubernetes, Cilium, the Gateway API CRDs, the Helm releases and the CLI tools. Each one is pinned in exactly one file, and a `just` recipe rolls it out:
+How to upgrade Talos, Kubernetes, Cilium, Flux, the Gateway API CRDs, the Helm releases and the CLI tools. Each one is pinned in exactly one file, and a `just` recipe rolls it out:
 
 | What | Pinned in | Roll out with |
 | --- | --- | --- |
@@ -13,7 +13,7 @@ How to upgrade Talos, Kubernetes, Cilium, the Gateway API CRDs, the Helm release
 | Kubernetes | `kubernetesVersion` in `talos/topf.yaml` | `just talos::upgrade-k8s` |
 | Cilium | `version` of the `cilium` release in `bootstrap/helmfile/apps.yaml` | `just bootstrap::helmfile` |
 | Flux Operator, `flux-instance` chart | `version` of those releases in `bootstrap/helmfile/apps.yaml` (keep both equal) | `just bootstrap::helmfile` |
-| Flux itself | `instance.distribution.version` (`2.10.x`) in `bootstrap/helmfile/values/flux-instance.yaml` | patches roll automatically; for a minor, bump it + `just bootstrap::helmfile` |
+| Flux itself | `instance.distribution.version` (`2.10.x`) in `bootstrap/helmfile/values/flux-instance.yaml` | the operator picks the newest `2.10.x`; for a minor, bump it + `just bootstrap::helmfile` ([Flux](#flux)) |
 | Gateway API CRDs | the release URL in `bootstrap/mod.just` | `just bootstrap::crds` |
 | CLI tools (`talosctl`, `kubectl`, `helm`, `helmfile`, `cilium`, `flux`, …) | `devenv.lock` (`topf`: `devenv.nix`) | `devenv update` |
 
@@ -40,6 +40,7 @@ So `infrastructure/vms.tf` has `lifecycle { ignore_changes = [disk[0].file_id] }
 - **Check compatibility before a Kubernetes minor upgrade.** Two tables decide which Kubernetes version you can run:
   - the [Talos support matrix](https://docs.siderolabs.com/talos/v1.14/getting-started/support-matrix.md): Talos 1.14 supports Kubernetes 1.33–1.37, Talos 1.13 supports 1.31–1.36.
   - [Cilium's Kubernetes compatibility page](https://github.com/cilium/cilium/blob/v1.20.5/Documentation/network/kubernetes/compatibility.rst) for the Cilium version you run: Cilium 1.20 e2e-tests 1.33–1.36. The cluster already runs 1.37 on it ([Bootstrap the cluster](/kubernetes/getting-started/bootstrap#cilium-networking)), so don't go further until Cilium catches up.
+  - the "Kubernetes compatibility" table in the [Flux release notes](https://github.com/fluxcd/flux2/releases) for the Flux minor you run: Flux 2.10.0 supports 1.35–1.37, and "the Flux project offers support only for the latest three minor versions of Kubernetes".
 - **So the order is Talos, then Cilium, then Kubernetes.** A newer Talos supports the newer Kubernetes, and Cilium has to support it before the control plane moves. Patch upgrades of any one of them can happen on their own.
 - **Read the release notes** of the target version: [Talos releases](https://github.com/siderolabs/talos/releases) (and the "Before upgrade to …" section of its upgrade guide), [topf releases](https://github.com/postfinance/topf/releases) for a new Talos minor (topf is built against a specific Talos version), the upgrade notes at the end of [Cilium's upgrade guide](https://docs.cilium.io/en/stable/operations/upgrade/), and the [Kubernetes changelog](https://kubernetes.io/releases/).
 - **Start from a healthy cluster**, and check again after each step:
@@ -141,6 +142,68 @@ Cilium is a plain Helm release managed by helmfile until it becomes a Flux app.
 
 **Once Cilium is a Flux app**, Renovate bumps the chart tag in `kubernetes/apps/kube-system/cilium/app/` and the merge rolls it out. The pre-flight check, the upgrade notes and the "one minor at a time" rule still apply, so don't merge a minor-version Renovate PR without doing steps 1–3 first. Patch PRs can be merged directly.
 
+## Flux
+
+Flux has three version pins, all in `bootstrap/`:
+
+- **The Flux Operator chart** (`flux-operator` release in `helmfile/apps.yaml`).
+- **The `flux-instance` chart** (`flux-instance` release, same file). Both charts are released together with the operator, so keep the two `version`s equal.
+- **The Flux distribution**, `instance.distribution.version: "2.10.x"` in `helmfile/values/flux-instance.yaml`. It "must be a valid semver range or an exact version" ([FluxInstance docs](https://fluxoperator.dev/docs/crd/fluxinstance/)), and the range pins the minor, so a minor upgrade is always a deliberate commit.
+
+To see what's running:
+
+```bash
+kubectl -n flux-system get fluxinstance flux   # REVISION: v2.10.0@sha256:…
+kubectl -n flux-system get fluxreport flux -o yaml | yq '.spec.distribution, .spec.operator'
+flux version                                   # CLI, distribution and each controller
+```
+
+### Patch releases
+
+Nothing to commit for Flux itself: the operator resolves `2.10.x` to the newest matching release it knows about. Version selection "is constrained to Flux minor versions embedded in the running operator image", and the operator reconciles the instance every hour by default (`fluxcd.controlplane.io/reconcileEvery`, [FluxInstance docs](https://fluxoperator.dev/docs/crd/fluxinstance/)). **Unverified:** how soon a new 2.10 patch appears; 2.10.0 is still the only one (2026-11-18). If it doesn't show up, upgrade the operator (below) and check again.
+
+### Operator upgrades
+
+Do this first for every Flux minor upgrade, and on its own whenever a new operator release comes out. The Flux docs: "first update the operator to the latest version, then update the `FluxInstance` resource to specify the latest Flux minor version" ([Upgrade with Flux Operator](https://fluxcd.io/flux/installation/upgrade/)).
+
+1. **Read the [operator release notes](https://github.com/controlplaneio-fluxcd/flux-operator/releases).** They say which Flux minors a release adds (0.62.0: "Add Flux 2.10 compatibility"). There is no published compatibility matrix.
+2. **Bump `version` of both `flux-operator` and `flux-instance`** in `bootstrap/helmfile/apps.yaml`.
+3. **Preview and upgrade:**
+
+   ```bash
+   just bootstrap::diff
+   just bootstrap::helmfile
+   ```
+
+4. **Check:** the `fluxreport` shows the new operator version, and `fluxinstance flux` is still Ready.
+
+### Minor releases (e.g. 2.10 → 2.11)
+
+1. **Read the [Flux release notes](https://github.com/fluxcd/flux2/releases)** for the target minor: breaking changes, removed API versions, and its Kubernetes compatibility table. Flux doesn't require going one minor at a time ("Users can upgrade from any `v2.x` release to any other `v2.x` release (the latest patch version)", [Flux releases](https://fluxcd.io/flux/releases/)), but I still go one minor at a time so each set of release notes is small.
+2. **Upgrade the operator** to a release that supports the new minor ([above](#operator-upgrades)).
+3. **Update the `flux` CLI** with `devenv update` (see [CLI tools](#cli-tools)). "The `flux` command-line tool is supported within one minor version (older or newer) of Flux" ([Flux releases](https://fluxcd.io/flux/releases/)), so it can run ahead of the cluster for one step.
+4. **Migrate the manifests in Git** to the new API versions, using the new CLI:
+
+   ```bash
+   flux migrate -f kubernetes/apps --dry-run   # show what would change
+   flux migrate -f kubernetes/apps             # rewrite; review the diff
+   ```
+
+   This "migrates the Flux custom resources defined in the manifests located in the specified path. Spec fields that do not exist in the latest API version are removed from the manifests" ([`flux migrate`](https://fluxcd.io/flux/cmd/flux_migrate/)), so read the diff before committing. `--version 2.11` targets a minor other than the CLI's. The objects already stored in etcd are migrated by the operator: `.spec.migrateResources` defaults to `true`, and "the migration runs after the Flux distribution is upgraded from a minor version to another and only when a new API version is introduced" ([FluxInstance docs](https://fluxoperator.dev/docs/crd/fluxinstance/)).
+5. **Bump `instance.distribution.version`** to `"2.11.x"` in `bootstrap/helmfile/values/flux-instance.yaml`, in the same commit as the migrated manifests. Push it, then run `just bootstrap::diff` and `just bootstrap::helmfile`.
+6. **Check:**
+
+   ```bash
+   kubectl -n flux-system get fluxinstance flux   # Ready, REVISION v2.11.x
+   flux version
+   flux get kustomizations -A
+   flux get helmreleases -A
+   ```
+
+**Rollback:** the docs don't cover lowering `distribution.version`, and objects already migrated to a new API version may not be readable by the older controllers. Treat a Flux minor upgrade as one-way: fix forward, and take an etcd snapshot first ([Rules](#rules-for-every-upgrade)). A bad operator upgrade on its own can be rolled back with `helm -n flux-system rollback flux-operator <revision>`.
+
+**Once Flux manages itself** (its `HelmRelease`s under `kubernetes/apps/flux-system/`, step 2 of the [migration](/kubernetes/migration)), Renovate bumps the two charts' `OCIRepository` tags, and `distribution.version` moves into the `flux-instance` HelmRelease values. The order above still applies: merge the operator bump before the Flux minor bump.
+
 ## Gateway API CRDs
 
 1. Check that the target version is the one Cilium documents (see the Cilium section above). Cilium's Gateway API controller is only tested against that version.
@@ -159,9 +222,9 @@ Apps under `kubernetes/apps/` aren't upgraded with Helm by hand: their `HelmRele
 
 Everything except `topf` comes from nixpkgs through `devenv.lock`, which follows `cachix/devenv-nixpkgs/rolling`.
 
-1. `devenv update` bumps the lock (nixpkgs and devenv), so `talosctl`, `kubectl`, `helm`, `helm-diff`, `helmfile`, `cilium`, `sops`, `terraform` and the rest all move together.
+1. `devenv update` bumps the lock (nixpkgs and devenv), so `talosctl`, `kubectl`, `helm`, `helm-diff`, `helmfile`, `cilium`, `flux`, `sops`, `terraform` and the rest all move together.
 2. `devenv test` runs `enterTest`, which prints every tool's version.
-3. Compare with the cluster: `talosctl version --short` (client = server minor version), `kubectl version` (within one minor of the server).
+3. Compare with the cluster: `talosctl version --short` (client = server minor version), `kubectl version` (within one minor of the server), `flux version` (within one minor of the Flux controllers).
 
 nixpkgs ships the newest `talosctl`, so after `devenv update` it can be a minor version ahead of the cluster. Talos's FAQ recommends "the version that matches the current running version of the cluster", so either do the Talos upgrade next, or hold `talosctl` back by pinning it in `devenv.nix` the way `topf` is pinned.
 
