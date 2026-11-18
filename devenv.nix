@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 let
   # topf isn't in nixpkgs: install the pinned upstream release binary.
@@ -29,7 +29,13 @@ in
     just
     talosctl
     topf
+    kubectl
+    yq-go
   ];
+
+  # Client configs written by `just talos::create` (both gitignored).
+  env.TALOSCONFIG = "${config.devenv.root}/talos/talosconfig";
+  env.KUBECONFIG = "${config.devenv.root}/kubeconfig";
 
   enterTest = ''
     terraform version
@@ -39,5 +45,7 @@ in
     just --version
     talosctl version --client --short
     topf --version
+    kubectl version --client
+    yq --version
   '';
 }

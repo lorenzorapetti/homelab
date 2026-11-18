@@ -1,4 +1,5 @@
 mod tf 'infrastructure/mod.just'
+mod talos 'talos/mod.just'
 
 [private]
 default:

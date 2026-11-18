@@ -326,30 +326,35 @@ Compared with the first draft (a single `trap '... > terraform.tfstate.sops.json
 export TALOSCONFIG := justfile_directory() / "talos" / "talosconfig"
 export KUBECONFIG := justfile_directory() / "kubeconfig"
 
-[doc("Generate secrets (once), apply config, bootstrap etcd, write talosconfig/kubeconfig")]
-create:
-    topf secrets --confirm=false > /dev/null
-    topf apply --auto-bootstrap --confirm=false
-    topf talosconfig > "$TALOSCONFIG"
-    topf kubeconfig --validity 8760h > "$KUBECONFIG"
+[doc("Generate secrets (once), apply config (diff + confirm), bootstrap etcd, write talosconfig/kubeconfig")]
+create: _secrets && configs
+    topf apply --auto-bootstrap
+
+configs:   # topf talosconfig / kubeconfig --validity 8760h, via a temp file, umask 077
+    ...
 
 apply *args:
-    topf apply {{args}}
+    topf apply {{ args }}
 
-diff:
-    topf apply --dry-run
+diff *args:
+    topf apply --dry-run {{ args }}
 
 upgrade *args:
-    topf upgrade {{args}}
+    topf upgrade {{ args }}
 
 [doc("Upgrade Kubernetes to kubernetesVersion from topf.yaml")]
 upgrade-k8s:
     talosctl --nodes 10.0.11.1 upgrade-k8s --to "$(yq '.kubernetesVersion' topf.yaml)"
 
-[confirm("Reset ALL nodes to maintenance mode?")]
+[confirm("Reset ALL nodes to maintenance mode? This destroys the cluster.")]
 reset:
-    topf reset --confirm=false
+    topf reset --full=false --confirm=false --wait-for-maintenance
+
+_secrets:  # topf secrets --confirm=false > /dev/null, then abort unless sops filestatus says encrypted
+    ...
 ```
+
+This is abridged; the full file is [`talos/mod.just`](https://github.com/lorenzorapetti/homelab/blob/main/talos/mod.just), explained in [Install Talos](/kubernetes/getting-started/install-talos#create-the-cluster). `apply` keeps topf's confirmation, so `create` always shows the diff before touching the nodes.
 
 `bootstrap/mod.just`:
 
@@ -381,6 +386,6 @@ reconcile:
 
 Notes on the justfile:
 
-- **Where the commands come from.** The topf invocations follow cluster-template's `bootstrap:talos` tasks, including `--confirm=false` for non-interactive runs and the 8760h kubeconfig. `upgrade-k8s` mirrors its Talos task ([bootstrap tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/mise.toml), [talos tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/mise.toml)).
+- **Where the commands come from.** The topf invocations follow cluster-template's `bootstrap:talos` tasks, including the 8760h kubeconfig. Unlike cluster-template, `apply` doesn't pass `--confirm=false`, so the diff is always shown first. `upgrade-k8s` mirrors its Talos task ([bootstrap tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/mise.toml), [talos tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/mise.toml)).
 - **The Terraform state rule.** The state is encrypted as JSON (`--input-type json`), which needs its own `infrastructure/` rule in [`.sops.yaml`](/kubernetes/sops#sopsyaml). `--filename-override` is the right flag in sops 3.13: "Use this filename instead of the provided argument for loading configuration". Run from `infrastructure/`, `--filename-override terraform.tfstate.sops.json` picks up rule 2, which encrypts to both the GPG key and the age key. I checked this by encrypting a dummy file.
 - **The root `justfile` exports nothing**, since each module sets the variables it needs. **Unverified:** whether a root-level `export` would reach module recipes. The README only documents that environment *files* from parent modules are visible in child modules.

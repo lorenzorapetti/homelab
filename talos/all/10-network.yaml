@@ -1,0 +1,10 @@
+# Node addresses come from the Proxmox cloud-init (nocloud) data set by Terraform.
+apiVersion: v1alpha1
+kind: KubeNetworkConfig
+podSubnets: ["10.244.0.0/16"]
+serviceSubnets: ["10.96.0.0/12"]
+---
+apiVersion: v1alpha1
+kind: ResolverConfig
+nameservers:
+  - address: 10.0.1.30   # LAN DNS server (see the network map); no public fallback

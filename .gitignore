@@ -14,3 +14,11 @@ devenv.local.nix
 *.tfstate.sops.json.tmp
 *.tfplan
 crash.log
+
+# Talos: only the SOPS-encrypted secrets bundle is committed
+talos/rendered/
+talos/output/
+talosconfig
+talosconfig.tmp
+kubeconfig
+kubeconfig.tmp

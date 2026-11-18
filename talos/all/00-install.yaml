@@ -1,0 +1,7 @@
+# Install Talos on the scsi0 system disk (sda, 54 GB). sdb is the Longhorn disk,
+# sr0 the cloud-init drive. The installer image is injected by topf from topf.yaml.
+apiVersion: v1alpha1
+kind: UnattendedInstallConfig
+provisioning:
+  diskSelector:
+    match: disk.dev_path == "/dev/sda"

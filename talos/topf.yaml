@@ -1,0 +1,21 @@
+---
+# topf: https://github.com/postfinance/topf/blob/main/docs/configuration.md
+# Docs: docs/docs/kubernetes/getting-started/install-talos.md
+clusterName: homelab
+clusterEndpoint: https://10.0.11.10:6443   # the API VIP (control-plane/00-cluster.yaml)
+kubernetesVersion: 1.37.2
+talosVersion: 1.14.5                       # keep in step with talos_version in infrastructure/variables.auto.tfvars
+schematicId: "@schematic.yaml"
+platform: nocloud                          # matches the nocloud image Terraform boots
+secretsPath: secrets.sops.yaml             # SOPS-encrypted (rule 2 in .sops.yaml)
+
+nodes:
+  - host: talos-1
+    ip: 10.0.11.1
+    role: control-plane
+  - host: talos-2
+    ip: 10.0.11.2
+    role: control-plane
+  - host: talos-3
+    ip: 10.0.11.3
+    role: control-plane

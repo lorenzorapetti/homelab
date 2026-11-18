@@ -1,0 +1,12 @@
+# Longhorn data disk (scsi1 = sdb) as a user volume, mounted at /var/mnt/longhorn.
+# The selector excludes the system disk (sda) and the read-only cloud-init CD-ROM (sr0).
+# Talos requires a size: minSize also refuses any disk smaller than 150GB, and
+# grow fills the rest of the 200GB disk (and follows it if it's resized).
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: longhorn
+provisioning:
+  diskSelector:
+    match: "!system_disk && !disk.cdrom && !disk.readonly"
+  minSize: 150GB
+  grow: true

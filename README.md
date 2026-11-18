@@ -7,7 +7,7 @@ My homelab: a Talos Linux Kubernetes cluster on Proxmox, managed with Terraform,
 | Path | What |
 | --- | --- |
 | `infrastructure/` | Terraform (`bpg/proxmox`): the Talos VMs on Proxmox |
-| `talos/` | Talos config for topf (Image Factory schematic, later machine config) |
+| `talos/` | Talos config for topf: cluster, patches, schematic, SOPS-encrypted secrets bundle |
 | `kubernetes/` | Manifests Flux syncs into the cluster |
 | `kubernetes_old/` | The previous k3s cluster's manifests, kept for reference while migrating |
 | `docker/` | Docker Compose stacks outside the cluster |
@@ -20,7 +20,7 @@ My homelab: a Talos Linux Kubernetes cluster on Proxmox, managed with Terraform,
 Tools come from [devenv](https://devenv.sh), not from whatever is on `PATH`:
 
 ```bash
-devenv shell          # terraform, sops, gpg, age, just, talosctl, topf
+devenv shell          # terraform, sops, gpg, age, just, talosctl, topf, kubectl, yq
 just                  # list recipes
 ```
 
@@ -35,3 +35,12 @@ just tf::apply        # decrypts the API token + state, re-encrypts state on exi
 ```
 
 The Proxmox API token lives in `infrastructure/secrets.sops.yaml` and the state in `infrastructure/terraform.tfstate.sops.json`. Neither is ever written to disk in plaintext between runs. See [Deploying the infrastructure](docs/docs/kubernetes/getting-started/deploying-the-infrastructure.md), which has the step-by-step procedure.
+
+### Talos
+
+```bash
+just talos::create    # secrets bundle (once), diff + apply, bootstrap etcd, talosconfig/kubeconfig
+just talos::diff      # what `just talos::apply` would change
+```
+
+`devenv shell` points `TALOSCONFIG` and `KUBECONFIG` at the generated (gitignored) files. See [Install Talos](docs/docs/kubernetes/getting-started/install-talos.md).

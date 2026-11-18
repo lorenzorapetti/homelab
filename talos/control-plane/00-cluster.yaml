@@ -1,0 +1,21 @@
+# Cilium replaces Flannel and kube-proxy
+apiVersion: v1alpha1
+kind: KubeFlannelCNIConfig
+$patch: delete
+---
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+enabled: false
+---
+# All nodes are control planes and run workloads
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+taints:
+  node-role.kubernetes.io/control-plane:
+    $patch: delete
+---
+# Kubernetes API VIP (see the network map). eth0 verified with talosctl get links.
+apiVersion: v1alpha1
+kind: Layer2VIPConfig
+name: 10.0.11.10
+link: eth0

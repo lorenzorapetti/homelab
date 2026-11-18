@@ -35,12 +35,14 @@ kind: UserVolumeConfig
 name: longhorn
 provisioning:
   diskSelector:
-    match: "!system_disk"     # the separate scsi1 data disk; check with talosctl get disks
-  grow: false
+    match: "!system_disk && !disk.cdrom && !disk.readonly"
+  minSize: 150GB
+  grow: true
 ```
 
 - **A user volume, not `/var/lib/longhorn`.** A `UserVolumeConfig` allocates a partition on the matching disk and mounts it at `/var/mnt/<name>`, here `/var/mnt/longhorn`. The default filesystem is `xfs` ([UserVolumeConfig reference](https://docs.siderolabs.com/talos/v1.14/reference/configuration/block/uservolumeconfig.md)).
-- **The selector.** The Talos guide matches `disk.transport == 'nvme' && !system_disk`. The VMs present a SCSI disk, so I keep only `!system_disk`. **Unverified:** that `!system_disk` alone matches only the data disk on these VMs and not, say, the cloud-init drive. Check `talosctl get disks` before applying.
+- **The selector.** The Talos guide matches `disk.transport == 'nvme' && !system_disk`. These VMs have no NVMe disk. `talosctl get disks --insecure` shows `sda` (system), `sdb` (the 215 GB `scsi1` data disk) and `sr0`, the 4.2 MB cloud-init drive with `cdrom: true` and `readonly: true`. `!system_disk` alone would also match `sr0`, so the selector excludes CD-ROMs and read-only disks too.
+- **The size.** Talos 1.14 requires `minSize` or `maxSize`: without one, `talosctl validate` fails with "min size or max size is required". `minSize: 150GB` also keeps the volume off any small disk, and `grow: true` lets the partition fill the rest of the 200 GB disk (and follow it if the disk is resized in Proxmox).
 
 #### About kubelet `extraMounts`
 

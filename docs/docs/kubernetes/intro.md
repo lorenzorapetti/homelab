@@ -30,6 +30,7 @@ The LAN is one flat `10.0.0.0/16` behind the router at `10.0.0.1`. DHCP only han
 | --- | --- | --- |
 | `10.0.0.1` | Router / default gateway | |
 | `10.0.0.0/24` | DHCP clients | Not used for anything static |
+| `10.0.1.30` | LAN DNS server | First nameserver on the Talos nodes (`ResolverConfig`) |
 | `10.0.10.0/24` | Proxmox hosts | `10.0.10.1` now; `.2` and `.3` later |
 | `10.0.11.0/24` | Talos VMs | Static, set by Terraform cloud-init. Netmask `/16`, gateway `10.0.0.1` |
 | `10.0.11.1`–`10.0.11.3` | `talos-1`…`talos-3` | Control plane + workloads |
@@ -47,8 +48,8 @@ I checked these against upstream release pages on 2026-11-18. Renovate keeps the
 
 | Component | Version | Source |
 | --- | --- | --- |
-| Talos Linux | v1.14.6 | [siderolabs/talos releases](https://github.com/siderolabs/talos/releases) |
-| Kubernetes | v1.37.x (cluster-template pins v1.37.2) | [cluster-template `topf.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/topf.yaml.j2) |
+| Talos Linux | v1.14.5 pinned (= devenv `talosctl`; v1.14.6 is out) | [siderolabs/talos releases](https://github.com/siderolabs/talos/releases) |
+| Kubernetes | v1.37.2 (cluster-template pins the same) | [cluster-template `topf.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/topf.yaml.j2) |
 | topf | v0.6.2 | [postfinance/topf releases](https://github.com/postfinance/topf/releases) |
 | Terraform provider `bpg/proxmox` | v0.123.1 | [releases](https://github.com/bpg/terraform-provider-proxmox/releases) |
 | Flux | v2.10.0 (supports Kubernetes 1.35–1.37) | [flux2 v2.10.0 release notes](https://github.com/fluxcd/flux2/releases/tag/v2.10.0) |
