@@ -12,14 +12,14 @@ creation_rules:
   - path_regex: (talos|infrastructure)/.*\.sops\.(ya?ml|json)$
     mac_only_encrypted: true
     pgp: CFACE1C58F406FD74713AB0BF1F680022C252805
-    age: age1dkx5fryjw78lpvu4fkk59k4ljl24a5cnsd5nj5sefh05p3xn9anszpqxuq
+    age: age1gt9a67gwv8jt30g4ul0rglfq38h0lreul89640jddz9xl0y9qpjs4tcggj
 
   # 3. Kubernetes Secrets: GPG for me, age for Flux
   - path_regex: (bootstrap|kubernetes)/.*\.sops\.ya?ml$
     encrypted_regex: ^(data|stringData)$
     mac_only_encrypted: true
     pgp: CFACE1C58F406FD74713AB0BF1F680022C252805
-    age: age1dkx5fryjw78lpvu4fkk59k4ljl24a5cnsd5nj5sefh05p3xn9anszpqxuq
+    age: age1gt9a67gwv8jt30g4ul0rglfq38h0lreul89640jddz9xl0y9qpjs4tcggj
 stores:
   yaml:
     indent: 2

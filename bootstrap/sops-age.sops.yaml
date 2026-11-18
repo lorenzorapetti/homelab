@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sops-age
+  namespace: flux-system
+stringData:
+  age.agekey: ENC[AES256_GCM,data:Bu6xnnwA7pTA506vE4fNHrsTmLDg95bOpNhJPrFRg9/fUf3oARqXT//yptPM2WLkwvElNcS0PWazcLCVxtshfm8YQC3SctFGX3sa,iv:P9s29aMRC3UlHErFfNVnp3T4zPPkC/xDYMOiwYXHV6E=,tag:5NAToSyGaswUkcGtQUy3Ww==,type:str]
+sops:
+  encrypted_regex: ^(data|stringData)$
+  lastmodified: "2026-11-18T22:02:38Z"
+  mac: ENC[AES256_GCM,data:SZ4xtuyZs/VNARAHDgheyBTMjC1HOrv57C+8Td319Jjh/G02Y9H6ME0MAwkIz2xq9MbCWAVWATFM35dzuezN8XVA1d770KtWs0kCjCOmNWXNsTVKDdgEvQ6JPwOZ4qLU9VIdy3ut2/LhmJQ2jcoVRswp4eF2gHvxinQLAigT/U4=,iv:IbhqSqb0s0FcWTiUpPXpvj6+0N7vc52/mcBWvMtf12Y=,tag:AOvWh0yvmgg1czA6lRVKvw==,type:str]
+  mac_only_encrypted: true
+  pgp:
+    - created_at: "2026-11-18T22:02:38Z"
+      enc: |-
+        -----BEGIN PGP MESSAGE-----
+
+        hQIMAwAAAAAAAAAAAQ/9EB3XyTtv5id5/h34HfeZ8wWz6qrPVhm9mZ9I3n39Diuj
+        u50Ro6RQppXH+vaDzIkpqiSp7X8C3//CXtHOgteL4NztH7r+qy6Ayab3dvEFnFWm
+        ttYTYpqojdNugIJcceN9FRH2nJGVuidodhTnvN5QzjiBlO8VDJxCpuzz+EaNDj1y
+        ycETbPGJVcapwKe2kstQ0tqXsMPRSiVJ7XskGfFDha9bQ3JgcejVAQSWYAKbmFNs
+        ZUdBl1QPDYjurYEMVM+M/JhjJbB/lGKXBZoeW0MTSj9pg5zGFzAf6mUK6RS4vESw
+        L06jARX9GU5xtGa0Uos2k/Oytlur/Ku9+g1BPPvV9c1VcRvvWMCdkrfvZHRIoIDn
+        2aYpIvJEqTk2FvbgjqWMXLSCX8lBTklEKQdfL/9GaeGY4diC1lds7FbOXG0fyzHQ
+        qA4NigYLyE51FwrZyu2GmxbmoIAVTjKOtRDJl61S2pdaJ51jHwa9Hnuqsm6yUZGg
+        Oh/bhHiN2zCxB6He7apJMmmRbPF8jaxgXtxIS3ollvyxjGYgRdtSjrjSgq8BDtW/
+        ++fawgCsT5RRrkekOn/XTktRtMny0si99u3VbPEXhst8ux7sjf34D+RadSVwyGUD
+        /VgXGklMFskx4ZGD5lfkXIWSUmb4Mgy8nP5ZxMeShhCZUMiW3N/d3A6Xe9fhHJPS
+        XgE2rhXiKha5O6Slxi3BTb9UZLDQuceUtoUxjobyWcVF9d0jf5RmyxAUQJ1vRlCk
+        gGwfPrpseiRqP+/0uN1vjF4jWEoXX9nJehr7gP1zcYl5MN981dyNxnZi/cLjzt0=
+        =iO99
+        -----END PGP MESSAGE-----
+      fp: CFACE1C58F406FD74713AB0BF1F680022C252805
+  version: 3.13.3

@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: flux-system
+  namespace: flux-system
+stringData:
+  identity: ENC[AES256_GCM,data:uGLepsfpXtm5lYRGZstNWEV+yfBSI3Ldyi+kt+0cSXbvWKrUKrgknOpsxQgMAaQ1bpNzcklhjdJ4YWDXnUE8xiBBJHOCHD3nflEnP99/nnCcjunWSkpjunFQoW6pVjsMyXn+TseUUPIa5u5CmVVfvoSIkCRSSfEAp/Er8GSaGHcVrXW2GGyzxx5FGykxiyX45Poq8kD8d3HyQ2M4RsW5Zthk+HJ8Z3bOVVrVMiyhzyd5ml0avmF/rmnbAWNxhfwz072DikkX8DKBQs7DOHEtccnOAAsdlJnaF0B6Esr0Iriqrp/KLSkttT03ZtbRsKWvDxLAcbXIjeZFmJgT6zZZILwVnlVmkKvfOFrghjkc71gW6IGn6iTRYebszOZw+MFclPmb9FXeWlgk2ZIuhceY//+2jn0en1huaTEoAyiLyIO+qvqXbnABt2GJDSerqdz+wqxzgIiBoQRUenCaUD+6WgWzrhJJlCa17AZNbRTaZRYUu6uofDtVH9YKrp4vAErSaExq5saSm04VD+ZJDpsv,iv:DFqIJxn88bkF8Gdgc68NDTZ75UCWjws8OcY3gQEgiq0=,tag:5579sOdx9KCoPb9x8jOScQ==,type:str]
+  known_hosts: ENC[AES256_GCM,data:yphLseP5LCmQVSe8eS4pAxwcjmJ0ZN4zvyrhtf9jEoJg3VnADfojj4evIzcYzQdM6LSP34aJE8x6rM0q9820hnEmcK6Lvwr/4V/dp41s9oP5vikb3JSWOCn9fgPKluSh1jLsIa9Bez4lP1GD4Pq5kWa0Wd/Ocz8U6LLtX8nzlwouxV0lW8GW/4ja4i4RprwELM41myN0g2V9lIk/gACcFPKWKFfvandfDFYMH4lAfup5Lr7j8wFPhuEBUbYTzX730pLRVXuB94tGEOXBkoLAZsaApCIHmrsr4oIFaMRoQq1JWg7UNK+S14cHZOv20UTwJeU7Qv8WeBbnaS3bGHsG+PPZE6D9lDmWEuAHdBpI/w5bdcMe2jHazIwuu1WJk46EMDsCuymAkI9K97BHXfb+CAIR0pONXga6eMhN+NkaW6Dv7dnY6NZ5AYIa7X04eeHiDiphAd2mFFSa8VwM/6Q+pcaAEg5jx6cHOxAMYS4Pu7iseCFJf2tgW1731HiCK1NG2T1ayMwAAOtMnU0QYXTLBWkDH8ZFvAwwo6noYHy3iGN3LIa4QTlQAzNA61F7Bl8+0DWSTR4QhDtjVHPC/2A8Xl5S+qxbAOkxckqZkjhBn0r3bVndAhE9L5kq9yhquG6FBFeLh2UywL6sknhpiMmsYXiBAGNX+K/lvF9FXpf3JRGDTE302x9glL0iRGEdYBjuvFhZg0Lb7Y3G6sl/7RNcr+Ggdmm1paPRJnVtf1z9nnBWY7sEX25I6JMZHF2PtGwypCXLulaFvfz8WcvNV/aBzDht6EgQM4KkKNTe1lfCkE6OLweE/52qOHOapDBEWM+SW/pIcW28bU3/EOKTcdsDPBBc8wz5SPrBPhZN33DPBF27s9DK/7lFTsbgnguHIW/BhUh7WW3Py+IsS+W3kKIn9a1mxlMUR28wvdQ+omJo1PvsB/fWi1AJoK/hmqLfgk2odbEuKdRvNCgp/he9j3bZ4y441y3WEyvMX/QhtwEETeAFXJvG1U7lyeK4d7kiA+quN4wIHeMJjsk9FHMwOz/9GpQiwjuItKpFTTe4PA4KuYubt21VmDO1+Au+R4uW80MtTEOtqH4Q1+0+bjql,iv:dWQ3VDTSCytZPdrexxh46kHtIFkR9QYUzb9a0KT8Kf0=,tag:3IZHs4asdgSs7/HZfM/K3Q==,type:str]
+sops:
+  age:
+    - enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBySXBzakRtYUI4b2JuY2tZ
+        NkNQR21nYStaUGNQY1FnNFRwUTdhOE5uWkdvClBvVWtZNllPN3BDUzlzaFNOTlJX
+        QzlsUGwwOGFGRWxMVEdEM0t6elJXYU0KLS0tIHNqVmVzZHlodDJORlpIL281L1lt
+        dXh5RzZNNkN6S2taR1hrbkg1aG1LZzgKmSmFUpP+5oBKBgr3QFXAXCOuOZy3XX2w
+        sghoE819AGNolLNtUjJVKV/fNHEnb4OlQiejrid44XWLlagtKYKIsQ==
+        -----END AGE ENCRYPTED FILE-----
+      recipient: age1gt9a67gwv8jt30g4ul0rglfq38h0lreul89640jddz9xl0y9qpjs4tcggj
+  encrypted_regex: ^(data|stringData)$
+  lastmodified: "2026-11-18T22:02:59Z"
+  mac: ENC[AES256_GCM,data:2C1qZG1rkSfJQ51XurpGfnFpopE6wILriHjuw60UY9h4QId/H+/q57XU+IAAXEr2Qquff226eX+MhoiVBg9Yxb5Bu/O42SXZxHT+rDzV9FOgDrP+TifZUZfxh3rZuKboKd8rrGZGpWWQNK/8R18eJU8F7yAw9brp2OnTpNdY96E=,iv:VfougitTg1JNqMc53kfFK92rGHWhtuvdJJy52vt1A0A=,tag:pITm+Io0hfpDfU55sZEoiw==,type:str]
+  mac_only_encrypted: true
+  pgp:
+    - created_at: "2026-11-18T22:02:59Z"
+      enc: |-
+        -----BEGIN PGP MESSAGE-----
+
+        hQIMAwAAAAAAAAAAARAAhvKmvoImWiuquKF1lsNARl/PggQfbA0502/clZfDjKe5
+        nYVgFB2vAp81z7xhvK2ng4Nafv6B/v1KURwCyujqUK2SfTPgD3CnMvIv0xP/Xnv8
+        dgukyX/tfU0nUJZMxwSzLHExaiw5Td1q6rYxW3nFQqcWqv1EsCPMzEJ25Ima6d0x
+        6M5oTVLqR51bGxabJVB8yFGdGZlCLs5hAsPWRC7wPLTYYx+RySMp+F1BnqQOhVAU
+        jsNdM5sP9+DX5OOJMNVXz6bx1rVV1g+szEN0S/QIa6JpiXZs938AEvZC8PNglffa
+        cVVdtNFeCVoD/iAoy630HHqe6SgBibYG5OiY826T1THkcGToJgFqhdPvwfPkLPot
+        y6XPPM+mCnHWjdUJvhpBI5dbP3K7gxOF5+wlCrg8Hyvfh5lzHJNFE8l22jbobxJe
+        SDoaLZc2UPTDfnOTg55Pxwlq7FH1gFSKy5TpQEs+Sh3rIUJQHfRAboQZt7DHzroZ
+        IzvuCeihHRhxbGuS67WtfRaaiun0aMQNDuX6ml8qUJCM8VKaTEzs+mqysV225JVl
+        0Yp/4q4i1h10faDpgC9+9ucNEpaw5fseNOvDBqd2MH8OdWQlSgoW/In9pC2kdMAk
+        BGnz29kdWqMPhbtRbp6yfQ0wLi698hsJxWE5z2/DRoZCSRJGnoIyzIDAkV6Qiq3S
+        XgFziyZMyr6O+PkQBMSDWuBaCW+OtosCX4Lmkvnup7XgLW/Es0ntt7CpegU57y+2
+        ymVGcsDfq2guE++dlTO/PQpk3094qkKLrwQfC/9xWy9xyfuzIyEUzMnTHOBAvPQ=
+        =pmME
+        -----END PGP MESSAGE-----
+      fp: CFACE1C58F406FD74713AB0BF1F680022C252805
+  version: 3.13.3
