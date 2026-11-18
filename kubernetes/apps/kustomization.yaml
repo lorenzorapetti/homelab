@@ -4,5 +4,4 @@
 # Apps are added one at a time: docs/docs/kubernetes/migration.md
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources:
-  - ./flux-sops-test.sops.yaml
+resources: []
