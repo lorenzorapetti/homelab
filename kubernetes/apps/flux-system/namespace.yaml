@@ -1,0 +1,9 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/v1/namespace.json
+# Created by `just bootstrap::secrets`; Flux adopts it but never prunes it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flux-system
+  annotations:
+    kustomize.toolkit.fluxcd.io/prune: disabled

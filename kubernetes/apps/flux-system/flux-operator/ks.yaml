@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app flux-operator
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+    annotations:
+      # Deleting this Kustomization must never uninstall Flux: the injected
+      # deletionPolicy (WaitForTermination) skips objects with this annotation.
+      kustomize.toolkit.fluxcd.io/prune: disabled
+  interval: 1h
+  path: ./kubernetes/apps/flux-system/flux-operator/app
+  patches: []                       # required by the FluxInstance's injected patch
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: flux-system
+  timeout: 5m
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: flux-operator
+      namespace: flux-system

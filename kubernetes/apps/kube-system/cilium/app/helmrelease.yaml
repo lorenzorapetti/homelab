@@ -1,8 +1,7 @@
 ---
 # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
 # Adopts the `cilium` release that bootstrap/helmfile installed (same name and namespace).
-# The values must stay identical to bootstrap/helmfile/values/cilium.yaml until the
-# helmfile reads them from here.
+# bootstrap/helmfile reads `spec.values` from here.
 # Docs: docs/docs/kubernetes/getting-started/bootstrap.md#cilium-networking
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

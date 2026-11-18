@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# Adopts the `flux-operator` release that bootstrap/helmfile installed (same name
+# and namespace). Chart defaults: bootstrap/helmfile reads `spec.values` from here.
+# Docs: docs/docs/kubernetes/flux/intro.md#flux-manages-itself
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: flux-operator
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: flux-operator
+  values: {}

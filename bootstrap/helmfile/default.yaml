@@ -1,0 +1,11 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/helmfile
+# Every bootstrap release reads its chart, version and values from the Flux
+# manifests under kubernetes/apps/<namespace>/<name>/app/, so Git holds one copy.
+# Pattern from cluster-template. Docs: docs/docs/kubernetes/getting-started/bootstrap.md#one-source-of-truth-for-values
+templates:
+  default:
+    chart: '{{ (fromYaml (tpl (readFile "./templates/release.yaml.gotmpl") .)).chart }}'
+    version: '{{ (fromYaml (tpl (readFile "./templates/release.yaml.gotmpl") .)).version }}'
+    values:
+      - ./templates/values.yaml.gotmpl

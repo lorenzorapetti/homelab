@@ -1,8 +1,9 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/kustomization
-# The FluxInstance syncs this path directly (bootstrap/helmfile/values/flux-instance.yaml).
+# The FluxInstance syncs this path directly (flux-system/flux-instance/app/helmrelease.yaml).
 # Apps are added one at a time: docs/docs/kubernetes/migration.md
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ./kube-system
+  - ./flux-system

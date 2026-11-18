@@ -1,0 +1,18 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# Flux manages its own operator and instance. The prune annotation keeps the
+# namespace, both ks.yaml Kustomizations and cluster-secrets alive if this
+# directory is deleted: the root `flux-system` Kustomization skips them when it
+# garbage-collects.
+# Docs: docs/docs/kubernetes/flux/intro.md#flux-manages-itself
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: flux-system
+commonAnnotations:
+  kustomize.toolkit.fluxcd.io/prune: disabled
+components:
+  - ../../components/sops
+resources:
+  - ./namespace.yaml
+  - ./flux-operator/ks.yaml
+  - ./flux-instance/ks.yaml
