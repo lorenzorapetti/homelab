@@ -10,7 +10,7 @@ The k3s manifests are kept for reference in `kubernetes_old/`. Nothing reconcile
 
 ## Adding one app
 
-1. **Namespace** (for the first app in it): create `kubernetes/apps/<ns>/kustomization.yaml` (with `components: [../../components/sops]`) and `namespace.yaml`, then add `./<ns>` to `kubernetes/apps/kustomization.yaml` ([Repository Architecture](/kubernetes/flux/repository-architecture#a-namespace)).
+1. **Namespace** (for the first app in it): create `kubernetes/apps/<ns>/kustomization.yaml` (with `components: [../../components/sops]`) and `namespace.yaml`, then add `./<ns>` to `kubernetes/apps/kustomization.yaml` ([Repository Architecture](/kubernetes/flux/repository-architecture#a-namespace)). Skip `namespace.yaml` for a namespace that Kubernetes or the bootstrap creates, such as `kube-system` ([why](/kubernetes/flux/repository-architecture#kube-system-no-namespaceyaml)).
 2. **`ks.yaml`**: copy it from the k3s repo, then:
    - add `patches: []` (required by the FluxInstance's injected patch) and `postBuild.substituteFrom: cluster-secrets` if needed;
    - keep only the `dependsOn` entries for apps that already exist in the new cluster;
@@ -31,8 +31,8 @@ The dependencies come from the k3s `ks.yaml` files, with Traefik replaced by the
 | # | App(s) | Namespace | Depends on | Notes |
 | --- | --- | --- | --- | --- |
 | 0 | *skeleton* | — | — | [Bootstrap](/kubernetes/getting-started/bootstrap) |
-| 1 | `cilium` | `kube-system` | — | Adopt the helmfile release. Add `networks.yaml`: the LB pool `10.0.12.1–254` and the L2 policy ([network map](/kubernetes/intro#network-map)) |
-| 2 | `flux-operator`, `flux-instance` | `flux-system` | `flux-instance` → `flux-operator` | Adopt the helmfile releases. Then switch the helmfile to [read values from these manifests](/kubernetes/getting-started/bootstrap#later-one-source-of-truth-for-values) |
+| 1 | `cilium` | `kube-system` | — | **Done 2026-11-18.** Adopt the helmfile release (one upgrade, all Cilium pods roll once: [what the takeover does](/kubernetes/getting-started/bootstrap#what-the-takeover-does-cilium-2026-11-18)). Add `networks.yaml`: the LB pool `10.0.12.1–254` and the L2 policy ([network map](/kubernetes/intro#network-map)). Adds the `sops` component with `cluster-secrets` ([shape](/kubernetes/flux/repository-architecture#cluster-secrets)) |
+| 2 | `flux-operator`, `flux-instance` | `flux-system` | `flux-instance` → `flux-operator` | Adopt the helmfile releases (expect the same one-time upgrade and pod rollout as Cilium). Then switch the helmfile to [read values from these manifests](/kubernetes/getting-started/bootstrap#later-one-source-of-truth-for-values) |
 | 3 | `gateway-api-crds` | `kube-system` | — | A `GitRepository` on `kubernetes-sigs/gateway-api` at `v1.6.3`, experimental channel (for `ExternalAuth`) |
 | 4 | **`longhorn`** | `longhorn-system` | — | Early, so every stateful app can depend on it. Privileged namespace, `defaultDataPath: /var/mnt/longhorn` ([Storage: Longhorn](/kubernetes/storage-longhorn)) |
 | 5 | `cert-manager`, then `cluster-issuer` | `cert-manager` | `cluster-issuer` → `cert-manager` | The Cloudflare DNS-01 issuer carries over. The chart moves to OCI and from v1.19.1 to v1.21.x |

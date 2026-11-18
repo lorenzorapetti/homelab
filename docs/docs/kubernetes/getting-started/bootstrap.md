@@ -269,7 +269,7 @@ cilium connectivity test --namespace-labels pod-security.kubernetes.io/enforce=p
   - *Need a node without Cilium*: `north-south-loadbalancing*`. Every node runs Cilium.
   - *Features not enabled*: encryption, mutual auth (SPIFFE), Cilium's Ingress controller (Gateway API is used instead), the L7 load balancer, local redirect policy, ztunnel, `cidr-match-nodes`, `k8s-cluster-network-policy`. Two old encryption tests only run on Cilium < 1.18.
   - *Not applicable*: ClusterMesh tests and `echo-ingress-l7-via-hostport` ("skipped by condition"), and the `pod-to-controlplane-host*`/`pod-to-k8s-on-controlplane*` tests ("k8s localhost tests excluded", because the API server is reached through KubePrism on localhost).
-- **L2 announcements, by hand.** I applied the pool and L2 policy above, plus a test pod behind a `type: LoadBalancer` Service annotated `lbipam.cilium.io/ips: "10.0.12.1"`. The Service got `10.0.12.1` in about 5 seconds, a `cilium-l2announce-l2-test.echo` Lease appeared in `kube-system` (held by `talos-2`), and `curl http://10.0.12.1/` from a laptop on the LAN answered. The laptop's ARP entry for `10.0.12.1` was `talos-2`'s MAC. Then I deleted everything, since the real pool and policy arrive through Flux.
+- **L2 announcements, by hand.** I applied the pool and L2 policy above, plus a test pod behind a `type: LoadBalancer` Service annotated `lbipam.cilium.io/ips: "10.0.12.1"`. The Service got `10.0.12.1` in about 5 seconds, a `cilium-l2announce-l2-test.echo` Lease appeared in `kube-system` (held by `talos-2`), and `curl http://10.0.12.1/` from a laptop on the LAN answered. The laptop's ARP entry for `10.0.12.1` was `talos-2`'s MAC. Then I deleted everything, since the real pool and policy arrive through Flux. Once Flux had applied them, I repeated the test without pinning an IP. The Service got `10.0.12.1`, the first address in the pool, and the Lease was again held by `talos-2`. It answered both from the workstation and from a phone on the LAN. The pool shows `CONFLICTING False` and `IPS AVAILABLE 254`.
 
 ## 4. Flux takes over
 
@@ -292,6 +292,27 @@ What I checked after `just bootstrap::apps` on the cluster (2026-11-18):
 - **Sync, SOPS and prune.** I committed a throwaway SOPS-encrypted Secret under `kubernetes/apps/` (encrypted by rule 3, so GPG + age). After `just bootstrap::reconcile` it was in the cluster, decrypted. Removing it from Git and reconciling again deleted it, since the generated Kustomization has `prune: true`.
 
 Cilium, the Flux Operator and the FluxInstance are still plain Helm releases at this point. Flux manages them only once their `HelmRelease`s are added under `kubernetes/apps/` with the same names and namespaces. helm-controller then takes over the existing releases; cluster-template relies on this ("After this bootstrap phase, Flux is ready to take over management", [apps.yaml](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/apps.yaml.j2)).
+
+### What the takeover does (Cilium, 2026-11-18)
+
+Cilium was the first release Flux took over (step 1 of the [migration](/kubernetes/migration)). Its `HelmRelease` has the same name and namespace as the helmfile release, and values identical to `values/cilium.yaml`. What happened:
+
+- **helm-controller upgrades the release in place.** `helm -n kube-system history cilium` shows revision 1 (helmfile, `cilium-1.20.5`, "Install complete") `superseded`, and revision 2 `deployed` as `cilium-1.20.5+873a782bf106`, "Upgrade complete". There was no uninstall or reinstall. The `cilium` Kustomization and HelmRelease went Ready, and the HelmRelease reports `1.20.5+873a782bf106`.
+- **The chart version gains the OCI digest.** With `chartRef` to an `OCIRepository`, helm-controller stores the chart as `<version>+<first 12 hex chars of the digest>`. The chart's `helm.sh/chart` label then becomes `cilium-1.20.5_873a782bf106`.
+- **All Cilium pods rolled once.** That label is in the pod templates of the `cilium` and `cilium-envoy` DaemonSets and the `cilium-operator` Deployment, so all 8 pods were replaced within about 15 seconds. They came back with 0 restarts. `cilium status` was `OK` for the agents, operator and Envoy, with 8/8 pods managed by Cilium, and `cilium-dbg status` still showed `KubeProxyReplacement: True`. This happens once, at the takeover. Later reconciles with an unchanged digest don't roll anything.
+- **No values were lost.** The only difference in `helm get values` between revisions 1 and 2 is `upgradeCompatibility: "1.20"`. It was added to `values/cilium.yaml` after the install and never applied by helmfile, so the takeover applied it.
+- **Flux labels every object.** The rendered manifest gains `helm.toolkit.fluxcd.io/name: cilium` and `helm.toolkit.fluxcd.io/namespace: kube-system` on each object (32 of them). The rest of the manifest diff is helm-controller's YAML formatting, such as quoting and list indentation.
+
+The same will happen for `flux-operator` and `flux-instance` in step 2: one upgrade and one rollout of their pods.
+
+### `just bootstrap::apps` after a takeover
+
+On a fresh cluster, `just bootstrap::apps` installs the releases and Flux then takes them over as above. On a running cluster where Flux already owns a release, it is **no longer a no-op**. `just bootstrap::diff` shows changes to most of Cilium's objects: helmfile would remove the `helm.toolkit.fluxcd.io/*` labels, set `helm.sh/chart` back to `cilium-1.20.5` (rolling every Cilium pod again), and reformat the manifest. helm-controller would then notice that the release changed outside Flux and upgrade it back. So, on the running cluster:
+
+- Use `just bootstrap::diff` to compare. Don't run `just bootstrap::apps` or `just bootstrap::helmfile`.
+- Change Cilium through `kubernetes/apps/kube-system/cilium/app/helmrelease.yaml`, and keep `values/cilium.yaml` identical by hand until the helmfile [reads its values from the manifests](#later-one-source-of-truth-for-values).
+
+The digest suffix and the extra labels will still differ even after that change. I haven't checked whether helm-controller can turn off the digest suffix.
 
 ## The justfile
 
@@ -433,7 +454,7 @@ Flux syncs `main`, so push the commit that creates `kubernetes/apps/` before run
 
 Notes on the justfile:
 
-- **`helmfile apply`, not `sync`.** cluster-template uses `sync`, which upgrades every release on every run, so each run adds a Helm revision even when nothing changed. `apply` runs `helm diff` first and upgrades only the releases that differ, so re-running `just bootstrap::helmfile` on an unchanged cluster is a no-op (every release stays at revision 1). This needs the [helm-diff](https://github.com/databus23/helm-diff) plugin, which `devenv.nix` bundles by wrapping `helm` with `wrapHelm` and pointing `helmfile` at the same plugin directory. `--skip-diff-on-install` stops the first install from printing the whole chart as a diff.
+- **`helmfile apply`, not `sync`.** cluster-template uses `sync`, which upgrades every release on every run, so each run adds a Helm revision even when nothing changed. `apply` runs `helm diff` first and upgrades only the releases that differ, so re-running `just bootstrap::helmfile` on an unchanged cluster is a no-op (every release stays at revision 1). That holds only until Flux takes a release over ([see above](#just-bootstrapapps-after-a-takeover)). This needs the [helm-diff](https://github.com/databus23/helm-diff) plugin, which `devenv.nix` bundles by wrapping `helm` with `wrapHelm` and pointing `helmfile` at the same plugin directory. `--skip-diff-on-install` stops the first install from printing the whole chart as a diff.
 - **Tools.** `devenv.nix` provides `helm` (with helm-diff), `helmfile`, the `cilium` CLI and the `flux` CLI (`fluxcd`, v2.10.0), alongside `kubectl`.
 
 - **Where the commands come from.** The topf invocations follow cluster-template's `bootstrap:talos` tasks, including the 8760h kubeconfig. Unlike cluster-template, `apply` doesn't pass `--confirm=false`, so the diff is always shown first. `upgrade-k8s` mirrors its Talos task ([bootstrap tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/mise.toml), [talos tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/mise.toml)).

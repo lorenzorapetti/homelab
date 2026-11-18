@@ -3,7 +3,7 @@
 
 export KUBECONFIG := justfile_directory() / "kubeconfig"
 
-[doc("Secrets, Gateway API CRDs, Cilium + Flux. The YubiKey must be plugged in")]
+[doc("Secrets, Gateway API CRDs, Cilium + Flux. The YubiKey must be plugged in. Once Flux owns a release, use `diff` instead")]
 apps: wait-for-nodes secrets crds helmfile
 
 [doc("Wait until the nodes have registered (they stay NotReady until Cilium is up)")]

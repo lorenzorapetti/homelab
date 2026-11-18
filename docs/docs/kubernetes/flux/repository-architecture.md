@@ -109,6 +109,29 @@ resources:
 
 The `namespace:` field puts every `ks.yaml` in the app's namespace, as the current repo already does. The `sops` component adds the `cluster-secrets` Secret, so `postBuild.substituteFrom` can reference it from the same namespace ([cluster-template namespace kustomization](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/apps/cert-manager/kustomization.yaml.j2)). For `flux-system`, cluster-template marks the namespace with `kustomize.toolkit.fluxcd.io/prune: disabled`, so Flux never prunes its own namespace ([namespace.yaml](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/apps/flux-system/namespace.yaml.j2)).
 
+### `kube-system`: no `namespace.yaml`
+
+`kube-system` is created by Kubernetes, so `kubernetes/apps/kube-system/kustomization.yaml` has `namespace: kube-system` and the `sops` component, but no `namespace.yaml`. The `namespace:` field only sets `metadata.namespace` on the objects in the build. It doesn't create a Namespace object, so Flux never owns or prunes `kube-system`. After the Cilium app was reconciled, `kubectl get namespace kube-system --show-labels` still showed only `kubernetes.io/metadata.name` and `name`, with no `kustomize.toolkit.fluxcd.io/*` labels. Use the same approach for any other namespace that Kubernetes or a bootstrap step creates.
+
+## `cluster-secrets`
+
+`kubernetes/components/sops/` is a Kustomize `Component` (`kustomize.config.k8s.io/v1alpha1`) with one resource, `secret.sops.yaml`:
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cluster-secrets
+stringData:
+  SECRET_DOMAIN: "<the base domain>"
+```
+
+- **Naming.** One key per variable, named `SECRET_<NAME>` and used in manifests as `${SECRET_<NAME>}`, as in cluster-template. The prefix makes substituted values easy to grep for, and it can't collide with the `$`-variables that charts use in their own values.
+- **Only what an app uses.** It starts with `SECRET_DOMAIN`, for the wildcard certificate and the `HTTPRoute` hostnames. Add a variable in the same commit as the first app that references it.
+- **Encryption.** The filename matches SOPS rule 3, so the file is encrypted to the YubiKey GPG key and Flux's age key ([SOPS](/kubernetes/sops)). Encrypting needs only the public keys. Editing it later with `sops` needs the YubiKey.
+- **One copy per namespace.** Every namespace's `kustomization.yaml` includes the component, so the `flux-system` Kustomization creates `cluster-secrets` in each namespace. `postBuild.substituteFrom` can only read a Secret in the Kustomization's own namespace. In `kube-system` it decrypted to the value I entered.
+
 ## An app: cert-manager
 
 ### `cert-manager/ks.yaml`
