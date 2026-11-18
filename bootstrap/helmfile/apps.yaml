@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/helmfile
+# Bootstrap releases, installed by `just bootstrap::cilium`.
+# Docs: docs/docs/kubernetes/getting-started/bootstrap.md
+# flux-operator and flux-instance join this file with the Flux bootstrap.
+helmDefaults:
+  cleanupOnFail: true
+  forceConflicts: true
+  wait: true
+  waitForJobs: true
+
+releases:
+  - name: cilium
+    namespace: kube-system
+    chart: oci://quay.io/cilium/charts/cilium
+    version: 1.20.5
+    values: ["./values/cilium.yaml"]

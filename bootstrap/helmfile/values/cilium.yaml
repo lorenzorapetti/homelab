@@ -1,0 +1,32 @@
+---
+# Cilium values. Later moved into kubernetes/apps/kube-system/cilium/app/helmrelease.yaml.
+# Docs: docs/docs/kubernetes/getting-started/bootstrap.md#cilium-networking
+
+# Talos requirements (Talos Cilium guide)
+ipam:
+  mode: kubernetes
+kubeProxyReplacement: true
+k8sServiceHost: localhost       # KubePrism
+k8sServicePort: 7445
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+securityContext:
+  capabilities:
+    # No SYS_MODULE: Talos doesn't let workloads load kernel modules.
+    ciliumAgent: [CHOWN, KILL, NET_ADMIN, NET_RAW, IPC_LOCK, SYS_ADMIN, SYS_RESOURCE, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    cleanCiliumState: [NET_ADMIN, SYS_ADMIN, SYS_RESOURCE]
+
+# LoadBalancer IPs on the flat LAN (10.0.12.0/24)
+l2announcements:
+  enabled: true
+k8sClientRateLimit:
+  qps: 10
+  burst: 20
+
+# Ingress: Gateway API
+gatewayAPI:
+  enabled: true
+  enableAlpn: true
+  enableAppProtocol: true

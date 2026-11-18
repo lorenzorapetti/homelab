@@ -19,6 +19,13 @@ let
       runHook postInstall
     '';
   };
+
+  # helm with the helm-diff plugin: `helmfile apply` diffs before upgrading, so
+  # re-running `just bootstrap::cilium` on an unchanged release is a no-op.
+  helm = pkgs.wrapHelm pkgs.kubernetes-helm {
+    plugins = [ pkgs.kubernetes-helmPlugins.helm-diff ];
+  };
+  helmfile = pkgs.helmfile.override { inherit (helm.passthru) pluginsDir; };
 in
 {
   packages = with pkgs; [
@@ -31,6 +38,9 @@ in
     topf
     kubectl
     yq-go
+    helm
+    helmfile
+    cilium-cli
   ];
 
   # Client configs written by `just talos::create` (both gitignored).
@@ -47,5 +57,9 @@ in
     topf --version
     kubectl version --client
     yq --version
+    helm version --short
+    helm diff version
+    helmfile --version
+    cilium version --client
   '';
 }

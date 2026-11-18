@@ -73,7 +73,7 @@ See [Deploying the infrastructure](/kubernetes/getting-started/deploying-the-inf
 
 1. `tf::apply`, with the state decrypted and re-encrypted in a trap like his.
 2. `talos::create` (topf secrets, apply `--auto-bootstrap`, talosconfig/kubeconfig).
-3. `bootstrap::apps`: wait for nodes, `sops decrypt` the bootstrap secrets with the YubiKey, Gateway API CRDs, `helmfile sync`.
+3. `bootstrap::apps`: wait for nodes, `sops decrypt` the bootstrap secrets with the YubiKey, Gateway API CRDs, `helmfile apply`.
 
 The full justfile is on [Bootstrap](/kubernetes/getting-started/bootstrap#the-justfile). The steps follow cluster-template's `mise` tasks ([bootstrap/mise.toml](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/mise.toml)).
 
