@@ -13,6 +13,8 @@ Once [Talos is installed](/kubernetes/getting-started/install-talos), the cluste
 
 No apps yet. They are added **one at a time, one commit/PR each**, following [Migrating from k3s](/kubernetes/migration).
 
+That was the first bootstrap. **Rebuilding the cluster** later is the same `just full`, but `kubernetes/apps/` is no longer empty. The helmfile installs Cilium and Flux from their Flux manifests ([one source of truth](#one-source-of-truth-for-values)). Flux then takes over those three releases ([what the takeover does](#what-the-takeover-does-flux-2026-11-19)) and installs every other app in `kubernetes/apps/`.
+
 ```
 terraform apply          → 3 VMs in maintenance mode (10.0.11.1–3)
 topf apply --auto-bootstrap → Talos + etcd, no CNI
@@ -32,8 +34,9 @@ It is the same shape as Jonas's `just bootstrap::full`: cluster, Cilium, secrets
 | --- | --- |
 | `bootstrap/sops-age.sops.yaml` | Flux's age key, encrypted to the YubiKey only ([SOPS](/kubernetes/sops#the-age-key-for-flux)) |
 | `bootstrap/github-deploy-key.sops.yaml` | SSH pull secret `flux-system` (`identity`, `known_hosts`) |
-| `bootstrap/helmfile/apps.yaml`, `bootstrap/helmfile/values/*.yaml` | Releases and values for Cilium, flux-operator, flux-instance |
-| `kubernetes/apps/kustomization.yaml` | An empty Kustomize file (`resources: []`), so the path exists in Git |
+| `bootstrap/helmfile/apps.yaml`, `default.yaml`, `templates/` | The releases for Cilium, flux-operator, flux-instance. Chart, version and values are read from the Flux manifests below ([one source of truth](#one-source-of-truth-for-values)) |
+| `kubernetes/apps/kube-system/cilium/app/`, `kubernetes/apps/flux-system/{flux-operator,flux-instance}/app/` | Each release's `ocirepository.yaml` and `helmrelease.yaml`, which the helmfile reads |
+| `kubernetes/apps/kustomization.yaml` | The list of namespace directories Flux syncs. The very first bootstrap used an empty one (`resources: []`), so the path existed in Git |
 
 There is no `kubernetes/flux/cluster/ks.yaml`. The FluxInstance syncs `kubernetes/apps` directly ([Repository Architecture](/kubernetes/flux/repository-architecture)). Git doesn't track empty directories, so `kubernetes/apps/` needs that one file. kustomize-controller treats `resources: []` as "nothing to apply": on the first reconcile `flux-system` reported Ready with "Applied revision: refs/heads/main@sha1:6e0d1748" (2026-11-18).
 
@@ -74,6 +77,9 @@ Both `standard-install.yaml` and `experimental-install.yaml` are assets of the [
 ```yaml
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/helmfile
+bases:
+  - ./default.yaml
+---
 helmDefaults:
   cleanupOnFail: true
   forceConflicts: true
@@ -83,31 +89,26 @@ helmDefaults:
 releases:
   - name: cilium
     namespace: kube-system
-    chart: oci://quay.io/cilium/charts/cilium
-    version: 1.20.5
-    values: ["./values/cilium.yaml"]
+    inherit: [{template: default}]
 
   - name: flux-operator
     namespace: flux-system
-    chart: oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator
-    version: 0.62.1
+    inherit: [{template: default}]
     needs: ["kube-system/cilium"]
 
   - name: flux-instance
     namespace: flux-system
-    chart: oci://ghcr.io/controlplaneio-fluxcd/charts/flux-instance
-    version: 0.62.1
-    values: ["./values/flux-instance.yaml"]
+    inherit: [{template: default}]
     needs: ["flux-system/flux-operator"]
 ```
 
-This is the built file, installed by `just bootstrap::helmfile`: `cilium` came first ([#177](https://github.com/lorenzorapetti/homelab/issues/177)), then `flux-operator` and `flux-instance` ([#178](https://github.com/lorenzorapetti/homelab/issues/178)).
+This is the built file, installed by `just bootstrap::helmfile`. `cilium` came first ([#177](https://github.com/lorenzorapetti/homelab/issues/177)), then `flux-operator` and `flux-instance` ([#178](https://github.com/lorenzorapetti/homelab/issues/178)), each with its chart, version and values written out here and in a `values/` directory. Since [#180](https://github.com/lorenzorapetti/homelab/issues/180) the releases only name the template, and everything else comes from the Flux manifests ([below](#one-source-of-truth-for-values)).
 
-The order, `needs` chain and `helmDefaults` come from [cluster-template's `apps.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/apps.yaml.j2), minus `coredns`, `spegel` and `cert-manager`. CoreDNS stays Talos-managed, and cert-manager arrives later as an app. The chart URLs are the ones cluster-template's `ocirepository.yaml` files use. The Flux Operator docs give the same `oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator` source ([operator install](https://github.com/controlplaneio-fluxcd/flux-operator/blob/main/docs/guides/operator/operator-install.md)). `values/flux-instance.yaml` is on the [Flux page](/kubernetes/flux/intro#the-fluxinstance).
+The order, `needs` chain and `helmDefaults` come from [cluster-template's `apps.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/apps.yaml.j2), minus `coredns`, `spegel` and `cert-manager`. CoreDNS stays Talos-managed, and cert-manager arrives later as an app. The chart URLs are the ones cluster-template's `ocirepository.yaml` files use. The Flux Operator docs give the same `oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator` source ([operator install](https://github.com/controlplaneio-fluxcd/flux-operator/blob/main/docs/guides/operator/operator-install.md)). The `flux-instance` values are on the [Flux page](/kubernetes/flux/intro#the-fluxinstance).
 
-### Later: one source of truth for values
+### One source of truth for values
 
-Once Cilium and Flux are apps in `kubernetes/apps/`, switch the helmfile to cluster-template's trick of **reading chart, version and values from the Flux manifests**:
+The helmfile uses cluster-template's trick of **reading chart, version and values from the Flux manifests**, so Git holds one copy of each and a fresh `just bootstrap::apps` installs exactly what Flux then takes over:
 
 ```yaml
 # bootstrap/helmfile/default.yaml
@@ -131,11 +132,14 @@ version: {{ $oci.spec.ref.tag }}
 {{ (fromYaml (readFile (printf "../../../kubernetes/apps/%s/%s/app/helmrelease.yaml" .Release.Namespace .Release.Name))).spec.values | toYaml }}
 ```
 
-These are verbatim from cluster-template ([default.yaml](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/default.yaml.j2), [release.yaml.gotmpl](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/templates/release.yaml.gotmpl.j2), [values.yaml.gotmpl](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/templates/values.yaml.gotmpl.j2)). Each release then uses `inherit: [{template: default}]`. This removes the duplicated Cilium values that Jonas couldn't avoid with ArgoCD ([post 5](https://jonashietala.se/blog/2026/07/23/gitops_with_argocd)).
+These are from cluster-template ([default.yaml](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/default.yaml.j2), [release.yaml.gotmpl](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/templates/release.yaml.gotmpl.j2), [values.yaml.gotmpl](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/templates/values.yaml.gotmpl.j2)). `apps.yaml` loads `default.yaml` through `bases:`, and each release uses `inherit: [{template: default}]`. This removes the duplicated Cilium values that Jonas couldn't avoid with ArgoCD ([post 5](https://jonashietala.se/blog/2026/07/23/gitops_with_argocd)). A release without values, like `flux-operator`, has `values: {}` in its HelmRelease so the template has something to read.
+
+- **The two paths differ by one `../`, and both are right.** The release template is read with `readFile` from `default.yaml`, so its path is relative to `bootstrap/helmfile/`. The values template is a values file, and its `readFile` resolves from `bootstrap/helmfile/templates/`. I checked both with `helmfile build` (chart `oci://…`, version `1.20.5`/`0.62.1`) and `helmfile write-values`, whose output matched the old `values/cilium.yaml` and `values/flux-instance.yaml` key for key. The only difference was the key order, because `toYaml` sorts keys.
+- **`values/` is gone.** Change a chart version or a value in `kubernetes/apps/…/app/` and nowhere else.
 
 ### Cilium networking
 
-`values/cilium.yaml`, which later becomes `kubernetes/apps/kube-system/cilium/app/helmrelease.yaml`:
+The Cilium values, `spec.values` of `kubernetes/apps/kube-system/cilium/app/helmrelease.yaml` (before [#180](https://github.com/lorenzorapetti/homelab/issues/180), `bootstrap/helmfile/values/cilium.yaml`):
 
 ```yaml
 # The Cilium version this cluster was first installed with. Never bump it.
@@ -303,16 +307,37 @@ Cilium was the first release Flux took over (step 1 of the [migration](/kubernet
 - **No values were lost.** The only difference in `helm get values` between revisions 1 and 2 is `upgradeCompatibility: "1.20"`. It was added to `values/cilium.yaml` after the install and never applied by helmfile, so the takeover applied it.
 - **Flux labels every object.** The rendered manifest gains `helm.toolkit.fluxcd.io/name: cilium` and `helm.toolkit.fluxcd.io/namespace: kube-system` on each object (32 of them). The rest of the manifest diff is helm-controller's YAML formatting, such as quoting and list indentation.
 
-The same will happen for `flux-operator` and `flux-instance` in step 2: one upgrade and one rollout of their pods.
+### What the takeover does (Flux, 2026-11-19)
+
+Step 2 of the [migration](/kubernetes/migration) added `flux-operator` and `flux-instance` under `kubernetes/apps/flux-system/` ([#180](https://github.com/lorenzorapetti/homelab/issues/180), layout on the [Flux page](/kubernetes/flux/intro#flux-manages-itself)). After the push and `just bootstrap::reconcile`:
+
+- **Same in-place upgrade as Cilium.** `helm -n flux-system history` shows revision 1 (helmfile, "Install complete") `superseded` and revision 2 (`flux-operator-0.62.1+1135514a01cc`, `flux-instance-0.62.1+38215516080c`, "Upgrade complete") `deployed` for both releases. `flux get hr -n flux-system` shows both Ready, and the FluxInstance `flux` stayed Ready at `v2.10.0`.
+- **Order.** The `flux-instance` Kustomization reported `DependencyNotReady` until `flux-operator` passed its health check (30s), then took over its release in 5s.
+- **Only the operator pod rolled.** The new `flux-operator` pod started 11 seconds before the old one was stopped, so there was always one running. The four controllers kept their pods from the original install. The FluxInstance chart renders only the `FluxInstance` object, and its spec didn't change, so the operator had nothing to roll out.
+- **Reconciling again changes nothing.** A plain `flux reconcile hr … --with-source` of both releases left them at revision 2.
+
+### Flux upgrading itself
+
+helm-controller now upgrades the release that defines helm-controller. I tested this with a forced upgrade of each release with unchanged values (`flux reconcile hr -n flux-system <name> --force`). Each produced revision 3, "Upgrade complete", in a few seconds, and no flux-system pod restarted. With unchanged values the rendered objects are identical, so there was nothing to roll.
+
+That test doesn't cover the risky case: a commit that changes `distribution.version` or the operator's controller images. Then helm-controller applies the new `FluxInstance` and waits for it to be Ready. Meanwhile the operator replaces the controllers, including the helm-controller pod that is doing the waiting. **Unverified:** whether the new helm-controller picks up the release cleanly, or finds it stuck in `pending-upgrade`. For the next Flux upgrade (procedure in [Upgrades](/kubernetes/upgrades#flux)):
+
+- Bump the operator chart and the Flux minor in **separate commits**, as the Flux docs already require, so only one thing changes at a time.
+- Afterwards, check `helm -n flux-system history flux-instance`. If the last revision is `pending-upgrade`, run `flux reconcile hr -n flux-system flux-instance --force`, or roll back with `helm -n flux-system rollback flux-instance <revision>`, and update this section with what happened.
 
 ### `just bootstrap::apps` after a takeover
 
-On a fresh cluster, `just bootstrap::apps` installs the releases and Flux then takes them over as above. On a running cluster where Flux already owns a release, it is **no longer a no-op**. `just bootstrap::diff` shows changes to most of Cilium's objects: helmfile would remove the `helm.toolkit.fluxcd.io/*` labels, set `helm.sh/chart` back to `cilium-1.20.5` (rolling every Cilium pod again), and reformat the manifest. helm-controller would then notice that the release changed outside Flux and upgrade it back. So, on the running cluster:
+On a fresh cluster, `just bootstrap::apps` installs the releases and Flux then takes them over as above. On a running cluster where Flux owns the releases, it is **not a no-op**. Chart, version and values are now identical, because the helmfile reads them from the Flux manifests. But the manifests helm-controller stored still differ in two ways:
 
-- Use `just bootstrap::diff` to compare. Don't run `just bootstrap::apps` or `just bootstrap::helmfile`.
-- Change Cilium through `kubernetes/apps/kube-system/cilium/app/helmrelease.yaml`, and keep `values/cilium.yaml` identical by hand until the helmfile [reads its values from the manifests](#later-one-source-of-truth-for-values).
+- **The chart version carries the OCI digest** (`0.62.1+1135514a01cc`), and so does the `helm.sh/chart` label. That label is in the pod templates, so a helmfile upgrade would roll the pods.
+- **Every object carries `helm.toolkit.fluxcd.io/name` and `/namespace` labels.**
 
-The digest suffix and the extra labels will still differ even after that change. I haven't checked whether helm-controller can turn off the digest suffix.
+`just bootstrap::diff` therefore shows changes to most objects. Most of the diff's lines are helm-controller's YAML formatting (quoting, list indentation). I compared the live manifests with the helmfile render semantically, parsed as YAML with those labels removed (2026-11-19):
+
+- `flux-operator` (13 objects) and `flux-instance` (1 object) are identical.
+- Cilium has the same 32 objects. The only differences are equivalent spellings: `defaultMode: 0400` stored as `256`, and `annotations: null` or `labels: {}` stored as absent. Render with `--validate`, or Cilium leaves out the objects it only adds when the cluster serves the API (the `GatewayClass` and the `ValidatingAdmissionPolicy`).
+
+So on the running cluster, use `just bootstrap::diff` to compare, and expect those differences. Don't run `just bootstrap::apps` or `just bootstrap::helmfile`: helm-controller would notice the release changed outside Flux and upgrade it back, rolling the pods twice. I haven't checked whether helm-controller can turn off the digest suffix.
 
 ## The justfile
 

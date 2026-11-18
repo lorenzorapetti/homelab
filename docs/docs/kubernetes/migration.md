@@ -32,7 +32,7 @@ The dependencies come from the k3s `ks.yaml` files, with Traefik replaced by the
 | --- | --- | --- | --- | --- |
 | 0 | *skeleton* | — | — | [Bootstrap](/kubernetes/getting-started/bootstrap) |
 | 1 | `cilium` | `kube-system` | — | **Done 2026-11-18.** Adopt the helmfile release (one upgrade, all Cilium pods roll once: [what the takeover does](/kubernetes/getting-started/bootstrap#what-the-takeover-does-cilium-2026-11-18)). Add `networks.yaml`: the LB pool `10.0.12.1–254` and the L2 policy ([network map](/kubernetes/intro#network-map)). Adds the `sops` component with `cluster-secrets` ([shape](/kubernetes/flux/repository-architecture#cluster-secrets)) |
-| 2 | `flux-operator`, `flux-instance` | `flux-system` | `flux-instance` → `flux-operator` | Adopt the helmfile releases (expect the same one-time upgrade and pod rollout as Cilium). Then switch the helmfile to [read values from these manifests](/kubernetes/getting-started/bootstrap#later-one-source-of-truth-for-values) |
+| 2 | `flux-operator`, `flux-instance` | `flux-system` | `flux-instance` → `flux-operator` | **Done 2026-11-19.** Adopt the helmfile releases (one upgrade each, and only the operator pod rolled: [what the takeover does](/kubernetes/getting-started/bootstrap#what-the-takeover-does-flux-2026-11-19)). `prune: disabled` on the whole `flux-system` chain so Flux can't uninstall itself ([why](/kubernetes/flux/intro#flux-must-never-uninstall-itself)). The helmfile now [reads chart, version and values from the manifests](/kubernetes/getting-started/bootstrap#one-source-of-truth-for-values), and `bootstrap/helmfile/values/` is gone |
 | 3 | `gateway-api-crds` | `kube-system` | — | A `GitRepository` on `kubernetes-sigs/gateway-api` at `v1.6.3`, experimental channel (for `ExternalAuth`) |
 | 4 | **`longhorn`** | `longhorn-system` | — | Early, so every stateful app can depend on it. Privileged namespace, `defaultDataPath: /var/mnt/longhorn` ([Storage: Longhorn](/kubernetes/storage-longhorn)) |
 | 5 | `cert-manager`, then `cluster-issuer` | `cert-manager` | `cluster-issuer` → `cert-manager` | The Cloudflare DNS-01 issuer carries over. The chart moves to OCI and from v1.19.1 to v1.21.x |
@@ -137,7 +137,7 @@ rules:
 5. **topf and Talos 1.14.** topf officially lists Talos v1.13. Is that acceptable, or should I pin Talos to 1.13 until topf lists 1.14?
 6. **UEFI vs SeaBIOS** for the `nocloud` raw image in Terraform, and the image's real compression (`.raw.xz` vs `zst`).
 7. **CoreDNS.** Keep it Talos-managed, or disable it and manage the chart with Flux like cluster-template?
-8. **Flux version pin.** `2.10.x` (deliberate minor upgrades) or the chart default `2.x`?
+8. ~~**Flux version pin.** `2.10.x` (deliberate minor upgrades) or the chart default `2.x`?~~ **Settled 2026-11-19: `2.10.x`.** A Flux minor upgrade stays a deliberate commit ([The FluxInstance](/kubernetes/flux/intro#the-fluxinstance)).
 9. **Pod Security.** Keep Talos's `baseline` default and label privileged namespaces, or delete the admission config like cluster-template?
 10. **OCI charts.** Which of authentik, gitea, pgadmin4, netbox, kube-prometheus-stack, portainer, mattermost-operator and longhorn publish OCI charts?
 11. **Flux webhook receiver.** Add a GitHub → Flux `Receiver` through the Gateway (and revisit `networkPolicy`) instead of polling every minute?

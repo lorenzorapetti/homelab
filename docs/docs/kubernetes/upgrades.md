@@ -11,13 +11,13 @@ How to upgrade Talos, Kubernetes, Cilium, Flux, the Gateway API CRDs, the Helm r
 | --- | --- | --- |
 | Talos (OS + system extensions) | `talosVersion` in `talos/topf.yaml`, `talos/schematic.yaml` | `just talos::upgrade` |
 | Kubernetes | `kubernetesVersion` in `talos/topf.yaml` | `just talos::upgrade-k8s` |
-| Cilium | `version` of the `cilium` release in `bootstrap/helmfile/apps.yaml` | `just bootstrap::helmfile` |
-| Flux Operator, `flux-instance` chart | `version` of those releases in `bootstrap/helmfile/apps.yaml` (keep both equal) | `just bootstrap::helmfile` |
-| Flux itself | `instance.distribution.version` (`2.10.x`) in `bootstrap/helmfile/values/flux-instance.yaml` | the operator picks the newest `2.10.x`; for a minor, bump it + `just bootstrap::helmfile` ([Flux](#flux)) |
+| Cilium | `ref.tag` in `kubernetes/apps/kube-system/cilium/app/ocirepository.yaml` | push, then `just bootstrap::reconcile` |
+| Flux Operator, `flux-instance` chart | `ref.tag` in `kubernetes/apps/flux-system/{flux-operator,flux-instance}/app/ocirepository.yaml` (keep both equal) | push, then `just bootstrap::reconcile` |
+| Flux itself | `instance.distribution.version` (`2.10.x`) in `kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml` | the operator picks the newest `2.10.x`; for a minor, bump it and push ([Flux](#flux)) |
 | Gateway API CRDs | the release URL in `bootstrap/mod.just` | `just bootstrap::crds` |
 | CLI tools (`talosctl`, `kubectl`, `helm`, `helmfile`, `cilium`, `flux`, …) | `devenv.lock` (`topf`: `devenv.nix`) | `devenv update` |
 
-Once Cilium, the Flux Operator and the Gateway API CRDs are Flux apps (step 1 of the [migration](/kubernetes/migration)), their versions move to `kubernetes/apps/` and Renovate opens the PRs. Talos and Kubernetes stay manual.
+Cilium and Flux are Flux apps (steps 1 and 2 of the [migration](/kubernetes/migration)). Their versions and values live only in `kubernetes/apps/`, and the bootstrap helmfile reads them from there ([one source of truth](/kubernetes/getting-started/bootstrap#one-source-of-truth-for-values)). helm-controller does the upgrade once the commit is pushed. `just bootstrap::reconcile` only makes Flux pull right away instead of at its next poll. Don't run `just bootstrap::helmfile` on the running cluster ([why](/kubernetes/getting-started/bootstrap#just-bootstrapapps-after-a-takeover)). Once Renovate is enabled, it opens the version PRs. The Gateway API CRDs follow when they become an app (step 3). Talos and Kubernetes stay manual.
 
 :::warning Upgrades don't go through Terraform
 
@@ -105,9 +105,9 @@ After a minor upgrade, also bump `kubectl` ([CLI tools](#cli-tools)). The Kubern
 
 ## Cilium
 
-Cilium is a plain Helm release managed by helmfile until it becomes a Flux app.
+Cilium is a Flux app: the `cilium` HelmRelease in `kubernetes/apps/kube-system/cilium/app/`.
 
-1. **Read the upgrade notes** for the target minor version, at the end of [Cilium's upgrade guide](https://docs.cilium.io/en/stable/operations/upgrade/). They list required changes and renamed or removed values. Compare them with `bootstrap/helmfile/values/cilium.yaml`.
+1. **Read the upgrade notes** for the target minor version, at the end of [Cilium's upgrade guide](https://docs.cilium.io/en/stable/operations/upgrade/). They list required changes and renamed or removed values. Compare them with `spec.values` in `kubernetes/apps/kube-system/cilium/app/helmrelease.yaml`.
 2. **Check the Gateway API version** the target Cilium documents ([Cilium Gateway API docs](https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/)). If it's newer, upgrade the [CRDs](#gateway-api-crds) first.
 3. **Run the pre-flight check** for a minor upgrade. Cilium's guide calls it "Required": it pre-pulls the new image on every node and validates the existing network policies against the new version. With kube-proxy replacement, it needs the API server address:
 
@@ -122,15 +122,16 @@ Cilium is a plain Helm release managed by helmfile until it becomes a Flux app.
    ```
 
    If the deployment stays at `0/1`, a network policy fails validation: see the CNP validation section of the [upgrade guide](https://docs.cilium.io/en/stable/operations/upgrade/) before going on ([pre-flight check source](https://github.com/cilium/cilium/blob/v1.20.5/Documentation/operations/upgrade.rst)).
-4. **Bump `version`** of the `cilium` release in `bootstrap/helmfile/apps.yaml`. Change the values in the same commit if the upgrade notes require it. **Don't change `upgradeCompatibility`.** It stays at `"1.20"`, the version this cluster was first installed with: "To minimize datapath disruption during the upgrade, the `upgradeCompatibility` option should be set to the initial Cilium version which was installed in this cluster."
-5. **Preview and upgrade:**
+4. **Bump `ref.tag`** in `kubernetes/apps/kube-system/cilium/app/ocirepository.yaml`. Change the values in the HelmRelease in the same commit if the upgrade notes require it. **Don't change `upgradeCompatibility`.** It stays at `"1.20"`, the version this cluster was first installed with: "To minimize datapath disruption during the upgrade, the `upgradeCompatibility` option should be set to the initial Cilium version which was installed in this cluster."
+5. **Push and reconcile:**
 
    ```bash
-   just bootstrap::diff      # helm diff of every release
-   just bootstrap::helmfile  # helmfile apply: upgrades only what changed
+   git push
+   just bootstrap::reconcile
+   flux get hr -n kube-system cilium --watch   # until Ready on the new version
    ```
 
-   The full values file is passed on every run, so this never relies on Helm's `--reuse-values`, which Cilium warns against for minor upgrades. `helmDefaults.wait` makes the command wait until the rollout is done.
+   helm-controller always renders from the full `spec.values`, so this never relies on Helm's `--reuse-values`, which Cilium warns against for minor upgrades. The `cilium` Kustomization health-checks the HelmRelease, and the HelmRelease waits for the rollout. A failed upgrade is retried twice (the defaults the FluxInstance injects, [Flux page](/kubernetes/flux/intro#the-fluxinstance)).
 6. **Check:** `cilium status --wait`, and every agent reports the new version. After a minor upgrade, also run the connectivity test. On Talos it needs the privileged label ([Checking Cilium](/kubernetes/getting-started/bootstrap#checking-cilium)):
 
    ```bash
@@ -138,17 +139,19 @@ Cilium is a plain Helm release managed by helmfile until it becomes a Flux app.
    kubectl get ns -o name | grep cilium-test | xargs kubectl delete
    ```
 
-**Rollback:** `helm -n kube-system history cilium`, then `helm -n kube-system rollback cilium <revision>`, and revert the version in `apps.yaml`. Only roll back one minor version, and check the upgrade notes if you've already started using a feature of the new version.
+**Rollback:** `git revert` the bump and push. helm-controller then upgrades back to the old chart. A `helm rollback` by hand doesn't stick, because helm-controller sees the release changed outside Flux and upgrades it again to what Git says. Only roll back one minor version, and check the upgrade notes if you've already started using a feature of the new version.
 
-**Once Cilium is a Flux app**, Renovate bumps the chart tag in `kubernetes/apps/kube-system/cilium/app/` and the merge rolls it out. The pre-flight check, the upgrade notes and the "one minor at a time" rule still apply, so don't merge a minor-version Renovate PR without doing steps 1–3 first. Patch PRs can be merged directly.
+**With Renovate enabled**, it bumps the chart tag in `kubernetes/apps/kube-system/cilium/app/` and the merge rolls it out. The pre-flight check, the upgrade notes and the "one minor at a time" rule still apply, so don't merge a minor-version Renovate PR without doing steps 1–3 first. Patch PRs can be merged directly.
 
 ## Flux
 
-Flux has three version pins, all in `bootstrap/`:
+Flux manages itself ([Flux manages itself](/kubernetes/flux/intro#flux-manages-itself)), so its three version pins are all in `kubernetes/apps/flux-system/`:
 
-- **The Flux Operator chart** (`flux-operator` release in `helmfile/apps.yaml`).
-- **The `flux-instance` chart** (`flux-instance` release, same file). Both charts are released together with the operator, so keep the two `version`s equal.
-- **The Flux distribution**, `instance.distribution.version: "2.10.x"` in `helmfile/values/flux-instance.yaml`. It "must be a valid semver range or an exact version" ([FluxInstance docs](https://fluxoperator.dev/docs/crd/fluxinstance/)), and the range pins the minor, so a minor upgrade is always a deliberate commit.
+- **The Flux Operator chart**, `ref.tag` in `flux-operator/app/ocirepository.yaml`.
+- **The `flux-instance` chart**, `ref.tag` in `flux-instance/app/ocirepository.yaml`. Both charts are released together with the operator, so keep the two tags equal.
+- **The Flux distribution**, `instance.distribution.version: "2.10.x"` in `flux-instance/app/helmrelease.yaml`. It "must be a valid semver range or an exact version" ([FluxInstance docs](https://fluxoperator.dev/docs/crd/fluxinstance/)), and the range pins the minor, so a minor upgrade is always a deliberate commit.
+
+Every change here means helm-controller upgrades the chart that runs helm-controller. A forced upgrade with unchanged values is safe and rolls nothing. A real version change hasn't been tried yet, so read [Flux upgrading itself](/kubernetes/getting-started/bootstrap#flux-upgrading-itself) first, and check `helm -n flux-system history flux-instance` afterwards.
 
 To see what's running:
 
@@ -167,15 +170,16 @@ Nothing to commit for Flux itself: the operator resolves `2.10.x` to the newest 
 Do this first for every Flux minor upgrade, and on its own whenever a new operator release comes out. The Flux docs: "first update the operator to the latest version, then update the `FluxInstance` resource to specify the latest Flux minor version" ([Upgrade with Flux Operator](https://fluxcd.io/flux/installation/upgrade/)).
 
 1. **Read the [operator release notes](https://github.com/controlplaneio-fluxcd/flux-operator/releases).** They say which Flux minors a release adds (0.62.0: "Add Flux 2.10 compatibility"). There is no published compatibility matrix.
-2. **Bump `version` of both `flux-operator` and `flux-instance`** in `bootstrap/helmfile/apps.yaml`.
-3. **Preview and upgrade:**
+2. **Bump `ref.tag` of both `flux-operator` and `flux-instance`** in their `ocirepository.yaml`, in one commit.
+3. **Push and reconcile:**
 
    ```bash
-   just bootstrap::diff
-   just bootstrap::helmfile
+   git push
+   just bootstrap::reconcile
+   flux get hr -n flux-system --watch   # both Ready on the new chart version
    ```
 
-4. **Check:** the `fluxreport` shows the new operator version, and `fluxinstance flux` is still Ready.
+4. **Check:** the `fluxreport` shows the new operator version, `fluxinstance flux` is still Ready, and the last revision in `helm -n flux-system history flux-operator` and `… flux-instance` is `deployed`, not `pending-upgrade`.
 
 ### Minor releases (e.g. 2.10 → 2.11)
 
@@ -190,7 +194,7 @@ Do this first for every Flux minor upgrade, and on its own whenever a new operat
    ```
 
    This "migrates the Flux custom resources defined in the manifests located in the specified path. Spec fields that do not exist in the latest API version are removed from the manifests" ([`flux migrate`](https://fluxcd.io/flux/cmd/flux_migrate/)), so read the diff before committing. `--version 2.11` targets a minor other than the CLI's. The objects already stored in etcd are migrated by the operator: `.spec.migrateResources` defaults to `true`, and "the migration runs after the Flux distribution is upgraded from a minor version to another and only when a new API version is introduced" ([FluxInstance docs](https://fluxoperator.dev/docs/crd/fluxinstance/)).
-5. **Bump `instance.distribution.version`** to `"2.11.x"` in `bootstrap/helmfile/values/flux-instance.yaml`, in the same commit as the migrated manifests. Push it, then run `just bootstrap::diff` and `just bootstrap::helmfile`.
+5. **Bump `instance.distribution.version`** to `"2.11.x"` in `kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml`, in the same commit as the migrated manifests. Push it, then run `just bootstrap::reconcile`. This is the commit where helm-controller replaces itself mid-upgrade ([Flux upgrading itself](/kubernetes/getting-started/bootstrap#flux-upgrading-itself)).
 6. **Check:**
 
    ```bash
@@ -198,11 +202,12 @@ Do this first for every Flux minor upgrade, and on its own whenever a new operat
    flux version
    flux get kustomizations -A
    flux get helmreleases -A
+   helm -n flux-system history flux-instance --max 2   # last revision deployed, not pending-upgrade
    ```
 
-**Rollback:** the docs don't cover lowering `distribution.version`, and objects already migrated to a new API version may not be readable by the older controllers. Treat a Flux minor upgrade as one-way: fix forward, and take an etcd snapshot first ([Rules](#rules-for-every-upgrade)). A bad operator upgrade on its own can be rolled back with `helm -n flux-system rollback flux-operator <revision>`.
+**Rollback:** the docs don't cover lowering `distribution.version`, and objects already migrated to a new API version may not be readable by the older controllers. Treat a Flux minor upgrade as one-way: fix forward, and take an etcd snapshot first ([Rules](#rules-for-every-upgrade)). A bad operator upgrade on its own can be rolled back by reverting the tag bump in Git and pushing. A `helm rollback` by hand would be upgraded again by helm-controller.
 
-**Once Flux manages itself** (its `HelmRelease`s under `kubernetes/apps/flux-system/`, step 2 of the [migration](/kubernetes/migration)), Renovate bumps the two charts' `OCIRepository` tags, and `distribution.version` moves into the `flux-instance` HelmRelease values. The order above still applies: merge the operator bump before the Flux minor bump.
+**With Renovate enabled**, it bumps the two charts' `OCIRepository` tags. The order above still applies: merge the operator bump before the Flux minor bump.
 
 ## Gateway API CRDs
 
@@ -214,7 +219,7 @@ The bundle installs the `safe-upgrades.gateway.networking.k8s.io` ValidatingAdmi
 
 ## Helm releases
 
-All bootstrap Helm releases are in `bootstrap/helmfile/apps.yaml`: `cilium`, `flux-operator` and `flux-instance`. Each one is upgraded the same way: bump `version`, run `just bootstrap::diff`, then apply. `helmfile apply` uses the [helm-diff](https://github.com/databus23/helm-diff) plugin to skip unchanged releases, so a no-op run doesn't add a Helm revision.
+The bootstrap helmfile (`bootstrap/helmfile/apps.yaml`: `cilium`, `flux-operator`, `flux-instance`) only installs a fresh cluster. It has no versions of its own: it reads them from the Flux manifests, so bumping an app's `OCIRepository` tag also changes what the next bootstrap installs. On the running cluster, Flux owns all three releases, so use `just bootstrap::diff` only to compare ([expected differences](/kubernetes/getting-started/bootstrap#just-bootstrapapps-after-a-takeover)).
 
 Apps under `kubernetes/apps/` aren't upgraded with Helm by hand: their `HelmRelease`/`OCIRepository` versions are bumped in Git (by Renovate, once `"enabled": false` is removed from `renovate.json` after the rebuild), and helm-controller does the upgrade.
 

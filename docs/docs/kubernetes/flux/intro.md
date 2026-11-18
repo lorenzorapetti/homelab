@@ -17,7 +17,7 @@ Compared to `flux bootstrap`:
 
 - **Upgrades are declarative.** `spec.distribution.version` takes a semver range such as `2.10.x`, and the operator rolls the controllers forward ([FluxInstance docs](https://fluxoperator.dev/docs/crd/fluxinstance/)). Renovate only needs to bump the `flux-operator` and `flux-instance` chart tags.
 - **Controller tuning** (flags such as `--sops-age-secret`) goes in `spec.kustomize.patches` instead of a hand-edited `flux-system/kustomization.yaml` ([migration guide](https://github.com/controlplaneio-fluxcd/flux-operator/blob/main/docs/guides/operator/operator-migration.md)).
-- **Both the operator and the instance are Helm charts** (`oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator` and `.../flux-instance`). helmfile installs them during the [bootstrap](/kubernetes/getting-started/bootstrap), and a `HelmRelease` + `OCIRepository` lets Flux manage them afterwards.
+- **Both the operator and the instance are Helm charts** (`oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator` and `.../flux-instance`). helmfile installs them during the [bootstrap](/kubernetes/getting-started/bootstrap), and a `HelmRelease` + `OCIRepository` each lets Flux manage them afterwards ([Flux manages itself](#flux-manages-itself)).
 
 Versions as of 2026-11-18: Flux **v2.10.0** (compatible with Kubernetes 1.35–1.37, [release notes](https://github.com/fluxcd/flux2/releases/tag/v2.10.0)) and Flux Operator / charts **v0.62.1** ([releases](https://github.com/controlplaneio-fluxcd/flux-operator/releases), [cluster-template pin](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/apps/flux-system/flux-instance/app/ocirepository.yaml.j2)).
 
@@ -29,7 +29,7 @@ Flux 2.10 always enables object identity. It also promotes the notification `Ale
 
 ## The FluxInstance
 
-The instance is deployed through the `flux-instance` chart, so it is written as chart values. In the bare skeleton those values live in `bootstrap/helmfile/values/flux-instance.yaml`, and only helmfile uses them. Once Flux is brought under its own management (step 2 of the [migration order](/kubernetes/migration#suggested-order)), the same values move into `kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml`:
+The instance is deployed through the `flux-instance` chart, so it is written as chart values. They live in `kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml`, where Flux reconciles them and the bootstrap helmfile reads them ([one source of truth](/kubernetes/getting-started/bootstrap#one-source-of-truth-for-values)). In the bare skeleton, before Flux managed itself, they were in `bootstrap/helmfile/values/flux-instance.yaml`:
 
 ```yaml
 ---
@@ -129,11 +129,9 @@ spec:
               name: kustomize-controller
 ```
 
-`bootstrap/helmfile/values/flux-instance.yaml` contains just the part under `spec.values` (starting at `instance:`).
-
 Where each part comes from:
 
-- **`instance.*` keys** mirror the `FluxInstance` spec. The chart defaults are `distribution.version: "2.x"`, `registry: ghcr.io/fluxcd`, those four components, and `networkPolicy: true` ([flux-instance `values.yaml`](https://github.com/controlplaneio-fluxcd/charts/blob/main/charts/flux-instance/values.yaml)). I pin the minor version (`2.10.x`) so that a Flux minor upgrade, which can carry breaking changes like 2.10's, is a deliberate commit rather than an automatic roll-forward.
+- **`instance.*` keys** mirror the `FluxInstance` spec. The chart defaults are `distribution.version: "2.x"`, `registry: ghcr.io/fluxcd`, those four components, and `networkPolicy: true` ([flux-instance `values.yaml`](https://github.com/controlplaneio-fluxcd/charts/blob/main/charts/flux-instance/values.yaml)). I pin the minor version (`2.10.x`) so that a Flux minor upgrade, which can carry breaking changes like 2.10's, is a deliberate commit rather than an automatic roll-forward. That settled migration open question 8 (2026-11-19): 2.10.0 is the newest Flux release and 0.62.1 the newest operator, so the pin stays at `2.10.x`.
 - **`sync`** points **directly at `kubernetes/apps`**, as cluster-template has done since [2026-10-24](https://github.com/onedr0p/cluster-template/pull/2468). There is no intermediate root `ks.yaml`. The SSH URL, branch and `flux-system` pull secret match the current `gotk-sync.yaml`, mapped from `flux bootstrap` flags as in the [migration guide](https://github.com/controlplaneio-fluxcd/flux-operator/blob/main/docs/guides/operator/operator-migration.md).
 - **The first patch replaces the old root `ks.yaml`.** It targets the Kustomization named `flux-system`, which the operator generates from `spec.sync` ([FluxInstance docs](https://fluxoperator.dev/docs/crd/fluxinstance/)), and is copied from [cluster-template's flux-instance HelmRelease](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml.j2). It does three things:
   - adds SOPS decryption and `deletionPolicy: WaitForTermination` to `flux-system` itself;
@@ -191,11 +189,49 @@ spec:
   url: oci://ghcr.io/controlplaneio-fluxcd/charts/flux-instance
 ```
 
+## Flux manages itself
+
+Since [#180](https://github.com/lorenzorapetti/homelab/issues/180) (step 2 of the [migration](/kubernetes/migration)), the operator and the instance are apps like any other:
+
+```
+kubernetes/apps/flux-system/
+├─ kustomization.yaml        # namespace: flux-system, sops component, prune: disabled on everything
+├─ namespace.yaml            # prune: disabled
+├─ flux-operator/
+│  ├─ ks.yaml                # healthCheck on the HelmRelease
+│  └─ app/  ocirepository.yaml (0.62.1)  helmrelease.yaml (values: {})
+└─ flux-instance/
+   ├─ ks.yaml                # dependsOn: flux-operator
+   └─ app/  ocirepository.yaml (0.62.1)  helmrelease.yaml (the values above)
+```
+
+The HelmReleases have the same names and namespace as the helmfile releases, so helm-controller adopted them in place. The [takeover](/kubernetes/getting-started/bootstrap#what-the-takeover-does-flux-2026-11-19) restarted only the operator pod, and the controllers kept running. What happens when helm-controller upgrades its own chart is in [Flux upgrading itself](/kubernetes/getting-started/bootstrap#flux-upgrading-itself).
+
+### Flux must never uninstall itself
+
+The FluxInstance patch above injects `deletionPolicy: WaitForTermination` into every child Kustomization. When a Kustomization is deleted with that policy, kustomize-controller deletes everything it applied ([Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/)). Without a guard, deleting `kubernetes/apps/flux-system/` (or a bad commit that drops it from `kubernetes/apps/kustomization.yaml`) would go like this:
+
+1. `flux-system` prunes the `flux-instance` Kustomization.
+2. That Kustomization deletes its HelmRelease.
+3. helm-controller uninstalls the chart, which deletes the `FluxInstance`.
+4. The operator removes Flux.
+
+The namespace annotation from cluster-template alone doesn't stop that, because the HelmRelease is the object that matters.
+
+So every object in the chain carries `kustomize.toolkit.fluxcd.io/prune: disabled`:
+
+- **The namespace, both `ks.yaml` Kustomizations and `cluster-secrets`**, through `commonAnnotations` in `flux-system/kustomization.yaml`. The root `flux-system` Kustomization never prunes them.
+- **The HelmReleases and OCIRepositories**, through `spec.commonMetadata.annotations` in each `ks.yaml`. If one of those Kustomizations is deleted anyway, it leaves them in place.
+
+kustomize-controller excludes objects with that annotation both when it prunes and when it finalizes a deleted Kustomization: `deleteObjects` passes it as an `Exclusions` entry to the SSA resource manager ([source](https://github.com/fluxcd/kustomize-controller/blob/main/internal/controller/kustomization_controller.go)). To actually remove Flux, delete the HelmReleases by hand.
+
+**Checked 2026-11-19:** I committed a throwaway ConfigMap under `kubernetes/apps/`, reconciled, then removed it and reconciled again. Flux pruned the ConfigMap ("ConfigMap/default/prune-test deleted"). Every flux-system Kustomization, HelmRelease, OCIRepository, the FluxInstance, the namespace and `cluster-secrets` kept the same UID and generation, both releases stayed at the same helm revision, and no pod restarted. I didn't test deleting `flux-system/` itself.
+
 ## Installation
 
-There is no `flux bootstrap` any more. On a fresh cluster, Flux is installed by `helmfile` as part of [Bootstrap the cluster](/kubernetes/getting-started/bootstrap), which also applies the SSH pull secret and the [SOPS](/kubernetes/sops) key. The result is a bare skeleton syncing an empty `kubernetes/apps/`. Adding `flux-operator` and `flux-instance` HelmReleases under `kubernetes/apps/flux-system/` then lets Flux manage its own operator and instance like any other app.
+There is no `flux bootstrap` any more. On a fresh cluster, Flux is installed by `helmfile` as part of [Bootstrap the cluster](/kubernetes/getting-started/bootstrap), which also applies the SSH pull secret and the [SOPS](/kubernetes/sops) key. The helmfile reads the chart, version and values from the manifests under `kubernetes/apps/flux-system/`, then Flux syncs `kubernetes/apps/` and takes over its own operator and instance ([above](#flux-manages-itself)).
 
-The values above are `bootstrap/helmfile/values/flux-instance.yaml`, installed and checked in [#178](https://github.com/lorenzorapetti/homelab/issues/178) ([Checking Flux](/kubernetes/getting-started/bootstrap#checking-flux)).
+The values were first installed and checked in [#178](https://github.com/lorenzorapetti/homelab/issues/178) ([Checking Flux](/kubernetes/getting-started/bootstrap#checking-flux)), from what was then `bootstrap/helmfile/values/flux-instance.yaml`.
 
 The `flux` CLI (in `devenv.nix` as `fluxcd`) is still useful for inspecting and driving Flux:
 

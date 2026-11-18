@@ -29,8 +29,7 @@ The repository follows the "home-ops" layout from [onedr0p/cluster-template](htt
 │  ├─ github-deploy-key.sops.yaml
 │  └─ helmfile/
 │     ├─ apps.yaml                # cilium → flux-operator → flux-instance
-│     ├─ values/                  # skeleton: bootstrap-only values
-│     └─ default.yaml, templates/ # later: read chart + values from kubernetes/apps/**
+│     └─ default.yaml, templates/ # read chart + values from kubernetes/apps/**
 └─ kubernetes/
    ├─ components/
    │  └─ sops/                    # cluster-secrets (postBuild substitution vars)
@@ -87,7 +86,7 @@ resources:
   - ./flux-system
 ```
 
-Without this file, Flux would generate one "for all the Kubernetes manifests in the directory tree" ([Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/)). cluster-template relies on that. I keep the explicit list because the directory would otherwise be empty at first, and because it makes "add a namespace" a visible one-line diff.
+This is the built file as of [#180](https://github.com/lorenzorapetti/homelab/issues/180). Without this file, Flux would generate one "for all the Kubernetes manifests in the directory tree" ([Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/)). cluster-template relies on that. I keep the explicit list because the directory would otherwise be empty at first, and because it makes "add a namespace" a visible one-line diff.
 
 ## A namespace
 
@@ -108,6 +107,28 @@ resources:
 ```
 
 The `namespace:` field puts every `ks.yaml` in the app's namespace, as the current repo already does. The `sops` component adds the `cluster-secrets` Secret, so `postBuild.substituteFrom` can reference it from the same namespace ([cluster-template namespace kustomization](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/apps/cert-manager/kustomization.yaml.j2)). For `flux-system`, cluster-template marks the namespace with `kustomize.toolkit.fluxcd.io/prune: disabled`, so Flux never prunes its own namespace ([namespace.yaml](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/apps/flux-system/namespace.yaml.j2)).
+
+### `flux-system`: prune disabled on everything
+
+The namespace annotation alone isn't enough for `flux-system`. The `deletionPolicy: WaitForTermination` that the FluxInstance injects into every `ks.yaml` would let a deleted `flux-system/` directory cascade down to uninstalling Flux. So `kubernetes/apps/flux-system/kustomization.yaml` puts the annotation on everything it creates:
+
+```yaml
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: flux-system
+commonAnnotations:
+  kustomize.toolkit.fluxcd.io/prune: disabled
+components:
+  - ../../components/sops
+resources:
+  - ./namespace.yaml
+  - ./flux-operator/ks.yaml
+  - ./flux-instance/ks.yaml
+```
+
+Both `ks.yaml` files add it to their HelmRelease and OCIRepository through `spec.commonMetadata.annotations`. The chain, the source code it relies on, and the prune test are on the [Flux page](/kubernetes/flux/intro#flux-must-never-uninstall-itself). Other namespaces don't need this: deleting an app is supposed to uninstall it.
 
 ### `kube-system`: no `namespace.yaml`
 
