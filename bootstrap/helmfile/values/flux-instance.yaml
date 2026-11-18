@@ -1,0 +1,87 @@
+---
+# flux-instance chart values. Docs: docs/docs/kubernetes/flux/intro.md ("The FluxInstance").
+# These move into kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml once
+# Flux manages itself.
+instance:
+  distribution:
+    version: "2.10.x"   # pin the minor: a Flux minor upgrade is a deliberate commit
+    registry: ghcr.io/fluxcd
+  components:
+    - source-controller
+    - kustomize-controller
+    - helm-controller
+    - notification-controller
+  cluster:
+    type: kubernetes
+    networkPolicy: true
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: flux
+  sync:
+    kind: GitRepository
+    url: ssh://git@github.com/lorenzorapetti/homelab.git
+    ref: refs/heads/main
+    path: kubernetes/apps
+    pullSecret: flux-system   # bootstrap/github-deploy-key.sops.yaml
+  kustomize:
+    patches:
+      # Every child Kustomization must set spec.patches (even []) because of the
+      # /spec/patches/0 add below; otherwise the build fails for the whole tree.
+      - # SOPS decryption + defaults for flux-system and all child Kustomizations
+        patch: |-
+          - op: add
+            path: /spec/decryption
+            value:
+              provider: sops
+          - op: add
+            path: /spec/deletionPolicy
+            value: WaitForTermination
+          - op: add
+            path: /spec/patches
+            value:
+              - patch: |-
+                  - op: add
+                    path: /spec/decryption
+                    value:
+                      provider: sops
+                  - op: add
+                    path: /spec/deletionPolicy
+                    value: WaitForTermination
+                  - op: add
+                    path: /spec/patches/0
+                    value:
+                      patch: |-
+                        apiVersion: helm.toolkit.fluxcd.io/v2
+                        kind: HelmRelease
+                        metadata:
+                          name: _
+                        spec:
+                          install:
+                            crds: CreateReplace
+                            strategy:
+                              name: RetryOnFailure
+                          rollback:
+                            cleanupOnFail: true
+                          upgrade:
+                            cleanupOnFail: true
+                            crds: CreateReplace
+                            remediation:
+                              retries: 2
+                      target:
+                        group: helm.toolkit.fluxcd.io
+                        kind: HelmRelease
+                target:
+                  group: kustomize.toolkit.fluxcd.io
+                  kind: Kustomization
+        target:
+          group: kustomize.toolkit.fluxcd.io
+          kind: Kustomization
+          name: flux-system
+      - # Controller-level SOPS decryption with the sops-age secret
+        patch: |
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --sops-age-secret=sops-age
+        target:
+          kind: Deployment
+          name: kustomize-controller

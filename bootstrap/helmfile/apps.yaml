@@ -1,8 +1,7 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/helmfile
-# Bootstrap releases, installed by `just bootstrap::cilium`.
+# Bootstrap releases, installed in order by `just bootstrap::helmfile`.
 # Docs: docs/docs/kubernetes/getting-started/bootstrap.md
-# flux-operator and flux-instance join this file with the Flux bootstrap.
 helmDefaults:
   cleanupOnFail: true
   forceConflicts: true
@@ -15,3 +14,16 @@ releases:
     chart: oci://quay.io/cilium/charts/cilium
     version: 1.20.5
     values: ["./values/cilium.yaml"]
+
+  - name: flux-operator
+    namespace: flux-system
+    chart: oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator
+    version: 0.62.1
+    needs: ["kube-system/cilium"]
+
+  - name: flux-instance
+    namespace: flux-system
+    chart: oci://ghcr.io/controlplaneio-fluxcd/charts/flux-instance
+    version: 0.62.1
+    values: ["./values/flux-instance.yaml"]
+    needs: ["flux-system/flux-operator"]

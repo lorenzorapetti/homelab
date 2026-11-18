@@ -21,7 +21,7 @@ let
   };
 
   # helm with the helm-diff plugin: `helmfile apply` diffs before upgrading, so
-  # re-running `just bootstrap::cilium` on an unchanged release is a no-op.
+  # re-running `just bootstrap::helmfile` on an unchanged release is a no-op.
   helm = pkgs.wrapHelm pkgs.kubernetes-helm {
     plugins = [ pkgs.kubernetes-helmPlugins.helm-diff ];
   };
@@ -41,6 +41,7 @@ in
     helm
     helmfile
     cilium-cli
+    fluxcd
   ];
 
   # Client configs written by `just talos::create` (both gitignored).
@@ -61,5 +62,6 @@ in
     helm diff version
     helmfile --version
     cilium version --client
+    flux version --client
   '';
 }
