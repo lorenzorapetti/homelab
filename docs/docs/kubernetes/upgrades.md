@@ -11,9 +11,11 @@ How to upgrade Talos, Kubernetes, Cilium, the Gateway API CRDs, the Helm release
 | --- | --- | --- |
 | Talos (OS + system extensions) | `talosVersion` in `talos/topf.yaml`, `talos/schematic.yaml` | `just talos::upgrade` |
 | Kubernetes | `kubernetesVersion` in `talos/topf.yaml` | `just talos::upgrade-k8s` |
-| Cilium | `version` of the `cilium` release in `bootstrap/helmfile/apps.yaml` | `just bootstrap::cilium` |
+| Cilium | `version` of the `cilium` release in `bootstrap/helmfile/apps.yaml` | `just bootstrap::helmfile` |
+| Flux Operator, `flux-instance` chart | `version` of those releases in `bootstrap/helmfile/apps.yaml` (keep both equal) | `just bootstrap::helmfile` |
+| Flux itself | `instance.distribution.version` (`2.10.x`) in `bootstrap/helmfile/values/flux-instance.yaml` | patches roll automatically; for a minor, bump it + `just bootstrap::helmfile` |
 | Gateway API CRDs | the release URL in `bootstrap/mod.just` | `just bootstrap::crds` |
-| CLI tools (`talosctl`, `kubectl`, `helm`, `helmfile`, `cilium`, …) | `devenv.lock` (`topf`: `devenv.nix`) | `devenv update` |
+| CLI tools (`talosctl`, `kubectl`, `helm`, `helmfile`, `cilium`, `flux`, …) | `devenv.lock` (`topf`: `devenv.nix`) | `devenv update` |
 
 Once Cilium, the Flux Operator and the Gateway API CRDs are Flux apps (step 1 of the [migration](/kubernetes/migration)), their versions move to `kubernetes/apps/` and Renovate opens the PRs. Talos and Kubernetes stay manual.
 
@@ -124,7 +126,7 @@ Cilium is a plain Helm release managed by helmfile until it becomes a Flux app.
 
    ```bash
    just bootstrap::diff      # helm diff of every release
-   just bootstrap::cilium    # helmfile apply: upgrades only what changed
+   just bootstrap::helmfile  # helmfile apply: upgrades only what changed
    ```
 
    The full values file is passed on every run, so this never relies on Helm's `--reuse-values`, which Cilium warns against for minor upgrades. `helmDefaults.wait` makes the command wait until the rollout is done.
@@ -149,7 +151,7 @@ The bundle installs the `safe-upgrades.gateway.networking.k8s.io` ValidatingAdmi
 
 ## Helm releases
 
-All bootstrap Helm releases are in `bootstrap/helmfile/apps.yaml`: today only `cilium`, plus `flux-operator` and `flux-instance` once Flux is bootstrapped. Each one is upgraded the same way: bump `version`, run `just bootstrap::diff`, then apply. `helmfile apply` uses the [helm-diff](https://github.com/databus23/helm-diff) plugin to skip unchanged releases, so a no-op run doesn't add a Helm revision.
+All bootstrap Helm releases are in `bootstrap/helmfile/apps.yaml`: `cilium`, `flux-operator` and `flux-instance`. Each one is upgraded the same way: bump `version`, run `just bootstrap::diff`, then apply. `helmfile apply` uses the [helm-diff](https://github.com/databus23/helm-diff) plugin to skip unchanged releases, so a no-op run doesn't add a Helm revision.
 
 Apps under `kubernetes/apps/` aren't upgraded with Helm by hand: their `HelmRelease`/`OCIRepository` versions are bumped in Git (by Renovate, once `"enabled": false` is removed from `renovate.json` after the rebuild), and helm-controller does the upgrade.
 

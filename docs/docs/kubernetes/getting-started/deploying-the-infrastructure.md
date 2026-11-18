@@ -296,6 +296,6 @@ The tools come from `devenv.nix` at the repo root. Run `devenv shell`, or `deven
 - `just`
 - `talosctl` (debugging and `upgrade-k8s`)
 - `topf`, which isn't in nixpkgs. `devenv.nix` installs the pinned upstream release binary (`topf_linux_amd64.tar.gz` from [GitHub releases](https://github.com/postfinance/topf/releases)). To bump it, change `version` and refresh `hash` with `nix store prefetch-file <url>`. topf shells out to `sops`, which is on `PATH` in the shell.
-- `kubectl`, `yq`, `helm` (wrapped with the helm-diff plugin), `helmfile` and the `cilium` CLI, for the [bootstrap](/kubernetes/getting-started/bootstrap)
+- `kubectl`, `yq`, `helm` (wrapped with the helm-diff plugin), `helmfile`, the `cilium` CLI and the `flux` CLI (`fluxcd`), for the [bootstrap](/kubernetes/getting-started/bootstrap)
 
-`flux`, `k9s`, `kubectx` and `kustomize` get added to `devenv.nix` when they're needed. Updating the tools is covered in [Upgrades](/kubernetes/upgrades#cli-tools).
+`k9s`, `kubectx` and `kustomize` get added to `devenv.nix` when they're needed. Updating the tools is covered in [Upgrades](/kubernetes/upgrades#cli-tools).

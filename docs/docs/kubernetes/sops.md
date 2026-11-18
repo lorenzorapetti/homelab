@@ -73,14 +73,14 @@ creation_rules:
   - path_regex: (talos|infrastructure)/.*\.sops\.(ya?ml|json)$
     mac_only_encrypted: true
     pgp: CFACE1C58F406FD74713AB0BF1F680022C252805
-    age: age1dkx5fryjw78lpvu4fkk59k4ljl24a5cnsd5nj5sefh05p3xn9anszpqxuq
+    age: age1gt9a67gwv8jt30g4ul0rglfq38h0lreul89640jddz9xl0y9qpjs4tcggj
 
   # 3. Kubernetes Secrets: GPG for me, age for Flux
   - path_regex: (bootstrap|kubernetes)/.*\.sops\.ya?ml$
     encrypted_regex: ^(data|stringData)$
     mac_only_encrypted: true
     pgp: CFACE1C58F406FD74713AB0BF1F680022C252805
-    age: age1dkx5fryjw78lpvu4fkk59k4ljl24a5cnsd5nj5sefh05p3xn9anszpqxuq
+    age: age1gt9a67gwv8jt30g4ul0rglfq38h0lreul89640jddz9xl0y9qpjs4tcggj
 stores:
   yaml:
     indent: 2
@@ -92,13 +92,13 @@ How the rules work:
 - **Only `*.sops.*` files match.** The old catch-all `\.ya?ml$` also matched plain manifests. The structure follows [cluster-template's `.sops.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/.sops.yaml.j2): a whole-file rule for `talos/`, and `encrypted_regex` for `bootstrap|kubernetes`. The PGP recipient, rule 1 and the `infrastructure/` (Terraform) path are my additions. cluster-template encrypts its `bootstrap/sops-age.sops.yaml` to the age key itself ([source](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/sops-age.sops.yaml.j2)), so you need the age key to bootstrap. Rule 1 means you need the YubiKey instead.
 - **topf writes `talos/secrets.sops.yaml` through rule 2.** The bundle is "SOPS-encrypted on write if a corresponding SOPS config is found" ([topf secrets](https://github.com/postfinance/topf/blob/main/docs/commands/secrets.md)).
 - **Rule 2 includes the age key on purpose.** Flux never reads these files, but the offline age backup gives a second way back to the Talos CA and the Terraform state if both YubiKeys *and* the GPG backup are lost. The cost: if the in-cluster age key leaked, it could decrypt the Talos CA too. I accept that, since the same key already decrypts every app secret.
-- **The age recipient is unchanged**, so the existing 1Password backup of the age key still works.
+- **The age key is new.** For the Flux bootstrap ([#178](https://github.com/lorenzorapetti/homelab/issues/178)) I generated a fresh age key instead of reusing the k3s one (`age1dkx5…zpqxuq`). Its backup is the 1Password item "homelab: Flux SOPS age key". See [The age key for Flux](#the-age-key-for-flux).
 
 ## Re-encrypting existing files
 
-The k3s-era secrets were moved with the old manifests to `kubernetes_old/`. They are unused and stay encrypted to the age key only. No rule in `.sops.yaml` matches that path any more, so they are never re-encrypted. Every file under the new paths is created after the rules above, so nothing needs `updatekeys` today.
+The k3s-era secrets were moved with the old manifests to `kubernetes_old/`. They are unused and stay encrypted to the **old** age key only. No rule in `.sops.yaml` matches that path any more, so they are never re-encrypted. Moving one of them to the new cluster needs the old key (or the value from wherever it originally came from).
 
-Later, after changing recipients, run `updatekeys` on every encrypted file. It adds or removes master keys "without rotating the data key", and `-y` skips the confirmation prompt ([SOPS key management](https://getsops.io/docs/usage/key-management/)):
+After changing recipients, run `updatekeys` on every encrypted file. It adds or removes master keys "without rotating the data key", and `-y` skips the confirmation prompt ([SOPS key management](https://getsops.io/docs/usage/key-management/)):
 
 ```bash
 find talos infrastructure bootstrap kubernetes -name '*.sops.*' -print0 | xargs -0 -n1 sops updatekeys -y
@@ -106,25 +106,24 @@ find talos infrastructure bootstrap kubernetes -name '*.sops.*' -print0 | xargs 
 
 `updatekeys` has to decrypt the data key first. For files that are still encrypted to age only, the first run needs the age key locally (e.g. `SOPS_AGE_KEY_FILE` pointing at the 1Password export). After a recipient is *removed*, also run `sops rotate --in-place` on each file. SOPS documents the order as first `updatekeys`, then `rotate` ([SOPS key management](https://getsops.io/docs/usage/key-management/)).
 
+The age key rotation for the Flux bootstrap (2026-11-18) did the `updatekeys` part: rules 2 and 3 got the new recipient, and `talos/secrets.sops.yaml`, `infrastructure/secrets.sops.yaml` and `infrastructure/terraform.tfstate.sops.json` were re-keyed to it, decrypting through the YubiKey. The data keys weren't rotated. That only matters if the old age key leaks, and then Git history exposes the old ciphertexts anyway.
+
 ## The age key for Flux
 
-Reuse the existing key from 1Password, or generate a new one with `age-keygen -o age.agekey` ([Flux SOPS guide](https://fluxcd.io/flux/guides/mozilla-sops/)). Store it as the `Secret` Flux will use. The file name comes from [cluster-template's `bootstrap/sops-age.sops.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/sops-age.sops.yaml.j2):
+A new key, generated with `age-keygen` ([Flux SOPS guide](https://fluxcd.io/flux/guides/mozilla-sops/)) and stored as the `Secret` Flux will use. The file name comes from [cluster-template's `bootstrap/sops-age.sops.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/sops-age.sops.yaml.j2). The private key only ever lived in a tmpfs directory, and the Secret was piped straight into `sops`, so no plaintext copy reached the repo:
 
 ```bash
-cat > bootstrap/sops-age.sops.yaml <<EOF
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: sops-age
-  namespace: flux-system
-stringData:
-  age.agekey: |
-$(sed 's/^/    /' age.agekey)
-EOF
-sops encrypt --in-place bootstrap/sops-age.sops.yaml   # rule 1: GPG only
-shred -u age.agekey
+dir=$(mktemp -d -p "$XDG_RUNTIME_DIR")          # tmpfs
+age-keygen -o "$dir/age.agekey"                 # prints the public key
+# Save the AGE-SECRET-KEY-1… line in 1Password ("homelab: Flux SOPS age key") before going on.
+{
+  printf -- '---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: sops-age\n  namespace: flux-system\nstringData:\n  age.agekey: |\n'
+  grep '^AGE-SECRET-KEY-1' "$dir/age.agekey" | while IFS= read -r l; do printf '    %s\n' "$l"; done
+} | sops encrypt --filename-override bootstrap/sops-age.sops.yaml /dev/stdin > bootstrap/sops-age.sops.yaml   # rule 1: GPG only
+shred -u "$dir/age.agekey"; rmdir "$dir"
 ```
+
+Then the new public key replaced the old one in rules 2 and 3 of `.sops.yaml`, and the existing files were re-keyed (see [Re-encrypting existing files](#re-encrypting-existing-files)). `--filename-override` makes sops pick the creation rule for that path while reading stdin.
 
 "The key name must end with `.agekey` to be detected as an age key" ([Flux SOPS guide](https://fluxcd.io/flux/guides/mozilla-sops/)).
 
@@ -151,6 +150,6 @@ The new setup uses kustomize-controller's **controller-level** key. The `--sops-
 Keep both of these **offline**, e.g. on paper or an encrypted USB stick in a drawer, plus 1Password:
 
 - **The GPG key backup**, exported before `keytocard` as Yubico recommends ([importing keys](https://developers.yubico.com/PGP/Importing_keys.html)). It replaces a lost or broken YubiKey: restore it and `keytocard` onto a new card.
-- **The age private key** (already in 1Password as `AGE_KEY`). It decrypts everything except `bootstrap/sops-age.sops.yaml`, and that file only contains the age key anyway.
+- **The age private key** (in 1Password as "homelab: Flux SOPS age key"). It decrypts everything except `bootstrap/sops-age.sops.yaml`, and that file only contains the age key anyway.
 
 With either backup and the repo, the whole cluster can be rebuilt: Terraform, Talos and Flux.

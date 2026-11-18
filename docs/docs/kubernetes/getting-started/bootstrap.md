@@ -35,7 +35,7 @@ It is the same shape as Jonas's `just bootstrap::full`: cluster, Cilium, secrets
 | `bootstrap/helmfile/apps.yaml`, `bootstrap/helmfile/values/*.yaml` | Releases and values for Cilium, flux-operator, flux-instance |
 | `kubernetes/apps/kustomization.yaml` | An empty Kustomize file (`resources: []`), so the path exists in Git |
 
-There is no `kubernetes/flux/cluster/ks.yaml`. The FluxInstance syncs `kubernetes/apps` directly ([Repository Architecture](/kubernetes/flux/repository-architecture)). Git doesn't track empty directories, so `kubernetes/apps/` needs that one file. **Unverified:** that kustomize-controller treats `resources: []` as "nothing to apply" and reports Ready. Check this on the first reconcile.
+There is no `kubernetes/flux/cluster/ks.yaml`. The FluxInstance syncs `kubernetes/apps` directly ([Repository Architecture](/kubernetes/flux/repository-architecture)). Git doesn't track empty directories, so `kubernetes/apps/` needs that one file. kustomize-controller treats `resources: []` as "nothing to apply": on the first reconcile `flux-system` reported Ready with "Applied revision: refs/heads/main@sha1:6e0d1748" (2026-11-18).
 
 ## 0. Wait for the API server
 
@@ -52,7 +52,7 @@ sops decrypt bootstrap/github-deploy-key.sops.yaml | kubectl apply --server-side
 This mirrors cluster-template's `apps-secrets` task, which runs `sops decrypt` and pipes the result to `kubectl apply --server-side` ([source](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/mise.toml)). Two details are mine:
 
 - **`sops-age` is encrypted to the YubiKey only.** The YubiKey is all you need to bootstrap.
-- **The pull secret is named `flux-system`**, matching the existing deploy key setup. It uses the `identity`/`known_hosts` keys of [cluster-template's deploy key](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/deploy-key.sops.yaml.j2).
+- **The pull secret is named `flux-system`**, the name `flux bootstrap` used. The repo had no deploy key left, so it holds a new ed25519 key, added to GitHub as a **read-only** deploy key titled "flux (homelab cluster, read-only)". `known_hosts` comes from `gh api meta` (GitHub's published host keys over TLS) rather than an `ssh-keyscan`. The private half exists only in this encrypted file: if it's lost, generate a new key and replace the deploy key. It uses the `identity`/`known_hosts` keys of [cluster-template's deploy key](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/deploy-key.sops.yaml.j2).
 
 ## 2. Gateway API CRDs
 
@@ -101,7 +101,7 @@ releases:
     needs: ["flux-system/flux-operator"]
 ```
 
-**Built so far:** only the `cilium` release, installed by `just bootstrap::cilium` ([#177](https://github.com/lorenzorapetti/homelab/issues/177)). `flux-operator` and `flux-instance` are added with the Flux bootstrap.
+This is the built file, installed by `just bootstrap::helmfile`: `cilium` came first ([#177](https://github.com/lorenzorapetti/homelab/issues/177)), then `flux-operator` and `flux-instance` ([#178](https://github.com/lorenzorapetti/homelab/issues/178)).
 
 The order, `needs` chain and `helmDefaults` come from [cluster-template's `apps.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/apps.yaml.j2), minus `coredns`, `spegel` and `cert-manager`. CoreDNS stays Talos-managed, and cert-manager arrives later as an app. The chart URLs are the ones cluster-template's `ocirepository.yaml` files use. The Flux Operator docs give the same `oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator` source ([operator install](https://github.com/controlplaneio-fluxcd/flux-operator/blob/main/docs/guides/operator/operator-install.md)). `values/flux-instance.yaml` is on the [Flux page](/kubernetes/flux/intro#the-fluxinstance).
 
@@ -252,7 +252,7 @@ The listener layout and wildcard certificate follow Jonas ([post 6](https://jona
 
 ### Checking Cilium
 
-What I checked after `just bootstrap::crds` and `just bootstrap::cilium` on the built cluster (2026-11-18):
+What I checked after `just bootstrap::crds` and `just bootstrap::helmfile` (then called `cilium`) on the built cluster (2026-11-18):
 
 ```bash
 kubectl get nodes                                  # all Ready
@@ -281,6 +281,16 @@ kubectl -n flux-system get fluxinstance flux
 flux get kustomizations -A                      # flux-system: Ready
 ```
 
+### Checking Flux
+
+What I checked after `just bootstrap::apps` on the cluster (2026-11-18):
+
+- **The instance.** `kubectl -n flux-system get fluxinstance flux` was `READY True`, "Reconciliation finished in 1m24s", at `v2.10.0`. `flux-operator` and the four controllers (`source`, `kustomize`, `helm`, `notification`) were `1/1`.
+- **The sync.** `flux get sources git -A` and `flux get kustomizations -A` both showed `flux-system` Ready at the pushed `main` commit.
+- **The patches landed.** `kustomize-controller` runs with `--sops-age-secret=sops-age`, and the `flux-system` Kustomization has `decryption.provider: sops`, `deletionPolicy: WaitForTermination` and the child-Kustomization patch.
+- **Idempotency.** A second `just bootstrap::apps` re-applied the namespace and the two secrets with no change, and all three Helm releases stayed at revision 1.
+- **Sync, SOPS and prune.** I committed a throwaway SOPS-encrypted Secret under `kubernetes/apps/` (encrypted by rule 3, so GPG + age). After `just bootstrap::reconcile` it was in the cluster, decrypted. Removing it from Git and reconciling again deleted it, since the generated Kustomization has `prune: true`.
+
 Cilium, the Flux Operator and the FluxInstance are still plain Helm releases at this point. Flux manages them only once their `HelmRelease`s are added under `kubernetes/apps/` with the same names and namespaces. helm-controller then takes over the existing releases; cluster-template relies on this ("After this bootstrap phase, Flux is ready to take over management", [apps.yaml](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/helmfile/apps.yaml.j2)).
 
 ## The justfile
@@ -301,13 +311,15 @@ mod bootstrap 'bootstrap/mod.just'
 
 [private]
 default:
-    @just --list
+    @just --list --list-submodules
 
 [doc("Empty Proxmox → bare Talos + Cilium + Flux skeleton")]
 full: tf::apply talos::create bootstrap::apps
 ```
 
-`infrastructure/mod.just` (state and Proxmox token kept SOPS-encrypted, as in Jonas's `tf::apply`). This is the built version. Only the `tf` module exists so far, so today's root `justfile` has just `mod tf` and the `default` recipe:
+`full` chains the three modules, but it hasn't been run end to end yet: the cluster was built step by step.
+
+`infrastructure/mod.just` (state and Proxmox token kept SOPS-encrypted, as in Jonas's `tf::apply`). This is the built version:
 
 ```just
 init *args:
@@ -388,39 +400,41 @@ _secrets:  # topf secrets --confirm=false > /dev/null, then abort unless sops fi
 
 This is abridged; the full file is [`talos/mod.just`](https://github.com/lorenzorapetti/homelab/blob/main/talos/mod.just), explained in [Install Talos](/kubernetes/getting-started/install-talos#create-the-cluster). `apply` keeps topf's confirmation, so `create` always shows the diff before touching the nodes.
 
-`bootstrap/mod.just`. The built version has `wait-for-nodes`, `crds` and `cilium`. `secrets`, `apps` and `reconcile` come with the Flux bootstrap, and `cilium` then becomes `helmfile` once the file also holds the Flux releases:
+`bootstrap/mod.just` (built; `[doc]` attributes trimmed). `helmfile` was called `cilium` while the file held only Cilium:
 
 ```just
 export KUBECONFIG := justfile_directory() / "kubeconfig"
 
-wait-for-nodes:
-    until [[ -n "$(kubectl get nodes -o name --request-timeout=10s 2>/dev/null)" ]]; do sleep 5; done
-
-crds: wait-for-nodes
-    kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml
-
-cilium: wait-for-nodes
-    helmfile --file helmfile/apps.yaml apply --hide-notes --skip-diff-on-install
-
-# --- added with the Flux bootstrap ---
-
 [doc("Secrets, Gateway API CRDs, Cilium + Flux. The YubiKey must be plugged in")]
 apps: wait-for-nodes secrets crds helmfile
 
-secrets:
+wait-for-nodes:
+    until [[ -n "$(kubectl get nodes -o name --request-timeout=10s 2>/dev/null)" ]]; do sleep 5; done
+
+secrets: wait-for-nodes
     kubectl create namespace flux-system --dry-run=client -o yaml | kubectl apply --server-side -f -
     sops decrypt sops-age.sops.yaml | kubectl apply --server-side -f -
     sops decrypt github-deploy-key.sops.yaml | kubectl apply --server-side -f -
 
-[doc("Force Flux to pull the repo now")]
+crds: wait-for-nodes
+    kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml
+
+diff:
+    helmfile --file helmfile/apps.yaml diff
+
+helmfile: wait-for-nodes
+    helmfile --file helmfile/apps.yaml apply --hide-notes --skip-diff-on-install
+
 reconcile:
     flux --namespace flux-system reconcile kustomization flux-system --with-source
 ```
 
+Flux syncs `main`, so push the commit that creates `kubernetes/apps/` before running `apps`: until then the `flux-system` Kustomization can't find its path.
+
 Notes on the justfile:
 
-- **`helmfile apply`, not `sync`.** cluster-template uses `sync`, which upgrades every release on every run, so each run adds a Helm revision even when nothing changed. `apply` runs `helm diff` first and upgrades only the releases that differ, so re-running `just bootstrap::cilium` on an unchanged cluster is a no-op (it stays at revision 1). This needs the [helm-diff](https://github.com/databus23/helm-diff) plugin, which `devenv.nix` bundles by wrapping `helm` with `wrapHelm` and pointing `helmfile` at the same plugin directory. `--skip-diff-on-install` stops the first install from printing the whole chart as a diff.
-- **Tools.** `devenv.nix` provides `helm` (with helm-diff), `helmfile` and the `cilium` CLI, alongside `kubectl`.
+- **`helmfile apply`, not `sync`.** cluster-template uses `sync`, which upgrades every release on every run, so each run adds a Helm revision even when nothing changed. `apply` runs `helm diff` first and upgrades only the releases that differ, so re-running `just bootstrap::helmfile` on an unchanged cluster is a no-op (every release stays at revision 1). This needs the [helm-diff](https://github.com/databus23/helm-diff) plugin, which `devenv.nix` bundles by wrapping `helm` with `wrapHelm` and pointing `helmfile` at the same plugin directory. `--skip-diff-on-install` stops the first install from printing the whole chart as a diff.
+- **Tools.** `devenv.nix` provides `helm` (with helm-diff), `helmfile`, the `cilium` CLI and the `flux` CLI (`fluxcd`, v2.10.0), alongside `kubectl`.
 
 - **Where the commands come from.** The topf invocations follow cluster-template's `bootstrap:talos` tasks, including the 8760h kubeconfig. Unlike cluster-template, `apply` doesn't pass `--confirm=false`, so the diff is always shown first. `upgrade-k8s` mirrors its Talos task ([bootstrap tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/mise.toml), [talos tasks](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/mise.toml)).
 - **The Terraform state rule.** The state is encrypted as JSON (`--input-type json`), which needs its own `infrastructure/` rule in [`.sops.yaml`](/kubernetes/sops#sopsyaml). `--filename-override` is the right flag in sops 3.13: "Use this filename instead of the provided argument for loading configuration". Run from `infrastructure/`, `--filename-override terraform.tfstate.sops.json` picks up rule 2, which encrypts to both the GPG key and the age key. I checked this by encrypting a dummy file.

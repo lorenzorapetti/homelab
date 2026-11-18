@@ -140,7 +140,7 @@ Where each part comes from:
   - adds the same two settings to every child Kustomization (each app's `ks.yaml`);
   - prepends HelmRelease defaults to each child's own `patches`: CRDs `CreateReplace`, `cleanupOnFail`, 2 upgrade retries.
 
-  Because of the `/spec/patches/0` add, **every `ks.yaml` must contain `patches: []`**. The `crds` policies are documented in the [HelmRelease API](https://fluxcd.io/flux/components/helm/helmreleases/), and deletion policies in the [Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/). **Unverified:** `install.strategy.name: RetryOnFailure` comes from cluster-template; I haven't found it in the HelmRelease docs.
+  Because of the `/spec/patches/0` add, **every `ks.yaml` must contain `patches: []`**. I checked this with `kubectl kustomize`: on a Kustomization without `spec.patches` the add fails with `doc is missing path: "/spec/patches/0"`, which breaks the build of the whole tree; with `patches: []` it works. The `crds` policies are documented in the [HelmRelease API](https://fluxcd.io/flux/components/helm/helmreleases/), and deletion policies in the [Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/). `install.strategy.name: RetryOnFailure` is documented under "Install strategy" in the HelmRelease API: "The `RetryOnFailure` strategy will retry a failed install with an upgrade after the interval defined by the `.spec.install.strategy.retryInterval` field" (default `5m`). The default strategy is `RemediateOnFailure`.
 - **The `--sops-age-secret` patch** also comes from [cluster-template's flux-instance HelmRelease](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml.j2). The flag and its precedence rules are documented in the [Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/). cluster-template adds more tuning patches (higher `--concurrent`, in-memory kustomize builds, Helm repository caching, OOM watch, `--watch-configs-label-selector`, `CancelHealthCheckOnNewRevision`). I can add them later if I need them.
 - **`networkPolicy`**: cluster-template sets `networkPolicy: false`. Its manifest doesn't say why. I keep the default (`true`) until something, such as a webhook `Receiver` exposed through the Gateway, needs traffic into `flux-system`.
 
@@ -195,7 +195,9 @@ spec:
 
 There is no `flux bootstrap` any more. On a fresh cluster, Flux is installed by `helmfile` as part of [Bootstrap the cluster](/kubernetes/getting-started/bootstrap), which also applies the SSH pull secret and the [SOPS](/kubernetes/sops) key. The result is a bare skeleton syncing an empty `kubernetes/apps/`. Adding `flux-operator` and `flux-instance` HelmReleases under `kubernetes/apps/flux-system/` then lets Flux manage its own operator and instance like any other app.
 
-The `flux` CLI is still useful for inspecting and driving Flux:
+The values above are `bootstrap/helmfile/values/flux-instance.yaml`, installed and checked in [#178](https://github.com/lorenzorapetti/homelab/issues/178) ([Checking Flux](/kubernetes/getting-started/bootstrap#checking-flux)).
+
+The `flux` CLI (in `devenv.nix` as `fluxcd`) is still useful for inspecting and driving Flux:
 
 ```bash
 kubectl -n flux-system get fluxinstance flux
