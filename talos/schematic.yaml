@@ -1,7 +1,7 @@
 # Image Factory schematic. ID: 88d1f7a5c4f1d3aba7df787c448c1d3d008ed29cfb34af53fa0df4336a56040b
 # (already submitted to factory.talos.dev). talos_schematic_id in infrastructure/variables.auto.tfvars
-# is only the boot image for new VMs: after editing this file, run `just talos::upgrade` and leave the
-# tfvars alone, because changing it recreates every VM (docs: Upgrades).
+# is only the boot image for new VMs: after editing this file, run `just talos::upgrade`; the tfvars
+# don't need to change (docs: Upgrades).
 customization:
   systemExtensions:
     officialExtensions:

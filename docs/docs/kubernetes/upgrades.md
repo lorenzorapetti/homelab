@@ -17,18 +17,18 @@ How to upgrade Talos, Kubernetes, Cilium, the Gateway API CRDs, the Helm release
 
 Once Cilium, the Flux Operator and the Gateway API CRDs are Flux apps (step 1 of the [migration](/kubernetes/migration)), their versions move to `kubernetes/apps/` and Renovate opens the PRs. Talos and Kubernetes stay manual.
 
-:::danger Don't touch the Terraform image variables
+:::warning Upgrades don't go through Terraform
 
-`talos_version` and `talos_schematic_id` in `infrastructure/variables.auto.tfvars` only pick the disk image that **new** VMs boot from. The running nodes have Talos installed on their system disk, and in-place upgrades go through `topf`. **Leave both values alone when you upgrade.** Changing either one and running `just tf::apply` destroys and recreates **all three VMs**, Longhorn disks included. Both values are part of the image's file name, and the VM's system disk is built from that file. With `talos_version = 1.14.6`, `terraform plan` shows:
+`talos_version` and `talos_schematic_id` in `infrastructure/variables.auto.tfvars` only pick the disk image that **new** VMs boot from. The running nodes have Talos installed on their system disk, and in-place upgrades go through `topf`. **Leave both values alone when you upgrade.** Leaving them at the old version is harmless: a VM created from an older image installs the version in `topf.yaml` when `topf apply` first configures it (the installer image comes from `talosVersion` and the schematic, see [Install Talos](/kubernetes/getting-started/install-talos#topfyaml)).
+
+Both values are part of the image's file name, and the VM's system disk is created from that file. Without a guard, changing either one would make `terraform plan` replace **all three VMs**, Longhorn disks included:
 
 ```
-# proxmox_download_file.talos must be replaced
-      ~ file_name = "talos-v1.14.5-88d1f7a5-nocloud-amd64.img" -> "talos-v1.14.6-88d1f7a5-nocloud-amd64.img" # forces replacement
 # proxmox_virtual_environment_vm.talos["talos-1"] must be replaced
           ~ file_id = "local:iso/talos-v1.14.5-88d1f7a5-nocloud-amd64.img" -> (known after apply) # forces replacement
 ```
 
-Leaving them at the old version is harmless: a VM created from an older image installs the version in `topf.yaml` when `topf apply` first configures it (the installer image comes from `talosVersion` and the schematic, see [Install Talos](/kubernetes/getting-started/install-talos#topfyaml)).
+So `infrastructure/vms.tf` has `lifecycle { ignore_changes = [disk[0].file_id] }`. With it, the same change plans only `proxmox_download_file.talos must be replaced` (`1 to add, 0 to change, 1 to destroy`): the new image is downloaded to Proxmox and the old one deleted, and the VMs are untouched. To rebuild a VM from the new image on purpose, replace it explicitly: `just tf::apply -replace='proxmox_virtual_environment_vm.talos["talos-1"]'`.
 
 :::
 

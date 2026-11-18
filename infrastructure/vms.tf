@@ -73,4 +73,13 @@ resource "proxmox_virtual_environment_vm" "talos" {
   operating_system {
     type = "l26"
   }
+
+  # The system disk is only seeded from the image when the VM is created; Talos then
+  # upgrades itself in place (`just talos::upgrade`). Without this, a new talos_version
+  # or talos_schematic_id renames the image file and Terraform recreates every VM,
+  # Longhorn disk included. To rebuild a VM from the new image on purpose:
+  #   just tf::apply -replace='proxmox_virtual_environment_vm.talos["talos-1"]'
+  lifecycle {
+    ignore_changes = [disk[0].file_id]
+  }
 }

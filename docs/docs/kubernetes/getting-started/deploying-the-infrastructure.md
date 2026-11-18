@@ -175,6 +175,9 @@ resource "proxmox_virtual_environment_vm" "talos" {
 
   network_device { bridge = var.bridge }       # vmbr0
   operating_system { type = "l26" }
+
+  # Talos upgrades itself in place; a new image must not recreate the VMs
+  lifecycle { ignore_changes = [disk[0].file_id] }
 }
 ```
 
@@ -182,6 +185,7 @@ Where the settings come from:
 
 - **`bios`, `machine`, `scsi_hardware`, `efi_disk`, `cpu.type`, ballooning**: the [Talos Proxmox guide](https://docs.siderolabs.com/talos/v1.14/platform-specific-installations/virtualized-platforms/proxmox.md) recommends `ovmf` + 4MB EFI disk, `q35`, CPU type `host`, ballooning disabled, and VirtIO SCSI. It warns against "VirtIO SCSI Single", which "causes bootstrap hangs". In the provider, `virtio-scsi-pci` is "VirtIO SCSI" and `virtio-scsi-single` is the one to avoid ([vm docs](https://github.com/bpg/terraform-provider-proxmox/blob/main/docs/resources/virtual_environment_vm.md)). `floating = 0` disables the balloon device.
 - **`initialization.ip_config`**: the provider's cloud-init block. Jonas uses it to give each node its static IP ([post 2](https://jonashietala.se/blog/2026/05/22/talos_linux_on_proxmox_with_terraform)).
+- **`ignore_changes = [disk[0].file_id]`**: the system disk is only created from the image. Without this, a new `talos_version` or `talos_schematic_id` renames the image file, and `terraform plan` replaces all three VMs (`file_id … # forces replacement`). With it, only the image file is re-downloaded ([Upgrades](/kubernetes/upgrades)). To rebuild a VM from the new image on purpose, use `just tf::apply -replace='proxmox_virtual_environment_vm.talos["talos-1"]'`.
 - **`proxmox_virtual_environment_vm`, not `proxmox_vm`.** v0.123 also ships `proxmox_vm`, but its schema describes it as an experimental rewrite that "MUST NOT be used in production".
 - **Jonas's VMs differ**: they use `x86-64-v2-AES` and a `virtio0` disk. The Talos guide's recommendations win here. With VirtIO SCSI, the system disk is `/dev/sda` and the Longhorn disk is `/dev/sdb` (Jonas's `/dev/vda` doesn't apply).
 
