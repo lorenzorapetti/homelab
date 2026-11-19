@@ -1,0 +1,11 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/helmrepository_v1.json
+# Longhorn publishes no OCI chart (checked 2026-11-19: nothing on ghcr.io or Docker Hub,
+# and the longhorn/charts README only documents this repo).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: longhorn
+spec:
+  interval: 1h
+  url: https://charts.longhorn.io

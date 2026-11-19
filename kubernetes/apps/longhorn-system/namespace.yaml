@@ -1,0 +1,12 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/v1/namespace.json
+# Longhorn needs privileged pods; Talos applies `baseline` to every namespace but kube-system.
+# Docs: docs/docs/kubernetes/storage-longhorn.md#kubernetes-side-an-app-in-the-migration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: longhorn-system
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

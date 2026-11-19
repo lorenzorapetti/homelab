@@ -1,0 +1,32 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# Docs: docs/docs/kubernetes/storage-longhorn.md
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: longhorn
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: longhorn
+      version: 1.13.0               # chart kubeVersion: >=1.34.0-0
+      sourceRef:
+        kind: HelmRepository
+        name: longhorn
+  values:
+    defaultSettings:
+      # The Talos user volume (talos/all/20-longhorn.yaml) on each VM's scsi1 disk.
+      defaultDataPath: /var/mnt/longhorn
+      # Volumes created outside a StorageClass (e.g. from the UI).
+      defaultReplicaCount: 2
+    persistence:
+      # The only StorageClass in the cluster.
+      defaultClass: true
+      # Two replicas survive one node down (a Talos upgrade, a VM failure). A third
+      # adds nothing while all three VMs share one SSD, and costs disk and writes.
+      defaultClassReplicaCount: 2
+      reclaimPolicy: Delete
+    # Not exposed yet; an HTTPRoute comes after the Gateway. One replica is plenty.
+    longhornUI:
+      replicas: 1
