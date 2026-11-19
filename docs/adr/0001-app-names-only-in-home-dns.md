@@ -11,7 +11,8 @@ App names (`<app>.lorenzolab.com`) point at the Gateway address `10.0.12.1` and 
 ## Consequences
 
 - Restricted devices (phones) need a tailnet grant to `10.0.12.1:80,443`. DNS needs nothing new: they already reach `tag:dns` on 53.
+- Home DNS answers LAN addresses for everything, including `nyx`'s own services (`*.home.lorenzolab.com` → `10.0.1.30`, Traefik on `nyx`). So `hecate` also advertises `10.0.1.30/32`, and phones get `10.0.1.30:80,443`. Traffic to `nyx`'s services goes through `hecate` even though `nyx` is on the tailnet itself: one extra LAN hop, in exchange for one answer per name.
+- Split DNS still points at `nyx`'s tailnet address, not `10.0.1.30`, so names keep resolving when `hecate` is down.
 - Home DNS must also hold the public `lorenzolab.com` names (e.g. `parts`), because tailnet devices ask it about the whole zone.
-- If `nyx` is down, tailnet devices can't resolve apps; if `hecate` is down, they can resolve but not reach them.
-- Split DNS goes to `nyx`'s tailnet address, not through `hecate`. An earlier draft advertised `10.0.1.30/32` through `hecate` before it was clear that `10.0.1.30` and `100.111.201.33` are the same server.
+- If `nyx` is down, tailnet devices can't resolve anything in `lorenzolab.com`; if `hecate` is down, they can resolve but not reach LAN addresses.
 - Forgejo SSH goes through a TCPRoute on the Shared Gateway, so it shares the HTTPS name and IP and needs no record of its own.

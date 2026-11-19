@@ -30,7 +30,7 @@ The LAN is one flat `10.0.0.0/16` behind the router at `10.0.0.1`. DHCP only han
 | --- | --- | --- |
 | `10.0.0.1` | Router / default gateway | |
 | `10.0.0.0/24` | DHCP clients | Not used for anything static |
-| `10.0.1.30` | LAN DNS server | First nameserver on the Talos nodes (`ResolverConfig`) |
+| `10.0.1.30` | `nyx`: Technitium (Home DNS) and Traefik for `*.home.lorenzolab.com` | First nameserver on the Talos nodes (`ResolverConfig`). ExternalDNS writes app records here ([DNS: ExternalDNS](/kubernetes/dns-externaldns)) |
 | `10.0.10.0/24` | Proxmox hosts | `10.0.10.1` now; `.2` and `.3` later |
 | `10.0.11.0/24` | Talos VMs | Static, set by Terraform cloud-init. Netmask `/16`, gateway `10.0.0.1` |
 | `10.0.11.1`–`10.0.11.3` | `talos-1`…`talos-3` | Control plane + workloads |
@@ -40,7 +40,7 @@ The LAN is one flat `10.0.0.0/16` behind the router at `10.0.0.1`. DHCP only han
 | `10.244.0.0/16` | Pod CIDR | **Cluster-internal only.** Doesn't overlap the LAN |
 | `10.96.0.0/12` | Service CIDR | **Cluster-internal only** (`10.96.0.0`–`10.111.255.255`). Doesn't overlap the LAN |
 
-`10.0.10.1/32`, `10.0.11.0/24` and `10.0.12.0/24` are also reachable from the tailnet, through hecate as a subnet router ([Remote access over Tailscale](/kubernetes/remote-access-tailscale)).
+`10.0.1.30/32`, `10.0.10.1/32`, `10.0.11.0/24` and `10.0.12.0/24` are also reachable from the tailnet, through hecate as a subnet router ([Remote access over Tailscale](/kubernetes/remote-access-tailscale)).
 
 The pod and service CIDRs are the values in Talos's `KubeNetworkConfig` reference example ([reference](https://docs.siderolabs.com/talos/v1.14/reference/configuration/kubernetes/kubenetworkconfig.md)). That page doesn't state defaults, so I set them explicitly in the Talos patches to be safe.
 
