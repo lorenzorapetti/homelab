@@ -310,7 +310,7 @@ The production names are carried over from the k3s repo. The staging issuer is f
 
 ### Routing an app
 
-With Cilium's Gateway, an app's ingress is an `HTTPRoute` in its `app/` directory, attached to the shared Gateway ([Bootstrap: Cilium networking](/kubernetes/getting-started/bootstrap#cilium-networking)):
+With Cilium's Gateway, an app's ingress is an `HTTPRoute` in its `app/` directory, attached to the shared Gateway ([Bootstrap: the shared Gateway](/kubernetes/getting-started/bootstrap#the-shared-gateway)):
 
 ```yaml
 ---
@@ -330,7 +330,12 @@ spec:
           port: 8080
 ```
 
-This replaces the Traefik `IngressRoute`s and per-app `Certificate`s from the k3s repo. TLS terminates at the Gateway with one wildcard certificate, as in Jonas's setup ([post 6](https://jonashietala.se/blog/2026/08/06/domains_certificates_and_dns)). `${SECRET_DOMAIN}` is substituted by Flux from `cluster-secrets`. The backend port is illustrative.
+This replaces the Traefik `IngressRoute`s and per-app `Certificate`s from the k3s repo. TLS terminates at the Gateway with one wildcard certificate, as in Jonas's setup ([post 6](https://jonashietala.se/blog/2026/08/06/domains_certificates_and_dns)). `${SECRET_DOMAIN}` is substituted by Flux from `cluster-secrets`, so the app's `ks.yaml` needs `postBuild.substituteFrom: cluster-secrets`. The backend port is illustrative.
+
+- **Always `sectionName: https`.** The `http` listener only accepts routes from `kube-system`, where one `HTTPRoute` sends every plain-HTTP request to HTTPS with a `301`. A route from another namespace that targets `http` is rejected (`NotAllowedByListeners`), so no app serves plaintext.
+- **One label under the domain.** The certificate covers the apex and `*.<domain>`, so `glance.<domain>` works but `a.b.<domain>` would need a new SAN.
+- **No per-app certificate, no `ReferenceGrant`.** The Gateway reads its own Secret in `kube-system`, and routes from any namespace may attach to `https` (`from: All`).
+- **Depend on `gateway`** in the app's `ks.yaml` (`dependsOn: [{name: gateway, namespace: kube-system}]`), so the route is applied only once the Gateway is programmed.
 
 ### Charts without an OCI registry
 

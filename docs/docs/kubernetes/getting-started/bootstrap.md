@@ -244,7 +244,7 @@ Where these values come from:
 
 **Versions.** The Cilium 1.20.5 chart is at `oci://quay.io/cilium/charts/cilium` (`helm show chart` reports `version: 1.20.5`, `kubeVersion: '>= 1.21.0-0'`). The cluster runs Kubernetes 1.37.2, which Cilium 1.20 doesn't e2e-test: its [compatibility page](https://github.com/cilium/cilium/blob/v1.20.5/Documentation/network/kubernetes/compatibility.rst) lists 1.33–1.36, and says untested versions "depend on the forward / backward compatibility offered by Kubernetes". 1.37 is listed only on `main` (Cilium 1.21, still at `1.21.0-pre.4` on 2026-11-18). 1.20.5 works on this cluster (status checks and the connectivity test below), so move to 1.21 once it's released rather than running a pre-release.
 
-The IP pool, L2 policy and the shared Gateway are Cilium CRs, not Helm values. They arrive with the Cilium app (step 1 of the [migration](/kubernetes/migration)) as `kubernetes/apps/kube-system/cilium/app/networks.yaml`, with addresses from the [network map](/kubernetes/intro#network-map):
+The IP pool and L2 policy are Cilium CRs, not Helm values. They arrive with the Cilium app (step 1 of the [migration](/kubernetes/migration)) as `kubernetes/apps/kube-system/cilium/app/networks.yaml`, with addresses from the [network map](/kubernetes/intro#network-map). The shared Gateway is a separate app ([below](#the-shared-gateway)):
 
 ```yaml
 ---
@@ -272,7 +272,11 @@ spec:
 - **No `serviceSelector`** means every LoadBalancer Service can get an IP from the pool.
 - **L2 policy.** It announces LoadBalancer IPs via ARP. `interfaces` is omitted ("if not specified all interfaces will be used"). The fields and the `cilium.io/v2alpha1` version come from the [L2 announcements docs](https://github.com/cilium/cilium/blob/v1.20.5/Documentation/network/l2-announcements.rst). L2 mode has no load balancing before the cluster: one node answers ARP for each IP. Everything is one flat L2 segment, so BGP isn't needed.
 
-The shared Gateway, pinned to `10.0.12.1`:
+### The shared Gateway
+
+Every app is exposed through one Cilium `Gateway`, `main` in `kube-system`, on `10.0.12.1`. It terminates TLS with one wildcard certificate, so an app needs only an `HTTPRoute` ([Routing an app](/kubernetes/flux/repository-architecture#routing-an-app)). It is step 6 of the [migration](/kubernetes/migration), the app `kubernetes/apps/kube-system/gateway/`, which `dependsOn` `cilium`, `gateway-api-crds` and `cluster-issuer` (in `cert-manager`). It uses `postBuild.substituteFrom: cluster-secrets` for `${SECRET_DOMAIN}`. The listener layout and wildcard certificate follow Jonas ([post 6](https://jonashietala.se/blog/2026/08/06/domains_certificates_and_dns)).
+
+`app/gateway.yaml`:
 
 ```yaml
 ---
@@ -280,7 +284,6 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: main
-  namespace: kube-system
 spec:
   gatewayClassName: cilium
   addresses:
@@ -293,7 +296,7 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: lorenzolab-com-tls
+          - name: ${SECRET_DOMAIN/./-}-tls
       allowedRoutes:
         namespaces:
           from: All
@@ -302,16 +305,96 @@ spec:
       port: 80
       allowedRoutes:
         namespaces:
-          from: All
+          from: Same
+```
+
+`app/certificate.yaml` and `app/httproute-redirect.yaml`:
+
+```yaml
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard
+spec:
+  secretName: ${SECRET_DOMAIN/./-}-tls
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: cloudflare-cluster-issuer
+  dnsNames:
+    - ${SECRET_DOMAIN}
+    - "*.${SECRET_DOMAIN}"
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: http-to-https
+spec:
+  parentRefs:
+    - name: main
+      sectionName: http
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
 ```
 
 How the Gateway gets its IP:
 
-- **Use `spec.addresses`, not an annotation.** Cilium's docs show `spec.addresses` with `type: IPAddress` as the way to pin a Gateway's IP through LB IPAM. The `io.cilium/lb-ipam-ips` annotation placed in `spec.infrastructure.annotations` still works and overrides `spec.addresses`, but Cilium plans to deprecate it and later ignore it ([Gateway addresses docs](https://github.com/cilium/cilium/blob/v1.20.5/Documentation/network/servicemesh/gateway-api/addresses.rst)).
-- **`lbipam.cilium.io/ips` is the Service annotation.** It is the current way to request IPs for a plain `Service`. The docs say not to request the first or last IP of a pool ([LB IPAM docs](https://github.com/cilium/cilium/blob/v1.20.5/Documentation/network/lb-ipam.rst)). The Gateway docs don't say whether that annotation passes through `spec.infrastructure.annotations` (**unverified**), which is one more reason to use `spec.addresses`.
-- **`10.0.12.1` is the pool's first IP.** That warning is about network/broadcast addresses in CIDR blocks. `10.0.12.1` is neither, and Cilium does assign it: in the L2 check below, a Service annotated `lbipam.cilium.io/ips: "10.0.12.1"` got exactly that IP from the `start`/`stop` pool.
+- **Use `spec.addresses`, not an annotation.** Cilium's docs show `spec.addresses` with `type: IPAddress` as the way to pin a Gateway's IP through LB IPAM. The `io.cilium/lb-ipam-ips` annotation placed in `spec.infrastructure.annotations` still works and overrides `spec.addresses`, but Cilium plans to deprecate it and later ignore it ([Gateway addresses docs](https://github.com/cilium/cilium/blob/v1.20.5/Documentation/network/servicemesh/gateway-api/addresses.rst)). On the built cluster, `spec.addresses` alone was enough. Cilium created the Service `kube-system/cilium-gateway-main` (`LoadBalancer`, ports 80 and 443) with `10.0.12.1`. I didn't test whether the `lbipam.cilium.io/ips` Service annotation passes through `spec.infrastructure.annotations`, because nothing needs it.
+- **`10.0.12.1` is the pool's first IP.** The LB IPAM docs say not to request the first or last IP of a pool ([LB IPAM docs](https://github.com/cilium/cilium/blob/v1.20.5/Documentation/network/lb-ipam.rst)). That warning is about network/broadcast addresses in CIDR blocks. `10.0.12.1` is neither, and Cilium does assign it: in the [L2 check](#checking-cilium), a Service annotated `lbipam.cilium.io/ips: "10.0.12.1"` got exactly that IP from the `start`/`stop` pool, and the Gateway got it too.
 
-The listener layout and wildcard certificate follow Jonas ([post 6](https://jonashietala.se/blog/2026/08/06/domains_certificates_and_dns)). The certificate comes later with cert-manager.
+Decisions:
+
+- **HTTP redirects to HTTPS.** The `http` listener accepts routes only from `kube-system` (`from: Same`), where the one `HTTPRoute` above answers every plain-HTTP request, for any hostname, with a `301` to HTTPS. Apps can't attach to it by mistake, so they never serve plaintext. They still set `sectionName: https`. Cilium writes the port into the redirect: `http://x.<domain>/foo?x=1` → `location: https://x.<domain>:443/foo?x=1`. That's valid and browsers follow it, but it isn't the clean URL the Gateway API spec recommends (it says implementations SHOULD NOT add `:443` for `https`).
+- **SANs: the apex and `*.<domain>`.** The apex is included so the bare domain can be routed later. No second-level wildcards: the `*.cluster.<domain>` names (Postgres, Redis, nodes) are outside Kubernetes and don't go through the Gateway. A wildcard covers only one label, so `a.b.<domain>` would need its own SAN.
+- **The Secret name is derived from the domain**, `${SECRET_DOMAIN/./-}-tls` (cluster-template's pattern), so the domain stays in `cluster-secrets` and out of Git. Flux's `envsubst` replaces the first `.`, which gives `lorenzolab-com-tls`.
+- **`timeout: 10m`.** The first issuance runs two DNS-01 challenges (the apex and the wildcard both validate through the TXT record `_acme-challenge.<domain>`, and cert-manager ran them one after the other), about 2.5 minutes in total. The default 5 minutes left too little margin.
+
+### Health-checking the Gateway
+
+kstatus doesn't understand a `Gateway`'s conditions, so `ks.yaml` lists the `Certificate` and the `Gateway` in `healthChecks`, and adds `healthCheckExprs` for the `Gateway`:
+
+```yaml
+healthCheckExprs:
+  - apiVersion: gateway.networking.k8s.io/v1
+    kind: Gateway
+    current: >-
+      status.conditions.filter(e, e.type == 'Programmed').all(e, e.status == 'True')
+      && has(status.listeners)
+      && status.listeners.all(l, l.conditions.filter(c, c.type == 'Programmed').all(c, c.status == 'True'))
+    failed: >-
+      status.conditions.filter(e, e.type == 'Accepted').all(e, e.status == 'False' && e.reason != 'ListenersNotValid')
+```
+
+What Cilium 1.20.5 actually reports, checked 2026-11-19:
+
+- **Waiting for the certificate.** The `Certificate` and the `Gateway` are applied together, so for the first couple of minutes the Secret doesn't exist. Cilium marks the `https` listener `ResolvedRefs=False/InvalidCertificateRef`, `Accepted=False/Invalid`, `Programmed=False/Pending`. `main` itself stayed `Accepted=True`, because the `http` listener was valid. It went `Programmed=True` (Gateway and both listeners) as soon as the certificate was issued.
+- **No valid listener at all.** A throwaway Gateway with only an HTTPS listener and a missing Secret reported `Accepted=False` and `Programmed=False`, both `ListenersNotValid/NoAcceptedListeners`. That's also a wait, not a failure, hence the `reason` exclusion in `failed`. Any other `Accepted=False` (a wrong `gatewayClassName`, say) fails the health check at once instead of running out the timeout.
+- **`current` also requires every listener to be `Programmed`**, so a Gateway that is half up (one listener still pending) doesn't count as healthy.
+
+### Checking the Gateway
+
+On the built cluster (2026-11-19), after pushing the app and `just bootstrap::reconcile`:
+
+```bash
+flux get kustomizations -A                         # gateway: Ready ("Health check passed in 2m40s")
+kubectl -n kube-system get certificate             # wildcard  READY True  SECRET lorenzolab-com-tls
+kubectl -n kube-system get gateway main            # cilium  10.0.12.1  PROGRAMMED True
+kubectl -n kube-system get svc cilium-gateway-main # LoadBalancer  EXTERNAL-IP 10.0.12.1
+```
+
+- **Ordering.** kustomize-controller logged "Dependencies do not meet ready condition, retrying in 30s", then "All dependencies are ready", so `dependsOn` held it back until `cilium`, `gateway-api-crds` and `cluster-issuer` were Ready.
+- **The certificate** came from the production issuer (`cloudflare-cluster-issuer`). Its order was `valid` after two DNS-01 challenges for the domain. Issuer `C=US; O=Let's Encrypt; CN=YR1`, `CN=<domain>`, valid 90 days.
+- **End to end, with `curl --resolve`, no DNS record.** I deployed a throwaway `traefik/whoami` in a namespace `echo-test`, with an `HTTPRoute` on `sectionName: https` for `echo-test.<domain>`. From the workstation on the LAN:
+  - `curl -v --resolve echo-test.<domain>:443:10.0.12.1 https://echo-test.<domain>/` answered `HTTP/2 200` from the pod, with "subjectAltName: "echo-test.<domain>" matches cert's "*.<domain>"" and `X-Forwarded-Proto: https`.
+  - `curl -I` on `http://` gave `301` to `https://…:443/foo?x=1`, path and query kept.
+  - A hostname with no route, and the apex (no route yet), both got `404` from the Gateway over valid TLS.
+
+  Then I deleted the namespace. I didn't create a DNS record: DNS automation is still [open](/kubernetes/migration#open-questions).
 
 ### Checking Cilium
 
