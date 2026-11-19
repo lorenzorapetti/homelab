@@ -1,0 +1,44 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/gitrepository_v1.json
+# The Gateway API version. `just bootstrap::crds` reads this tag, so a fresh
+# cluster installs the same release before Cilium starts.
+# Docs: docs/docs/kubernetes/getting-started/bootstrap.md#2-gateway-api-crds
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: gateway-api-crds
+spec:
+  interval: 1h
+  url: https://github.com/kubernetes-sigs/gateway-api
+  ref:
+    tag: v1.6.3
+  ignore: |
+    /*
+    !/config/crd/experimental/
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+# Experimental channel (ExternalAuth). Same objects as the release's
+# experimental-install.yaml: 13 CRDs + the safe-upgrades ValidatingAdmissionPolicy and binding.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app gateway-api-crds
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+    annotations:
+      # Deleting the CRDs would delete every Gateway and HTTPRoute. `prune: false`
+      # isn't enough: the injected deletionPolicy (WaitForTermination) deletes
+      # regardless of prune, but skips objects with this annotation.
+      kustomize.toolkit.fluxcd.io/prune: disabled
+  interval: 1h
+  path: ./config/crd/experimental
+  patches: []                       # required by the FluxInstance's injected patch
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: gateway-api-crds
+  timeout: 5m
+  wait: true                        # wait for the CRDs to be Established

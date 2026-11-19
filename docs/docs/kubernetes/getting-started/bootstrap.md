@@ -36,6 +36,7 @@ It is the same shape as Jonas's `just bootstrap::full`: cluster, Cilium, secrets
 | `bootstrap/github-deploy-key.sops.yaml` | SSH pull secret `flux-system` (`identity`, `known_hosts`) |
 | `bootstrap/helmfile/apps.yaml`, `default.yaml`, `templates/` | The releases for Cilium, flux-operator, flux-instance. Chart, version and values are read from the Flux manifests below ([one source of truth](#one-source-of-truth-for-values)) |
 | `kubernetes/apps/kube-system/cilium/app/`, `kubernetes/apps/flux-system/{flux-operator,flux-instance}/app/` | Each release's `ocirepository.yaml` and `helmrelease.yaml`, which the helmfile reads |
+| `kubernetes/apps/kube-system/gateway-api-crds/ks.yaml` | The Gateway API tag, which `just bootstrap::crds` reads ([step 2](#2-gateway-api-crds)) |
 | `kubernetes/apps/kustomization.yaml` | The list of namespace directories Flux syncs. The very first bootstrap used an empty one (`resources: []`), so the path existed in Git |
 
 There is no `kubernetes/flux/cluster/ks.yaml`. The FluxInstance syncs `kubernetes/apps` directly ([Repository Architecture](/kubernetes/flux/repository-architecture)). Git doesn't track empty directories, so `kubernetes/apps/` needs that one file. kustomize-controller treats `resources: []` as "nothing to apply": on the first reconcile `flux-system` reported Ready with "Applied revision: refs/heads/main@sha1:6e0d1748" (2026-11-18).
@@ -66,9 +67,67 @@ kubectl apply --server-side \
   -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml
 ```
 
-Both `standard-install.yaml` and `experimental-install.yaml` are assets of the [v1.6.3 release](https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.6.3). Jonas applies the CRDs first for the same reason ([post 2](https://jonashietala.se/blog/2026/05/22/talos_linux_on_proxmox_with_terraform)). Later, Flux takes them over as an app: a `GitRepository` on `kubernetes-sigs/gateway-api` at `v1.6.3` plus a Kustomization on `config/crd/experimental`. That directory exists at the tag and has its own `kustomization.yaml` ([tree](https://github.com/kubernetes-sigs/gateway-api/tree/v1.6.3/config/crd/experimental)).
+Both `standard-install.yaml` and `experimental-install.yaml` are assets of the [v1.6.3 release](https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.6.3). Jonas applies the CRDs first for the same reason ([post 2](https://jonashietala.se/blog/2026/05/22/talos_linux_on_proxmox_with_terraform)). Besides the CRDs, the experimental bundle also installs a `ValidatingAdmissionPolicy` and binding named `safe-upgrades.gateway.networking.k8s.io`, and three `gateway.networking.x-k8s.io` CRDs (`XBackend`, `XBackendTrafficPolicy`, `XMesh`).
 
-`just bootstrap::crds` runs this command. Besides the CRDs, the experimental bundle also installs a `ValidatingAdmissionPolicy` and binding named `safe-upgrades.gateway.networking.k8s.io`, and three `gateway.networking.x-k8s.io` CRDs (`XBackend`, `XBackendTrafficPolicy`, `XMesh`).
+`just bootstrap::crds` runs this command, with the tag read from the Flux manifest below. Once Flux runs, it owns the CRDs (step 3 of the [migration](/kubernetes/migration)).
+
+### The CRDs as a Flux app
+
+`kubernetes/apps/kube-system/gateway-api-crds/ks.yaml` holds two objects, a `GitRepository` and the Kustomization that applies it:
+
+```yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: gateway-api-crds
+spec:
+  interval: 1h
+  url: https://github.com/kubernetes-sigs/gateway-api
+  ref:
+    tag: v1.6.3
+  ignore: |
+    /*
+    !/config/crd/experimental/
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app gateway-api-crds
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+    annotations:
+      kustomize.toolkit.fluxcd.io/prune: disabled
+  interval: 1h
+  path: ./config/crd/experimental
+  patches: []
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: gateway-api-crds
+  timeout: 5m
+  wait: true
+```
+
+- **No `app/` directory.** The `GitRepository` has to exist before the Kustomization can read from it, so `flux-system` applies both from `ks.yaml`. In an `app/` directory, the Kustomization would have to apply its own source. `ignore` keeps the artifact down to the one directory.
+- **The same objects as `experimental-install.yaml`.** `config/crd/experimental` has its own `kustomization.yaml` ([tree](https://github.com/kubernetes-sigs/gateway-api/tree/v1.6.3/config/crd/experimental)). Its `kubectl kustomize` build has the same 15 objects as the release asset, with identical content (I compared them as sorted YAML, 2026-11-19). So Flux also manages the `safe-upgrades` policy and the three `x-k8s.io` CRDs.
+- **No `targetNamespace`.** Every object is cluster-scoped. The `GitRepository` and the Kustomization end up in `kube-system` from the namespace's `kustomization.yaml`.
+- **`prune: disabled` on every object, not `prune: false`.** Deleting the CRDs deletes every `Gateway` and `HTTPRoute`. `prune: false` doesn't prevent that here: the FluxInstance injects `deletionPolicy: WaitForTermination` into every child Kustomization ([the FluxInstance](/kubernetes/flux/intro#the-fluxinstance)), and that policy deletes the managed objects whatever `prune` says. `MirrorPrune`, the default, is the only policy that follows `prune` ([Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/#deletion-policy)). The `kustomize.toolkit.fluxcd.io/prune: disabled` annotation is skipped by both garbage collection and deletion, the same way `flux-instance` protects itself. `prune: true` stays for consistency with the other apps, and it has nothing to delete. To test the guard, delete the Kustomization **without suspending it first**: a suspended Kustomization never deletes anything when it is removed (`finalizerShouldDeleteResources` returns false on `spec.suspend`), so that test passes even without the annotation.
+- **`wait: true`** makes the Kustomization Ready only once the CRDs are `Established`. The `gateway` app will `dependsOn` it.
+- **Renovate** reads `ref.tag` on a GitHub `GitRepository` with its `flux` manager, and `just bootstrap::crds` reads the same tag with `yq`. One bump covers both.
+
+### Taking over the kubectl-applied CRDs
+
+The CRDs were applied by `kubectl apply --server-side`, so their field manager is `kubectl` (operation `Apply`). Before pushing, I applied the build with `kubectl apply --server-side --dry-run=server --field-manager=kustomize-controller` and no `--force-conflicts` (2026-11-19):
+
+- the 13 CRDs applied cleanly;
+- the `safe-upgrades` `ValidatingAdmissionPolicy` and binding conflicted with `kubectl` on `.spec.matchConstraints` and `.spec.matchResources`.
+
+kustomize-controller handles both. It applies with forced ownership (`client.ForceOwnership` in [fluxcd/pkg `ssa`](https://github.com/fluxcd/pkg/blob/main/ssa/manager_apply.go)), and on its first apply it removes the `kubectl` `Apply` and `Update` managers "to undo changes made with 'kubectl apply --server-side --force-conflicts'" ([kustomization_controller.go](https://github.com/fluxcd/kustomize-controller/blob/main/internal/controller/kustomization_controller.go)). After the takeover, kustomize-controller is the only manager of those fields.
+
+The flip side: on the running cluster, `just bootstrap::crds` now conflicts with kustomize-controller on the policy. It is for fresh clusters only. To upgrade, bump the tag ([Upgrades](/kubernetes/upgrades#gateway-api-crds)).
 
 ## 3. helmfile: Cilium, Flux Operator, FluxInstance
 
@@ -463,7 +522,8 @@ secrets: wait-for-nodes
     sops decrypt github-deploy-key.sops.yaml | kubectl apply --server-side -f -
 
 crds: wait-for-nodes
-    kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml
+    tag="$(yq 'select(.kind == "GitRepository") | .spec.ref.tag' ../kubernetes/apps/kube-system/gateway-api-crds/ks.yaml)" \
+      && kubectl apply --server-side -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${tag}/experimental-install.yaml"
 
 diff:
     helmfile --file helmfile/apps.yaml diff

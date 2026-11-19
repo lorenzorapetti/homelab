@@ -16,9 +16,10 @@ secrets: wait-for-nodes
     sops decrypt sops-age.sops.yaml | kubectl apply --server-side -f -
     sops decrypt github-deploy-key.sops.yaml | kubectl apply --server-side -f -
 
-[doc("Install the Gateway API v1.6.3 CRDs (experimental channel); Cilium needs them before it starts")]
+[doc("Install the Gateway API CRDs (experimental channel) at the tag Flux pins; Cilium needs them before it starts. Flux owns them afterwards")]
 crds: wait-for-nodes
-    kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml
+    tag="$(yq 'select(.kind == "GitRepository") | .spec.ref.tag' ../kubernetes/apps/kube-system/gateway-api-crds/ks.yaml)" \
+      && kubectl apply --server-side -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${tag}/experimental-install.yaml"
 
 [doc("Show what `helmfile` would change (helm diff)")]
 diff:

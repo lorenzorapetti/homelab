@@ -14,10 +14,10 @@ How to upgrade Talos, Kubernetes, Cilium, Flux, the Gateway API CRDs, the Helm r
 | Cilium | `ref.tag` in `kubernetes/apps/kube-system/cilium/app/ocirepository.yaml` | push, then `just bootstrap::reconcile` |
 | Flux Operator, `flux-instance` chart | `ref.tag` in `kubernetes/apps/flux-system/{flux-operator,flux-instance}/app/ocirepository.yaml` (keep both equal) | push, then `just bootstrap::reconcile` |
 | Flux itself | `instance.distribution.version` (`2.10.x`) in `kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml` | the operator picks the newest `2.10.x`; for a minor, bump it and push ([Flux](#flux)) |
-| Gateway API CRDs | the release URL in `bootstrap/mod.just` | `just bootstrap::crds` |
+| Gateway API CRDs | `ref.tag` in `kubernetes/apps/kube-system/gateway-api-crds/ks.yaml` (`just bootstrap::crds` reads it too) | push, then `just bootstrap::reconcile` |
 | CLI tools (`talosctl`, `kubectl`, `helm`, `helmfile`, `cilium`, `flux`, …) | `devenv.lock` (`topf`: `devenv.nix`) | `devenv update` |
 
-Cilium and Flux are Flux apps (steps 1 and 2 of the [migration](/kubernetes/migration)). Their versions and values live only in `kubernetes/apps/`, and the bootstrap helmfile reads them from there ([one source of truth](/kubernetes/getting-started/bootstrap#one-source-of-truth-for-values)). helm-controller does the upgrade once the commit is pushed. `just bootstrap::reconcile` only makes Flux pull right away instead of at its next poll. Don't run `just bootstrap::helmfile` on the running cluster ([why](/kubernetes/getting-started/bootstrap#just-bootstrapapps-after-a-takeover)). Once Renovate is enabled, it opens the version PRs. The Gateway API CRDs follow when they become an app (step 3). Talos and Kubernetes stay manual.
+Cilium, Flux and the Gateway API CRDs are Flux apps (steps 1–3 of the [migration](/kubernetes/migration)). Their versions and values live only in `kubernetes/apps/`, and the bootstrap reads them from there ([one source of truth](/kubernetes/getting-started/bootstrap#one-source-of-truth-for-values)). helm-controller (or kustomize-controller, for the CRDs) does the upgrade once the commit is pushed. `just bootstrap::reconcile` only makes Flux pull right away instead of at its next poll. Don't run `just bootstrap::helmfile` or `just bootstrap::crds` on the running cluster ([why](/kubernetes/getting-started/bootstrap#just-bootstrapapps-after-a-takeover)). Once Renovate is enabled, it opens the version PRs. Talos and Kubernetes stay manual.
 
 :::warning Upgrades don't go through Terraform
 
@@ -212,10 +212,12 @@ Do this first for every Flux minor upgrade, and on its own whenever a new operat
 ## Gateway API CRDs
 
 1. Check that the target version is the one Cilium documents (see the Cilium section above). Cilium's Gateway API controller is only tested against that version.
-2. Change the version in the URL in `bootstrap/mod.just` (`…/releases/download/v<version>/experimental-install.yaml`).
-3. Run `just bootstrap::crds`. It's a server-side apply, so it updates the CRDs in place.
+2. Change `ref.tag` of the `GitRepository` in `kubernetes/apps/kube-system/gateway-api-crds/ks.yaml`. `just bootstrap::crds` reads the same tag, so a fresh cluster installs the new version too.
+3. Push, then `just bootstrap::reconcile`. kustomize-controller server-side applies the new CRDs in place, and `flux get kustomizations -n kube-system gateway-api-crds` shows the new tag.
 
-The bundle installs the `safe-upgrades.gateway.networking.k8s.io` ValidatingAdmissionPolicy. It blocks two mistakes: installing CRDs older than v1.5, and installing experimental CRDs over standard ones. If an apply is rejected with one of those messages, check the URL; don't delete the policy. Once the CRDs are a Flux app, the version is the `GitRepository` tag (see [Bootstrap the cluster](/kubernetes/getting-started/bootstrap#2-gateway-api-crds)).
+Don't run `just bootstrap::crds` on the running cluster: kustomize-controller owns the objects, and the plain `kubectl apply --server-side` conflicts with it on the `safe-upgrades` policy ([takeover](/kubernetes/getting-started/bootstrap#taking-over-the-kubectl-applied-crds)).
+
+The bundle installs the `safe-upgrades.gateway.networking.k8s.io` ValidatingAdmissionPolicy. It blocks two mistakes: installing CRDs older than v1.5, and installing experimental CRDs over standard ones. If the Kustomization fails with one of those messages, check the tag and the `path` (`config/crd/experimental`); don't delete the policy. A version is never removed from the cluster by Flux: every object carries `kustomize.toolkit.fluxcd.io/prune: disabled` ([why](/kubernetes/getting-started/bootstrap#the-crds-as-a-flux-app)).
 
 ## Helm releases
 

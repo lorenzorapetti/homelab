@@ -9,3 +9,4 @@ components:
   - ../../components/sops
 resources:
   - ./cilium/ks.yaml
+  - ./gateway-api-crds/ks.yaml
