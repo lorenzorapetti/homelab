@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# CRD install/upgrade policies come from the FluxInstance's injected HelmRelease defaults.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cloudnative-pg
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: cloudnative-pg
+  values:
+    crds:
+      create: true
+    # PodMonitors need the Prometheus Operator CRDs, which arrive with
+    # kube-prometheus-stack. Turn this on then.
+    monitoring:
+      podMonitorEnabled: false

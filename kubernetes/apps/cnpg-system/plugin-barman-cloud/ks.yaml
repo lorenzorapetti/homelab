@@ -1,0 +1,35 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+# The Barman Cloud plugin: WAL archiving and base backups to S3 for every CNPG
+# `Cluster`. It must live in the operator's namespace and needs cert-manager for
+# the mTLS between operator, plugin and instance sidecars.
+# Each app brings its own `ObjectStore` (one per Cluster) and `ScheduledBackup`.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app plugin-barman-cloud
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: cloudnative-pg
+      namespace: cnpg-system
+    - name: cert-manager
+      namespace: cert-manager
+  interval: 1h
+  path: ./kubernetes/apps/cnpg-system/plugin-barman-cloud/app
+  patches: []                       # required by the FluxInstance's injected patch
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: cnpg-system
+  timeout: 5m
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: plugin-barman-cloud
+      namespace: cnpg-system

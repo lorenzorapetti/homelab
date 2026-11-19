@@ -36,10 +36,9 @@ I haven't verified that kustomize-controller applies server-side by default agai
 **Flux translation:** the same goals. My stack differs in a few places:
 
 - **Flux** instead of ArgoCD.
-- **External Postgres** instead of CloudNativePG, for now.
 - **topf** instead of the Terraform Talos provider for the Talos side.
 
-Everything else matches his choices: Talos on Proxmox via Terraform, Cilium for CNI/LB/Gateway API, Longhorn ([Storage: Longhorn](/kubernetes/storage-longhorn)), Authentik and `just`.
+Everything else matches his choices: Talos on Proxmox via Terraform, Cilium for CNI/LB/Gateway API, Longhorn ([Storage: Longhorn](/kubernetes/storage-longhorn)), CloudNativePG, Authentik and `just`.
 
 ## 2. Talos Linux on Proxmox with Terraform
 
