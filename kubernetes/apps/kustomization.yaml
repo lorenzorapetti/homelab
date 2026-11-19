@@ -9,3 +9,4 @@ resources:
   - ./flux-system
   - ./longhorn-system
   - ./cert-manager
+  - ./network
