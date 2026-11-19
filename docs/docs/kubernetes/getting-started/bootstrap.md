@@ -390,7 +390,7 @@ kubectl -n kube-system get svc cilium-gateway-main # LoadBalancer  EXTERNAL-IP 1
 - **Ordering.** kustomize-controller logged "Dependencies do not meet ready condition, retrying in 30s", then "All dependencies are ready", so `dependsOn` held it back until `cilium`, `gateway-api-crds` and `cluster-issuer` were Ready.
 - **The certificate** came from the production issuer (`cloudflare-cluster-issuer`). Its order was `valid` after two DNS-01 challenges for the domain. Issuer `C=US; O=Let's Encrypt; CN=YR1`, `CN=<domain>`, valid 90 days.
 - **End to end, with `curl --resolve`, no DNS record.** I deployed a throwaway `traefik/whoami` in a namespace `echo-test`, with an `HTTPRoute` on `sectionName: https` for `echo-test.<domain>`. From the workstation on the LAN:
-  - `curl -v --resolve echo-test.<domain>:443:10.0.12.1 https://echo-test.<domain>/` answered `HTTP/2 200` from the pod, with "subjectAltName: "echo-test.<domain>" matches cert's "*.<domain>"" and `X-Forwarded-Proto: https`.
+  - `curl -v --resolve echo-test.<domain>:443:10.0.12.1 https://echo-test.<domain>/` answered `HTTP/2 200` from the pod, with `subjectAltName: "echo-test.<domain>" matches cert's "*.<domain>"` and `X-Forwarded-Proto: https`.
   - `curl -I` on `http://` gave `301` to `https://…:443/foo?x=1`, path and query kept.
   - A hostname with no route, and the apex (no route yet), both got `404` from the Gateway over valid TLS.
 
