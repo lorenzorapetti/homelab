@@ -1,0 +1,18 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/cert-manager.io/certificate_v1.json
+# One wildcard certificate for every app behind the Gateway. The apex is included
+# so the bare domain can be routed too. The Secret name is derived from the domain
+# (example.com -> example-com-tls), as in cluster-template.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard
+spec:
+  secretName: ${SECRET_DOMAIN/./-}-tls
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: cloudflare-cluster-issuer
+  dnsNames:
+    - ${SECRET_DOMAIN}
+    - "*.${SECRET_DOMAIN}"

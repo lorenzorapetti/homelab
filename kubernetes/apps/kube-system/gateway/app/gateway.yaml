@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/gateway.networking.k8s.io/gateway_v1.json
+# Apps attach an HTTPRoute with parentRefs {name: main, namespace: kube-system, sectionName: https}.
+# Docs: docs/docs/kubernetes/getting-started/bootstrap.md#the-shared-gateway
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: main
+spec:
+  gatewayClassName: cilium
+  addresses:
+    - type: IPAddress
+      value: 10.0.12.1              # LB IPAM; spec.addresses, not the deprecated annotation
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: ${SECRET_DOMAIN/./-}-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+    # Only the redirect in httproute-redirect.yaml attaches here.
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same

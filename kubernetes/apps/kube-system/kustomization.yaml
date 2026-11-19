@@ -10,3 +10,4 @@ components:
 resources:
   - ./cilium/ks.yaml
   - ./gateway-api-crds/ks.yaml
+  - ./gateway/ks.yaml

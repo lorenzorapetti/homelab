@@ -1,0 +1,48 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+# The shared Gateway `main` on 10.0.12.1 and its wildcard certificate.
+# Docs: docs/docs/kubernetes/getting-started/bootstrap.md#the-shared-gateway
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app gateway
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: cilium
+    - name: gateway-api-crds
+    - name: cluster-issuer
+      namespace: cert-manager
+  interval: 1h
+  path: ./kubernetes/apps/kube-system/gateway/app
+  patches: []                       # required by the FluxInstance's injected patch
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: kube-system
+  timeout: 10m                      # first issuance waits on DNS-01 propagation
+  healthChecks:
+    - apiVersion: cert-manager.io/v1
+      kind: Certificate
+      name: wildcard
+      namespace: kube-system
+    - apiVersion: gateway.networking.k8s.io/v1
+      kind: Gateway
+      name: main
+      namespace: kube-system
+  # kstatus doesn't know Gateway's conditions. While Cilium provisions the Service
+  # it reports Programmed=False (reason Pending), so only Accepted=False is a failure.
+  healthCheckExprs:
+    - apiVersion: gateway.networking.k8s.io/v1
+      kind: Gateway
+      current: status.conditions.filter(e, e.type == 'Programmed').all(e, e.status == 'True')
+      failed: status.conditions.filter(e, e.type == 'Accepted').all(e, e.status == 'False')
