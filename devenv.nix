@@ -44,6 +44,13 @@ in
     fluxcd
   ];
 
+  # Node for the Docusaurus site in docs/ (package.json engines: >=26).
+  languages.javascript = {
+    enable = true;
+    package = pkgs.nodejs_26;
+    npm.enable = true;
+  };
+
   # Client configs written by `just talos::create` (both gitignored).
   env.TALOSCONFIG = "${config.devenv.root}/talos/talosconfig";
   env.KUBECONFIG = "${config.devenv.root}/kubeconfig";
@@ -63,5 +70,6 @@ in
     helmfile --version
     cilium version --client
     flux version --client
+    node --version
   '';
 }

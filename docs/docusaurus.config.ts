@@ -12,13 +12,17 @@ const config: Config = {
   baseUrl: '/',
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
+  },
 
   future: {
     v4: {
       removeLegacyPostBuildHeadAttribute: true,
     },
-    experimental_faster: {
+    faster: {
       rspackBundler: true,
       rspackPersistentCache: true,
       ssgWorkerThreads: true,
