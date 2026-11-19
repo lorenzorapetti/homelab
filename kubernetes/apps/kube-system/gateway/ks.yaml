@@ -39,10 +39,16 @@ spec:
       kind: Gateway
       name: main
       namespace: kube-system
-  # kstatus doesn't know Gateway's conditions. While Cilium provisions the Service
-  # it reports Programmed=False (reason Pending), so only Accepted=False is a failure.
+  # kstatus doesn't know Gateway's conditions. Until cert-manager writes the Secret,
+  # Cilium marks the https listener invalid (ResolvedRefs=False, InvalidCertificateRef),
+  # and with no valid listener left the Gateway is Accepted=False/ListenersNotValid.
+  # That is a wait, not a failure. Healthy = the Gateway and every listener Programmed.
   healthCheckExprs:
     - apiVersion: gateway.networking.k8s.io/v1
       kind: Gateway
-      current: status.conditions.filter(e, e.type == 'Programmed').all(e, e.status == 'True')
-      failed: status.conditions.filter(e, e.type == 'Accepted').all(e, e.status == 'False')
+      current: >-
+        status.conditions.filter(e, e.type == 'Programmed').all(e, e.status == 'True')
+        && has(status.listeners)
+        && status.listeners.all(l, l.conditions.filter(c, c.type == 'Programmed').all(c, c.status == 'True'))
+      failed: >-
+        status.conditions.filter(e, e.type == 'Accepted').all(e, e.status == 'False' && e.reason != 'ListenersNotValid')
