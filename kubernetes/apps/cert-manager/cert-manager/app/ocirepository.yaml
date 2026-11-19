@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/ocirepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: cert-manager
+spec:
+  interval: 15m
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  ref:
+    # Latest patch on 2026-11-19. cert-manager lists 1.21 as tested on Kubernetes
+    # 1.33-1.36; this cluster is 1.37 and no newer release exists yet (1.22 is due
+    # ~Nov 2026). The chart's kubeVersion is >= 1.22, so it installs.
+    tag: v1.21.3
+  url: oci://quay.io/jetstack/charts/cert-manager
