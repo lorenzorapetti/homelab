@@ -84,9 +84,11 @@ kind: Kustomization
 resources:
   - ./kube-system
   - ./flux-system
+  - ./longhorn-system
+  - ./cert-manager
 ```
 
-This is the built file as of [#180](https://github.com/lorenzorapetti/homelab/issues/180). Without this file, Flux would generate one "for all the Kubernetes manifests in the directory tree" ([Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/)). cluster-template relies on that. I keep the explicit list because the directory would otherwise be empty at first, and because it makes "add a namespace" a visible one-line diff.
+This is the built file as of [#183](https://github.com/lorenzorapetti/homelab/issues/183). Without this file, Flux would generate one "for all the Kubernetes manifests in the directory tree" ([Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/)). cluster-template relies on that. I keep the explicit list because the directory would otherwise be empty at first, and because it makes "add a namespace" a visible one-line diff.
 
 ## A namespace
 
@@ -226,7 +228,7 @@ spec:
       failed: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'False')
 ```
 
-Both files are the current repo's `ks.yaml` with `patches: []` and `postBuild` added. Field semantics, per the [Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/):
+Both files are the k3s repo's `ks.yaml` with `patches: []` and `postBuild` added. The k3s `cert-manager/ks.yaml` also health-checked the `cert-manager` `Deployment`. That check is dropped: helm-controller waits for the release's resources before it marks the `HelmRelease` Ready, so the `HelmRelease` check already covers it. Field semantics, per the [Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/):
 
 - **`dependsOn`** waits until the referenced Kustomization is `Ready`.
 - **`healthChecks`** gates readiness on the listed objects. Setting `wait: true` would check everything instead and ignore `healthChecks`.
@@ -253,6 +255,8 @@ spec:
 ```
 
 `source.toolkit.fluxcd.io/v1` with a required `interval`. `ref.tag`/`semver`/`digest` are supported, with digest taking precedence, and `operation: copy` keeps the chart tarball "as-is" ([OCIRepository API](https://fluxcd.io/flux/components/source/ocirepositories/)). The URL and tag come from [cluster-template](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/apps/cert-manager/cert-manager/app/ocirepository.yaml.j2). The k3s repo pinned v1.19.1 from `https://charts.jetstack.io`.
+
+**Kubernetes 1.37.** v1.21.3 was the latest patch on 2026-11-19. cert-manager lists 1.21 as supported and tested on Kubernetes 1.33 → 1.36 ([supported releases](https://cert-manager.io/docs/releases/)), and this cluster runs 1.37.2. No newer release exists yet: 1.22 is listed as "~Nov 2026". The chart's `kubeVersion` is `>= 1.22.0-0`, so it installs, and cert-manager only uses stable APIs. Move to 1.22 once it is released and lists 1.37.
 
 ### `cert-manager/app/helmrelease.yaml`
 
@@ -290,6 +294,19 @@ resources:
   - ./ocirepository.yaml
   - ./secret.sops.yaml     # Cloudflare API token (was cloudflare-secret.yaml)
 ```
+
+`secret.sops.yaml` is the Secret `cloudflare-token` with the key `apiToken`, encrypted by SOPS rule 3. It is created by piping the YAML into `sops encrypt --filename-override <path> /dev/stdin`, so the token never lands on disk in plaintext ([SOPS](/kubernetes/sops)).
+
+### `cluster-issuer/app/cluster-issuer.yaml`
+
+Two `ClusterIssuer`s share the Cloudflare DNS-01 solver:
+
+| Name | ACME server | Account key Secret |
+| --- | --- | --- |
+| `cloudflare-cluster-issuer` | Let's Encrypt production | `cloudflare-cluster-issuer-account-key` |
+| `cloudflare-cluster-issuer-staging` | Let's Encrypt staging | `cloudflare-cluster-issuer-staging-account-key` |
+
+The production names are carried over from the k3s repo. The staging issuer is for testing. Its certificates aren't browser-trusted, but a test doesn't count against production rate limits. Both reference `cloudflare-token` in `cert-manager`, which is cert-manager's "cluster resource namespace" for `ClusterIssuer` secrets. A `ClusterIssuer` is cluster-scoped, so the namespace that `targetNamespace` sets on it is ignored.
 
 ### Routing an app
 
