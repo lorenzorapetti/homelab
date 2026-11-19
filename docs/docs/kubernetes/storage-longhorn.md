@@ -48,7 +48,7 @@ provisioning:
 
 Older guides bind-mount `/var/lib/longhorn` into the kubelet with `machine.kubelet.extraMounts` (`bind`, `rshared`, `rw`). Longhorn's page labels that approach **Talos v1.9.x and earlier**. For Talos v1.10+, it uses a `UserVolumeConfig` at `/var/mnt/longhorn` and *also* lists a kubelet extra mount for `/var/mnt/longhorn` ([Longhorn page](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/)). The Talos 1.14 guide uses only the `UserVolumeConfig` and mentions no extra mount ([Talos guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md)). Talos 1.14's new `KubeletConfig` document has no `extraMounts` field ([reference](https://docs.siderolabs.com/talos/v1.14/reference/configuration/kubernetes/kubeletconfig.md)), so an extra mount would have to use the legacy `machine.kubelet.extraMounts` field.
 
-**Unverified:** whether the extra mount is still needed on 1.14. Start with the Talos guide's config. If Longhorn volumes fail to attach, add this, following Longhorn's v1.10+ instructions:
+**Not needed on Talos 1.14 (verified 2026-11-19).** With only the `UserVolumeConfig`, Longhorn found the disk on every node, and a test volume attached, mounted and was read on a node that held none of its replicas ([as built](#as-built-2026-11-19)). For reference, Longhorn's v1.10+ instructions add this, in case a future version needs it:
 
 ```yaml
 machine:
@@ -70,7 +70,7 @@ Each VM has a separate Longhorn virtual disk (`scsi1`) next to the Talos system 
 
 - The Talos guide recommends "at least one dedicated disk per storage node" ([guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md)).
 - Longhorn recommends an optional `VolumeConfig` to size Talos's own system volumes, so you don't need `storageReservedPercentageForDefaultDisk` ([Longhorn page](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/)). With a dedicated data disk, this doesn't apply.
-- While all three VMs live on one Proxmox host, Longhorn's three replicas sit on the same physical SSD. That protects against a VM failing, not against the disk failing. Backups matter more than replicas until hosts `.2` and `.3` exist.
+- While all three VMs live on one Proxmox host, every Longhorn replica sits on the same physical SSD. That protects against a VM failing, not against the disk failing. Backups matter more than replicas until hosts `.2` and `.3` exist.
 
 ## Kubernetes side (an app in the migration)
 
@@ -92,7 +92,7 @@ metadata:
 
 Talos enables Pod Security Admission and applies `baseline` to every namespace except `kube-system`, while Longhorn "requires pod security `enforce: "privileged"`" ([Longhorn page](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/)). The Talos guide sets the same label with `kubectl label namespace longhorn-system pod-security.kubernetes.io/enforce=privileged` ([guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md)). `audit`/`warn` are my additions to keep the logs quiet.
 
-The chart is served from `https://charts.longhorn.io` ([Talos guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md)). I haven't verified whether an OCI copy exists, so use a `HelmRepository` with `chart.spec` (see [charts without an OCI registry](/kubernetes/flux/repository-architecture#charts-without-an-oci-registry)). The one value both sources require:
+The chart is served from `https://charts.longhorn.io` ([Talos guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md)). There is no OCI copy: the [longhorn/charts README](https://github.com/longhorn/charts) only documents `helm repo add`, and neither `ghcr.io/longhorn/charts` nor Docker Hub serves one (checked 2026-11-19). So the app uses a `HelmRepository` with `chart.spec` (see [charts without an OCI registry](/kubernetes/flux/repository-architecture#charts-without-an-oci-registry)). The one value both sources require:
 
 ```yaml
 values:
@@ -103,6 +103,34 @@ values:
 This is the Talos guide's `--set defaultSettings.defaultDataPath=/var/mnt/longhorn` for the V1 data engine. The V2 engine needs a raw block device, huge pages and extra kernel modules ([Talos guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md)), so I'm not using it.
 
 The `ks.yaml` should health-check the `HelmRelease`, and every app with a PVC should `dependsOn` `longhorn`.
+
+### As built (2026-11-19)
+
+The files are in `kubernetes/apps/longhorn-system/`: the namespace above, `longhorn/ks.yaml` (health check on the `HelmRelease`, `timeout: 10m`), and `longhorn/app/` with `helmrepository.yaml` and `helmrelease.yaml`. The chart is pinned to `1.13.0`. Its `kubeVersion` is `>=1.34.0-0`, so the cluster's 1.37.2 qualifies (the 1.34 minimum comes from the CSI external-provisioner v6.3.0, per the [v1.13.0 release notes](https://github.com/longhorn/longhorn/releases/tag/v1.13.0)). The values beyond `defaultDataPath`:
+
+```yaml
+values:
+  defaultSettings:
+    defaultDataPath: /var/mnt/longhorn
+    defaultReplicaCount: 2          # volumes created outside a StorageClass
+  persistence:
+    defaultClass: true
+    defaultClassReplicaCount: 2
+    reclaimPolicy: Delete
+  longhornUI:
+    replicas: 1
+```
+
+- **Default StorageClass: `longhorn`.** It's the only storage in the cluster, so a PVC without `storageClassName` lands there. The chart also creates `longhorn-static` for pre-existing volumes.
+- **Two replicas, set in the chart values.** The chart writes `numberOfReplicas` into the `longhorn` StorageClass from `persistence.defaultClassReplicaCount`, and `defaultSettings.defaultReplicaCount` covers volumes made in the UI. Two replicas keep a volume available with one node down (a Talos upgrade, a VM failure). A third adds nothing against a disk failure while all three VMs share one SSD, and it costs another copy of every write. Go to 3 once hosts `.2` and `.3` exist.
+- **The UI isn't exposed.** It's a `ClusterIP` service (`kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80`). An `HTTPRoute` comes after the Gateway.
+- **The disk.** `talosctl get volumestatus u-longhorn` shows a 215 GB `/dev/sdb1` on each node, and `talosctl get mountstatus u-longhorn` shows it as `xfs` at `/var/mnt/longhorn`. Longhorn reports one schedulable disk of 214.6 GB per node.
+- **First install.** Flux reported the `HelmRelease` Ready after about 4 minutes. The CSI sidecars and instance managers needed another ~10 minutes, almost all of it Docker Hub image pulls.
+- **Test.** A 1 Gi PVC was written from a pod on `talos-1` (replicas on `talos-1` and `talos-3`), then read back from a pod on `talos-2`. Deleting the PVC removed the PV, the Longhorn volume and both replicas.
+
+**Resource use, idle, no volumes** (open question 3): about 170–190 MB of container memory and ~30 millicores of CPU per node. Node "used" memory went from ~1.5 GB to ~1.95 GB of 4.3 GB (measured with `talosctl memory` and `talosctl stats --namespace cri`; there's no metrics-server yet). Each attached volume adds an engine and replica process on top of that.
+
+**Not done yet: backups.** Neither a Longhorn backup target nor VolSync/Restic is set up ([Data](/kubernetes/migration#data)).
 
 ## Data from the old cluster
 
