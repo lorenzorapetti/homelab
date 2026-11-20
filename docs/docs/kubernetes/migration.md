@@ -60,7 +60,7 @@ How the order is built:
 
 - **Every app starts from scratch.** No database or secret carries over from k3s. Postgres runs in the cluster on CloudNativePG, with one `Cluster` per app, and the external Postgres/Redis are not used ([ADR 0002](https://github.com/lorenzorapetti/homelab/blob/main/docs/adr/0002-cloudnativepg-fresh-start.md)).
 - **PVC data was on Ceph and needs a manual plan.** The old PVCs lived on the external Ceph cluster (`ceph-rbd`, `cephfs`), and Longhorn starts empty. For each PVC-backed app, choose copy, restore or start fresh, and do it **before the Ceph cluster is torn down** ([Longhorn: data from the old cluster](/kubernetes/storage-longhorn#data-from-the-old-cluster)).
-- **Backups.** The cluster writes every backup to one Cloudflare R2 bucket. Postgres uses the CNPG Barman Cloud plugin, other volumes use VolSync with restic ([ADR 0003](https://github.com/lorenzorapetti/homelab/blob/main/docs/adr/0003-backups-to-r2.md)). While all VMs share one host, Longhorn replicas aren't a backup.
+- **Backups.** The cluster writes every backup to one Cloudflare R2 bucket. Postgres uses the CNPG Barman Cloud plugin, other volumes use VolSync with restic ([ADR 0003](https://github.com/lorenzorapetti/homelab/blob/main/docs/adr/0003-backups-to-r2.md)). Checking, testing and restoring Postgres backups: [Backups: Postgres](/kubernetes/backups-postgres). While all VMs share one host, Longhorn replicas aren't a backup.
 
 ## Authentik forward auth with Cilium Gateway
 

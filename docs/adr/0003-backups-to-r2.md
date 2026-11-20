@@ -16,4 +16,4 @@ The cluster writes every backup to one S3 bucket on Cloudflare R2, offsite. Post
 - One R2 API token, scoped to the backup bucket, sits in the cluster as a SOPS secret. Anyone holding it can also delete backups. An R2 bucket lock rule can protect objects for a minimum age, if that becomes a concern.
 - Barman files reach R2 unencrypted on the client side. R2 encrypts at rest, and SSE-C (`sseCustomerKey`) is available if that isn't enough. restic data is encrypted by VolSync.
 - Restores need internet access. If the uplink is down, there's no restore.
-- A backup counts only once a restore from it has been tested.
+- A backup counts only once a restore from it has been tested. The first restore test passed on 2026-11-20. The procedure and its results are in `docs/docs/kubernetes/backups-postgres.md`.
