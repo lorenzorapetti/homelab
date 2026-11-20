@@ -12,3 +12,4 @@ resources:
   - ./network
   - ./cnpg-system
   - ./auth
+  - ./observability

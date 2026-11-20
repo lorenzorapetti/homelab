@@ -1,0 +1,43 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+# Prometheus Operator (and its CRDs), Prometheus, Alertmanager, Grafana,
+# kube-state-metrics and node-exporter.
+# Docs: docs/docs/kubernetes/observability/intro.md
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app kube-prometheus-stack
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: observability-db        # Grafana's database
+    - name: longhorn
+      namespace: longhorn-system
+    - name: gateway
+      namespace: kube-system
+    - name: authentik               # forward auth for Prometheus and Alertmanager
+      namespace: auth
+  interval: 1h
+  path: ./kubernetes/apps/observability/kube-prometheus-stack/app
+  patches: []                       # required by the FluxInstance's injected patch
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: observability
+  timeout: 15m
+  # The HelmRelease is Ready only once helm-controller has waited for every
+  # Deployment, DaemonSet and the Prometheus/Alertmanager StatefulSets.
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: kube-prometheus-stack
+      namespace: observability

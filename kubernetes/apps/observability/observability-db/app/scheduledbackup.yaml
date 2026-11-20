@@ -1,0 +1,16 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/postgresql.cnpg.io/scheduledbackup_v1.json
+# Nightly base backup; WAL is archived continuously in between.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: observability-db-nightly
+spec:
+  schedule: "0 15 3 * * *"          # seconds minutes hours …: 03:15 UTC, after authentik-db's
+  immediate: true                   # first base backup right after creation
+  backupOwnerReference: self
+  cluster:
+    name: observability-db
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io

@@ -13,7 +13,14 @@ Every Postgres database runs on CloudNativePG (CNPG), one `Cluster` per app ([AD
 
 A restore replays WAL on top of a base backup, so it can stop at any point in time inside the window, not only at a nightly backup.
 
-Today the only database is `authentik-db` in `auth`. Its files are in `kubernetes/apps/auth/authentik/db/`. Its backups are under `s3://<bucket>/authentik/authentik-db/` on R2.
+The databases today:
+
+| Cluster | Namespace | Files | Backups on R2 |
+| --- | --- | --- | --- |
+| `authentik-db` | `auth` | `kubernetes/apps/auth/authentik/db/` | `s3://<bucket>/authentik/authentik-db/` |
+| `observability-db` | `observability` | `kubernetes/apps/observability/observability-db/app/` | `s3://<bucket>/observability/observability-db/` |
+
+The commands below use `authentik-db`. For `observability-db`, swap the names as in [Observability: backups](/kubernetes/observability/intro#backups).
 
 All commands below run inside `devenv shell` (bash), which provides `kubectl`, `jq` and `flux`.
 

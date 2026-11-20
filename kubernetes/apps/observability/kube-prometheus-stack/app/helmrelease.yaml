@@ -1,0 +1,208 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# CRD install/upgrade policies come from the FluxInstance's injected HelmRelease defaults.
+# Docs: docs/docs/kubernetes/observability/intro.md
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kube-prometheus-stack
+spec:
+  interval: 1h
+  # The first install binds two Longhorn volumes and waits for every component.
+  timeout: 10m
+  chartRef:
+    kind: OCIRepository
+    name: kube-prometheus-stack
+  values:
+    # Fresh install, so the shorter names cost nothing (no PVC renames).
+    cleanPrometheusOperatorObjectNames: true
+
+    # --- Talos ---------------------------------------------------------------
+    # Cilium replaces kube-proxy: there is nothing to scrape.
+    kubeProxy:
+      enabled: false
+    # Off until the control-plane metrics ticket, which also has to open them
+    # up in the Talos machine config. Their rules and dashboards go with them.
+    kubeControllerManager:
+      enabled: false
+    kubeScheduler:
+      enabled: false
+    kubeEtcd:
+      enabled: false
+
+    # --- Prometheus ----------------------------------------------------------
+    # Prometheus and Alertmanager have no login of their own: Authentik's
+    # embedded outpost checks every request (ExternalAuth), and the login
+    # redirect comes back through /outpost.goauthentik.io on the same host.
+    # Providers and applications: kubernetes/apps/auth/authentik/app/blueprints/forward-auth.yaml
+    prometheus:
+      route:
+        main:
+          enabled: true
+          hostnames: ["prometheus.${SECRET_DOMAIN}"]
+          parentRefs: &parentRefs
+            - name: main
+              namespace: kube-system
+              sectionName: https
+          filters: &forwardAuth
+            - type: ExternalAuth
+              externalAuth:
+                protocol: HTTP
+                backendRef:
+                  name: authentik-server
+                  namespace: auth            # allowed by ReferenceGrant authentik-forward-auth
+                  port: 80
+                http:
+                  path: /outpost.goauthentik.io/auth/envoy
+                  allowedHeaders: [cookie, x-forwarded-proto]
+                  allowedResponseHeaders:
+                    - x-authentik-username
+                    - x-authentik-groups
+                    - x-authentik-email
+          additionalRules: &outpostRules
+            - matches:
+                - path:
+                    type: PathPrefix
+                    value: /outpost.goauthentik.io
+              backendRefs:
+                - name: authentik-server
+                  namespace: auth
+                  port: 80
+      prometheusSpec:
+        externalUrl: https://prometheus.${SECRET_DOMAIN}
+        # Pick up every ServiceMonitor, PodMonitor, Probe, ScrapeConfig and
+        # PrometheusRule in any namespace, not only the ones labelled with this
+        # release's name.
+        ruleSelectorNilUsesHelmValues: false
+        serviceMonitorSelectorNilUsesHelmValues: false
+        podMonitorSelectorNilUsesHelmValues: false
+        probeSelectorNilUsesHelmValues: false
+        scrapeConfigSelectorNilUsesHelmValues: false
+        retention: 14d
+        retentionSize: 15GB           # below the volume, so time-based retention isn't the only guard
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: longhorn
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 20Gi
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            memory: 1536Mi
+
+    # --- Alertmanager --------------------------------------------------------
+    # No receivers yet: the chart's default config sends everything to `null`.
+    alertmanager:
+      route:
+        main:
+          enabled: true
+          hostnames: ["alertmanager.${SECRET_DOMAIN}"]
+          parentRefs: *parentRefs
+          filters: *forwardAuth
+          additionalRules: *outpostRules
+      alertmanagerSpec:
+        externalUrl: https://alertmanager.${SECRET_DOMAIN}
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: longhorn
+              accessModes: ["ReadWriteOnce"]
+              resources:
+                requests:
+                  storage: 1Gi
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 256Mi
+
+    # --- Grafana -------------------------------------------------------------
+    grafana:
+      defaultDashboardsTimezone: browser
+      route:
+        main:
+          enabled: true
+          hostnames: ["grafana.${SECRET_DOMAIN}"]
+          parentRefs: *parentRefs
+      # The admin password is generated by the chart into Secret
+      # kube-prometheus-stack-grafana (kept across upgrades through `lookup`).
+      # Grafana writes the admin user into its database on first start only.
+      grafana.ini:
+        server:
+          root_url: https://grafana.${SECRET_DOMAIN}
+        database:
+          type: postgres
+          host: observability-db-rw:5432   # CNPG's read-write Service for Cluster observability-db
+          name: grafana
+          user: grafana
+          ssl_mode: require                # CNPG serves TLS with its own CA
+        analytics:
+          check_for_updates: false
+          check_for_plugin_updates: false
+          reporting_enabled: false
+      # CNPG generates the database password, so nobody knows it in advance.
+      envValueFrom:
+        GF_DATABASE_PASSWORD:
+          secretKeyRef:
+            name: observability-db-app
+            key: password
+      # State lives in Postgres; no PVC.
+      persistence:
+        enabled: false
+      sidecar:
+        dashboards:
+          # The chart's defaults, spelled out because every app relies on them:
+          # the sidecar loads ConfigMaps labelled grafana_dashboard: "1" from
+          # every namespace.
+          label: grafana_dashboard
+          labelValue: "1"
+          searchNamespace: ALL
+          # A ConfigMap's grafana_folder annotation names its Grafana folder.
+          folderAnnotation: grafana_folder
+          provider:
+            foldersFromFilesStructure: true
+          # The chart's own dashboards.
+          annotations:
+            grafana_folder: Kubernetes
+        resources:
+          requests:
+            cpu: 10m
+            memory: 64Mi
+          limits:
+            memory: 192Mi
+      resources:
+        requests:
+          cpu: 50m
+          memory: 192Mi
+        limits:
+          memory: 512Mi
+
+    # --- Exporters and the operator ------------------------------------------
+    kube-state-metrics:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          memory: 256Mi
+    prometheus-node-exporter:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          memory: 128Mi
+    prometheusOperator:
+      revisionHistoryLimit: 1
+      resources:
+        requests:
+          cpu: 20m
+          memory: 64Mi
+        limits:
+          memory: 256Mi

@@ -1,0 +1,12 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: observability
+components:
+  - ../../components/sops
+  - ../../components/r2-backup     # Secret r2-backup, for the observability-db ObjectStore
+resources:
+  - ./namespace.yaml
+  - ./observability-db/ks.yaml
+  - ./kube-prometheus-stack/ks.yaml
