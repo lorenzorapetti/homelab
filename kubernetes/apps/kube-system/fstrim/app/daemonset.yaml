@@ -1,0 +1,60 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/apps/daemonset_v1.json
+# The VM disks are thin LVM volumes with discard=on, but nothing in Talos trims them:
+# blocks freed inside a VM (deleted container images, logs, Longhorn replica data)
+# stay allocated in the Proxmox thin pool. A live migration with local disks also
+# writes every block on the target, so a migrated VM starts 100% allocated.
+#
+# One pod per node trims /var (EPHEMERAL, sda5) and /var/mnt/longhorn (the Longhorn
+# user volume, sdb1) when it starts, then every 7 days. A CronJob can't target every
+# node, hence a DaemonSet that sleeps. Privileged pods are allowed in kube-system,
+# which Talos exempts from Pod Security admission.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fstrim
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fstrim
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fstrim
+    spec:
+      tolerations:
+        - operator: Exists          # every node, control plane included
+      containers:
+        - name: fstrim
+          image: busybox:1.37.0
+          command:
+            - sh
+            - -c
+            - |
+              while true; do
+                fstrim -v /host/var
+                fstrim -v /host/longhorn
+                sleep 604800
+              done
+          securityContext:
+            privileged: true        # FITRIM needs CAP_SYS_ADMIN on the host filesystem
+          resources:
+            requests:
+              cpu: 1m
+              memory: 8Mi
+            limits:
+              memory: 32Mi
+          volumeMounts:
+            - name: var
+              mountPath: /host/var
+            - name: longhorn
+              mountPath: /host/longhorn
+      volumes:
+        - name: var
+          hostPath:
+            path: /var
+            type: Directory
+        - name: longhorn
+          hostPath:
+            path: /var/mnt/longhorn
+            type: Directory
