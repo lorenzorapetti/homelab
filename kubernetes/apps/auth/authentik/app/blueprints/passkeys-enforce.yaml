@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=https://goauthentik.io/blueprints/schema.json
+# Enforce passkeys: the brand logs in through the passkey-only flow from
+# passkeys.yaml, and the old username + password flow is closed.
+#
+# Apply only after enrolling at least two discoverable passkeys and checking
+# that https://authentik.<domain>/if/flow/passkey-login/ logs you in.
+# Break-glass if every passkey is lost:
+#   kubectl -n auth exec deploy/authentik-server -- ak create_recovery_key 1 akadmin
+version: 1
+metadata:
+  name: Passkey login - enforce
+entries:
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        name: Passkey login
+      required: true
+
+  - model: authentik_brands.brand
+    identifiers:
+      domain: authentik-default
+    attrs:
+      flow_authentication: !Find [authentik_flows.flow, [slug, passkey-login]]
+
+  # Close the default flow with a deny-all policy rather than removing its
+  # password stage: authentik's own blueprint re-creates its stage bindings when
+  # it is re-applied (e.g. on upgrade), but never touches this policy.
+  - model: authentik_policies_expression.expressionpolicy
+    id: deny-all
+    identifiers:
+      name: passkeys-deny-default-authentication-flow
+    attrs:
+      expression: return False
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      policy: !KeyOf deny-all
+      order: 0

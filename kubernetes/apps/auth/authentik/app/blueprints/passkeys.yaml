@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://goauthentik.io/blueprints/schema.json
+# Passkey-only login: no username, no password. The flow opens straight into the
+# browser's passkey prompt; the passkey identifies the user.
+#
+# This file only creates the flow, so it is safe to apply before anyone has a
+# passkey. Making it THE login flow is passkeys-enforce.yaml.
+#
+# Passkeys must be discoverable (resident keys), since there is no username to
+# look the credential up by. Passkeys enrolled before resident_key_requirement
+# was set may not be: re-enroll them in user settings.
+version: 1
+metadata:
+  name: Passkey login
+entries:
+  # Make newly enrolled passkeys discoverable and PIN/biometric-protected.
+  # Edits authentik's default setup stage; its own blueprint only sets
+  # configure_flow and friendly_name, so these attrs survive re-applies.
+  - model: authentik_stages_authenticator_webauthn.authenticatorwebauthnstage
+    identifiers:
+      name: default-authenticator-webauthn-setup
+    attrs:
+      user_verification: required
+      resident_key_requirement: required
+
+  - model: authentik_flows.flow
+    id: flow
+    identifiers:
+      slug: passkey-login
+    attrs:
+      name: Passkey login
+      title: Welcome to authentik!
+      designation: authentication
+      authentication: none
+
+  # Without a pending user, the validation stage asks the browser for any
+  # discoverable credential for this site and logs in its owner.
+  - model: authentik_stages_authenticator_validate.authenticatorvalidatestage
+    id: passkey-validation
+    identifiers:
+      name: passkey-login-validation
+    attrs:
+      device_classes: [webauthn]
+      not_configured_action: deny
+      webauthn_user_verification: required
+
+  - model: authentik_flows.flowstagebinding
+    identifiers:
+      target: !KeyOf flow
+      stage: !KeyOf passkey-validation
+      order: 10
+  - model: authentik_flows.flowstagebinding
+    identifiers:
+      target: !KeyOf flow
+      stage: !Find [authentik_stages_user_login.userloginstage, [name, default-authentication-login]]
+      order: 100
