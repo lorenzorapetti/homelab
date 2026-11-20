@@ -13,7 +13,14 @@ spec:
   values:
     crds:
       create: true
-    # PodMonitors need the Prometheus Operator CRDs, which arrive with
-    # kube-prometheus-stack. Turn this on then.
     monitoring:
-      podMonitorEnabled: false
+      # The operator's own metrics. Each Cluster's instances get a PodMonitor
+      # next to the Cluster (spec.monitoring.enablePodMonitor is deprecated).
+      podMonitorEnabled: true
+      # CNPG's cluster dashboard, as a ConfigMap Grafana's sidecar picks up.
+      grafanaDashboard:
+        create: true
+        labels:
+          grafana_dashboard: "1"
+        annotations:
+          grafana_folder: Databases

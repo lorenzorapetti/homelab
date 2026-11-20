@@ -9,18 +9,27 @@ Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.
 
 ## What runs where
 
-Everything is in `kubernetes/apps/observability/`, as two Flux Kustomizations:
+Everything is in `kubernetes/apps/observability/`, as three Flux Kustomizations:
 
 | Kustomization | Path | What it deploys | Depends on |
 | --- | --- | --- | --- |
-| `observability-db` | `observability-db/app/` | CNPG `Cluster` `observability-db`, its `ObjectStore` `observability-r2` and `ScheduledBackup` `observability-db-nightly` | `longhorn`, `plugin-barman-cloud` |
-| `kube-prometheus-stack` | `kube-prometheus-stack/app/` | The `HelmRelease`, chart `93.5.0` from `oci://ghcr.io/prometheus-community/charts` | `observability-db`, `longhorn`, `gateway`, `authentik` |
+| `prometheus-operator-crds` | `prometheus-operator-crds/app/` | The Prometheus Operator CRDs, chart `33.0.2` (operator `v0.95.2`) | — |
+| `observability-db` | `observability-db/app/` | CNPG `Cluster` `observability-db`, its `ObjectStore` `observability-r2`, `ScheduledBackup` `observability-db-nightly` and `PodMonitor` | `longhorn`, `plugin-barman-cloud`, `prometheus-operator-crds` |
+| `kube-prometheus-stack` | `kube-prometheus-stack/app/` | The `HelmRelease`, chart `93.5.0` from `oci://ghcr.io/prometheus-community/charts` | `prometheus-operator-crds`, `observability-db`, `longhorn`, `gateway`, `authentik` |
+
+### The CRDs come first
+
+The CRDs (`ServiceMonitor`, `PodMonitor`, `PrometheusRule`, `Prometheus`…) are a release of their own, with no dependencies, and kube-prometheus-stack has `crds.enabled: false`. Apps that ship monitors depend only on the CRDs, not on the whole stack. Without this there would be a cycle: kube-prometheus-stack waits for `observability-db`, which waits for the CNPG operator, which needs the `PodMonitor` CRD for its own metrics.
+
+- The CRDs carry `helm.sh/resource-policy: keep`, so uninstalling the release, or a Flux prune, never deletes them, or every monitor and rule with them.
+- `prometheus-operator-crds` and kube-prometheus-stack must ship the same operator version. Upgrade them in one commit, CRDs first. The chart versions differ: 33.0.2 and 93.5.0 both carry `v0.95.2`. Check `appVersion` with `helm show chart`.
+- History: on 2026-11-20 the first install of kube-prometheus-stack created the CRDs. The `prometheus-operator-crds` release then adopted them (helm-controller takes ownership of existing objects by default). Helm never deletes CRDs it installed from a chart's `crds/` directory, so turning `crds.enabled` off removed nothing.
 
 The chart installs:
 
 | Component | Kind | Storage | Notes |
 | --- | --- | --- | --- |
-| Prometheus Operator (`v0.95.2`) and its CRDs | Deployment | — | Turns `Prometheus`, `Alertmanager`, `ServiceMonitor`, `PodMonitor`, `PrometheusRule`… into running config |
+| Prometheus Operator (`v0.95.2`) | Deployment | — | Turns `Prometheus`, `Alertmanager`, `ServiceMonitor`, `PodMonitor`, `PrometheusRule`… into running config |
 | Prometheus | StatefulSet (1 replica) | 20Gi Longhorn PVC | 14 days or 15 GB of data, whichever comes first |
 | Alertmanager | StatefulSet (1 replica) | 1Gi Longhorn PVC | No receivers yet: everything goes to the `null` receiver |
 | Grafana (chart `14.5.0`, Grafana 13.3) | Deployment | none: state is in Postgres | Plus the dashboard and datasource sidecars |
@@ -33,6 +42,7 @@ What Prometheus scrapes:
 | --- | --- |
 | node-exporter, kubelet and cAdvisor, kube-state-metrics, apiserver, CoreDNS | On |
 | The stack itself: Prometheus, Alertmanager, the operator, Grafana | On |
+| CloudNativePG: the operator (chart `PodMonitor`) and every `Cluster`'s instances (one `PodMonitor` per Cluster) | On, see [Databases](#databases) |
 | kube-proxy | **Off for good.** Cilium replaces kube-proxy, so there is nothing to scrape |
 | kube-controller-manager, kube-scheduler, etcd | **Off for now.** They come with the control-plane metrics ticket, which also has to open their metrics ports in the Talos machine config. The chart drops their rules and dashboards while they are off |
 
@@ -148,9 +158,18 @@ Prometheus selects **every** `ServiceMonitor`, `PodMonitor`, `Probe`, `ScrapeCon
          interval: 30s
    ```
 
-2. The CRDs come with `kube-prometheus-stack`, so the app's `ks.yaml` must `dependsOn` it (`name: kube-prometheus-stack`, `namespace: observability`).
+2. The app's `ks.yaml` must `dependsOn` the CRDs (`name: prometheus-operator-crds`, `namespace: observability`), not kube-prometheus-stack ([why](#the-crds-come-first)).
 3. Alerting rules go in a `PrometheusRule` next to the app, in the same way.
 4. Check it on Prometheus's targets page (above): the new job should be `UP`.
+
+## Databases
+
+Every CNPG Postgres instance exports metrics on its `metrics` port (9187).
+
+- **One `PodMonitor` per Cluster**, next to the Cluster: `observability-db/app/podmonitor.yaml` and `kubernetes/apps/auth/authentik/db/podmonitor.yaml`. It selects `cnpg.io/cluster: <name>` and `cnpg.io/podRole: instance`. CNPG deprecated its own `spec.monitoring.enablePodMonitor` in favour of writing the PodMonitor yourself.
+- **A new app's database** copies that file, changes the name, and adds `prometheus-operator-crds` to its `ks.yaml` `dependsOn`.
+- **The operator** gets its PodMonitor from its chart (`monitoring.podMonitorEnabled`).
+- **The dashboard:** the chart also creates CNPG's cluster dashboard (`monitoring.grafanaDashboard.create`), in Grafana's **Databases** folder. It covers every Cluster, picked with its `cluster` variable, including WAL archiving and backup status.
 
 ## Grafana's database
 
@@ -187,8 +206,8 @@ Prometheus and Alertmanager data are **not** backed up. They live on Longhorn vo
 After a change, these should all hold:
 
 ```sh
-flux get kustomizations -n observability     # both Ready
-flux get helmreleases -n observability       # kube-prometheus-stack Ready
+flux get kustomizations -n observability     # all three Ready
+flux get helmreleases -n observability       # prometheus-operator-crds and kube-prometheus-stack Ready
 kubectl get pods -n observability            # all Running and Ready
 kubectl get pvc -n observability             # Prometheus, Alertmanager and the database Bound
 ```

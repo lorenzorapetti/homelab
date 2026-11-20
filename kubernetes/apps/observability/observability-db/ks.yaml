@@ -15,6 +15,7 @@ spec:
       namespace: longhorn-system
     - name: plugin-barman-cloud
       namespace: cnpg-system
+    - name: prometheus-operator-crds  # for its PodMonitor
   interval: 1h
   path: ./kubernetes/apps/observability/observability-db/app
   patches: []                       # required by the FluxInstance's injected patch

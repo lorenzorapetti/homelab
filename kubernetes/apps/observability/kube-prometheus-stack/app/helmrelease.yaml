@@ -16,6 +16,9 @@ spec:
   values:
     # Fresh install, so the shorter names cost nothing (no PVC renames).
     cleanPrometheusOperatorObjectNames: true
+    # The CRDs come from the prometheus-operator-crds release, installed first.
+    crds:
+      enabled: false
 
     # --- Talos ---------------------------------------------------------------
     # Cilium replaces kube-proxy: there is nothing to scrape.

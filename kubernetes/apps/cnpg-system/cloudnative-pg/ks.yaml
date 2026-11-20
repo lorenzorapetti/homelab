@@ -10,6 +10,9 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
+  dependsOn:
+    - name: prometheus-operator-crds  # for its PodMonitor
+      namespace: observability
   interval: 1h
   path: ./kubernetes/apps/cnpg-system/cloudnative-pg/app
   patches: []                       # required by the FluxInstance's injected patch

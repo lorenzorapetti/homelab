@@ -8,5 +8,6 @@ components:
   - ../../components/r2-backup     # Secret r2-backup, for the observability-db ObjectStore
 resources:
   - ./namespace.yaml
+  - ./prometheus-operator-crds/ks.yaml
   - ./observability-db/ks.yaml
   - ./kube-prometheus-stack/ks.yaml

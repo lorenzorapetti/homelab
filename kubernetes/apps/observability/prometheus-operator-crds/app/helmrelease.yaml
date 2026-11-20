@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# The CRDs are chart templates here, so Helm owns them (it adopted the ones
+# kube-prometheus-stack had installed: helm-controller takes ownership by default).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: prometheus-operator-crds
+spec:
+  interval: 1h
+  chartRef:
+    kind: OCIRepository
+    name: prometheus-operator-crds
+  values:
+    crds:
+      annotations:
+        # Uninstalling this release must never delete the CRDs, and with them
+        # every ServiceMonitor, PodMonitor, PrometheusRule, Prometheus…
+        helm.sh/resource-policy: keep

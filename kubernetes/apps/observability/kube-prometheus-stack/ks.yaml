@@ -12,6 +12,7 @@ spec:
     labels:
       app.kubernetes.io/name: *app
   dependsOn:
+    - name: prometheus-operator-crds
     - name: observability-db        # Grafana's database
     - name: longhorn
       namespace: longhorn-system
