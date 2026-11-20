@@ -20,7 +20,7 @@ The old k3s cluster is gone. The new cluster starts as a [bare skeleton](/kubern
 
 ## Hardware
 
-I have three HP EliteDesk 800 G4 mini PCs, each equipped with an Intel i5-8500T CPU, 16GB of RAM, and a 1TB SSD. They run Proxmox. Right now only the first host (`10.0.10.1`) is in use, and it runs all three Talos VMs (see [Deploying the infrastructure](/kubernetes/getting-started/deploying-the-infrastructure#nodes)).
+This is a staging cluster. It runs on two Intel N100 mini PCs, each with 4 cores, 16GB of RAM and a 1TB SSD: `hecate` (`10.0.10.1`) and `persephone` (`10.0.10.2`). Together they form the Proxmox cluster `underworld`. hecate runs `talos-1` and `talos-2`, and persephone runs `talos-3` (see [Deploying the infrastructure](/kubernetes/getting-started/deploying-the-infrastructure#nodes)).
 
 ## Network map
 
@@ -31,7 +31,9 @@ The LAN is one flat `10.0.0.0/16` behind the router at `10.0.0.1`. DHCP only han
 | `10.0.0.1` | Router / default gateway | |
 | `10.0.0.0/24` | DHCP clients | Not used for anything static |
 | `10.0.1.30` | `nyx`: Technitium (Home DNS) and Traefik for `*.home.lorenzolab.com` | First nameserver on the Talos nodes (`ResolverConfig`). ExternalDNS writes app records here ([DNS: ExternalDNS](/kubernetes/dns-externaldns)) |
-| `10.0.10.0/24` | Proxmox hosts | `10.0.10.1` now; `.2` and `.3` later |
+| `10.0.10.0/24` | Proxmox hosts | Cluster `underworld` |
+| `10.0.10.1` | `hecate` | Proxmox API endpoint for Terraform; Tailscale subnet router. Runs `talos-1`, `talos-2` |
+| `10.0.10.2` | `persephone` | On the tailnet, not a subnet router. Runs `talos-3` |
 | `10.0.11.0/24` | Talos VMs | Static, set by Terraform cloud-init. Netmask `/16`, gateway `10.0.0.1` |
 | `10.0.11.1`–`10.0.11.3` | `talos-1`…`talos-3` | Control plane + workloads |
 | `10.0.11.10` | Kubernetes API VIP | Talos `Layer2VIPConfig` on the control-plane nodes ([Install Talos](/kubernetes/getting-started/install-talos#control-plane-patches)) |

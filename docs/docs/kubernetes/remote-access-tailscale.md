@@ -95,6 +95,6 @@ Later the same day, after split DNS and the `10.0.1.30/32` route: `tailscale dns
 
 ## Later
 
-- **More Proxmox hosts.** Today the route adds no single point of failure, because every VM runs on hecate. Once VMs move to `10.0.10.2`/`.3`, run Tailscale there too and advertise the same routes for [subnet router failover](https://tailscale.com/kb/1115/high-availability).
+- **Subnet router failover.** `persephone` (`10.0.10.2`, running `talos-3`) is on the tailnet but advertises no routes. hecate is still the only subnet router. Losing hecate takes etcd quorum down anyway (two of the three control-plane VMs run on it), so a second router adds little today. If that changes, advertise the same routes from persephone for [subnet router failover](https://tailscale.com/kb/1115/high-availability).
 - **Tailscale Kubernetes operator.** The policy already reserves `tag:k8s-operator`, `tag:k8s` and the `tag:k8s-gateway*` tags: the operator can expose the Cilium Gateway and individual Services on the tailnet with MagicDNS names, and its API server proxy gives `kubectl` access tied to Tailscale identity. It doesn't cover `talosctl`, so the subnet route stays.
 - **`siderolabs/tailscale` extension on Talos** (`tag:k8s-node`). Not planned: every node would need an auth key and extra `certSANs`, for nothing the subnet route doesn't already give.

@@ -70,7 +70,8 @@ Each VM has a separate Longhorn virtual disk (`scsi1`) next to the Talos system 
 
 - The Talos guide recommends "at least one dedicated disk per storage node" ([guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md)).
 - Longhorn recommends an optional `VolumeConfig` to size Talos's own system volumes, so you don't need `storageReservedPercentageForDefaultDisk` ([Longhorn page](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/)). With a dedicated data disk, this doesn't apply.
-- While all three VMs live on one Proxmox host, every Longhorn replica sits on the same physical SSD. That protects against a VM failing, not against the disk failing. Backups matter more than replicas until hosts `.2` and `.3` exist.
+- talos-1 and talos-2 share hecate's SSD, and talos-3 has persephone's. Longhorn doesn't know which VM is on which host, so a volume's two replicas can both land on hecate. Then a failed hecate SSD loses the volume. Backups still matter more than replicas. Labelling each node with its host as `topology.kubernetes.io/zone` would let Longhorn's zone anti-affinity spread replicas across hosts. That isn't done yet.
+- The VM disks are thin LVM volumes, and nothing in Talos trims them. The `fstrim` DaemonSet (`kubernetes/apps/kube-system/fstrim`) trims `/var` and `/var/mnt/longhorn` on every node at start and then weekly, so freed blocks go back to the Proxmox thin pool.
 
 ## Kubernetes side (an app in the migration)
 
