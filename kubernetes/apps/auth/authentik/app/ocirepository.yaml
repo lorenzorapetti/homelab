@@ -10,6 +10,6 @@ spec:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
   ref:
-    # Latest on 2026-11-19. Chart version = authentik version.
-    tag: 2026.8.5
+    # Latest on 2026-11-20. Chart version = authentik version.
+    tag: 2026.8.6
   url: oci://ghcr.io/goauthentik/helm-charts/authentik
