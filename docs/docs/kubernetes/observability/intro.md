@@ -56,7 +56,7 @@ All three are routes on the [Shared Gateway](/kubernetes/getting-started/bootstr
 
 | App | URL | Route (chart values) | Login |
 | --- | --- | --- | --- |
-| Grafana | `https://grafana.<domain>` | `grafana.route.main` | Grafana's own |
+| Grafana | `https://grafana.<domain>` | `grafana.route.main` | Authentik OIDC (Grafana's own), `authentik Admins` only, plus a break-glass local admin ([Grafana login](/kubernetes/observability/grafana-login)) |
 | Prometheus | `https://prometheus.<domain>` | `prometheus.route.main` | Authentik forward auth, `authentik Admins` only |
 | Alertmanager | `https://alertmanager.<domain>` | `alertmanager.route.main` | Authentik forward auth, `authentik Admins` only |
 
@@ -89,14 +89,7 @@ To put another app behind forward auth:
 
 ### Grafana's login
 
-Grafana's login is the local `admin` user for now (Authentik OIDC comes later). The chart generated its password on first install, and kept it in Secret `kube-prometheus-stack-grafana`:
-
-```sh
-kubectl get secret kube-prometheus-stack-grafana -n observability \
-  -o jsonpath='{.data.admin-password}' | base64 -d; echo
-```
-
-Grafana copies the admin user into its database on first start only. A password changed in the UI lives in Postgres, and the Secret no longer matches it.
+Grafana logs in against Authentik with native OIDC, not forward auth: see [Grafana login](/kubernetes/observability/grafana-login) for the provider and application, the group-to-role mapping, and the break-glass local `admin`.
 
 If Authentik is down, Prometheus and Alertmanager fail closed. Port-forward to reach them anyway:
 

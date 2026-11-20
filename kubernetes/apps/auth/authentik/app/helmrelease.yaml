@@ -32,7 +32,8 @@ spec:
         - authentik-blueprints
     global:
       # Secret values: the SOPS Secret authentik-secrets holds AUTHENTIK_SECRET_KEY
-      # and the Resend credentials (AUTHENTIK_EMAIL__USERNAME, __PASSWORD, __FROM).
+      # and the Resend credentials (AUTHENTIK_EMAIL__USERNAME, __PASSWORD, __FROM),
+      # plus GRAFANA_OIDC_CLIENT_SECRET for blueprints/grafana.yaml (`!Env`).
       envFrom:
         - secretRef:
             name: authentik-secrets

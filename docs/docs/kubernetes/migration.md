@@ -101,7 +101,7 @@ rules:
 
 **3. Native OIDC in the app.** Apps that support it (Grafana already has an OAuth secret, and Actual an OpenID secret, in the k3s repo) log in against Authentik directly and need no gateway auth at all.
 
-**Plan:** use (3) wherever the app supports it, and (1) for the rest. Fall back to (2) if (1) doesn't work with Authentik. **2026-11-20:** (1) is built for Prometheus and Alertmanager, with providers from an Authentik blueprint in Git ([as built](/kubernetes/observability/intro#authentik-forward-auth)). Compared with the sketch above, the backend is `authentik-server` port 80, because the embedded outpost runs inside the server and has no Service of its own. Each route also sends `/outpost.goauthentik.io` to it for the login callback, and a `ReferenceGrant` in `auth` allows both references.
+**Plan:** use (3) wherever the app supports it, and (1) for the rest. Fall back to (2) if (1) doesn't work with Authentik. **2026-11-20:** (1) is built for Prometheus and Alertmanager, with providers from an Authentik blueprint in Git ([as built](/kubernetes/observability/intro#authentik-forward-auth)). Compared with the sketch above, the backend is `authentik-server` port 80, because the embedded outpost runs inside the server and has no Service of its own. Each route also sends `/outpost.goauthentik.io` to it for the login callback, and a `ReferenceGrant` in `auth` allows both references. **2026-11-21:** (3) is built for Grafana, with its OAuth2 provider from a blueprint too ([Grafana login](/kubernetes/observability/grafana-login)).
 
 ## What changes and what carries over
 

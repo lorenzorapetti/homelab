@@ -7,7 +7,7 @@ resources:
   - ./ocirepository.yaml
   - ./httproute.yaml
   - ./referencegrant.yaml
-  - ./secret.sops.yaml     # Secret `authentik-secrets`: AUTHENTIK_SECRET_KEY and AUTHENTIK_EMAIL__{USERNAME,PASSWORD,FROM}
+  - ./secret.sops.yaml     # Secret `authentik-secrets`: AUTHENTIK_SECRET_KEY, AUTHENTIK_EMAIL__{USERNAME,PASSWORD,FROM}, GRAFANA_OIDC_CLIENT_SECRET
 # Blueprints, mounted through the chart's `blueprints.configMaps`. The worker
 # watches the files and re-applies them when the ConfigMap changes, so no hash
 # suffix (and no restart) is needed. ${SECRET_DOMAIN} is substituted by Flux.
@@ -15,6 +15,7 @@ configMapGenerator:
   - name: authentik-blueprints
     files:
       - ./blueprints/forward-auth.yaml
+      - ./blueprints/grafana.yaml
       - ./blueprints/passkeys.yaml
       - ./blueprints/passkeys-enforce.yaml
     options:
