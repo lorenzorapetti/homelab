@@ -20,9 +20,12 @@ provider "proxmox" {
     agent    = true
     username = "root"
 
-    node {
-      name    = var.proxmox_node
-      address = var.proxmox_host
+    dynamic "node" {
+      for_each = var.proxmox_hosts
+      content {
+        name    = node.key
+        address = node.value
+      }
     }
   }
 }

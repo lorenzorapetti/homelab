@@ -5,9 +5,12 @@
 resource "proxmox_virtual_environment_vm" "talos" {
   for_each = var.nodes
 
-  name            = each.key
-  node_name       = var.proxmox_node
-  tags            = ["talos"]
+  name      = each.key
+  node_name = each.value.proxmox_node
+  tags      = ["talos"]
+  # A node_name change live-migrates the VM, local disks included, instead of recreating it.
+  migrate         = true
+  timeout_migrate = 3600 # ~250 GB of thin disks to copy over 1 GbE in the worst case
   on_boot         = true
   stop_on_destroy = true
 
@@ -37,7 +40,7 @@ resource "proxmox_virtual_environment_vm" "talos" {
   # System disk: the Talos image (EPHEMERAL holds container images, logs, etcd)
   disk {
     datastore_id = var.vm_datastore
-    file_id      = proxmox_download_file.talos.id
+    file_id      = proxmox_download_file.talos[each.value.proxmox_node].id
     interface    = "scsi0"
     size         = each.value.system_disk_gb
     discard      = "on"

@@ -4,18 +4,13 @@ variable "proxmox_api_token" {
   sensitive   = true
 }
 
-variable "proxmox_host" {
-  description = "IP of the Proxmox host"
-  type        = string
+variable "proxmox_hosts" {
+  description = "Proxmox cluster nodes: node name (`hostname` on the host) => IP, for the provider's SSH operations"
+  type        = map(string)
 }
 
 variable "proxmox_endpoint" {
-  description = "Proxmox API URL"
-  type        = string
-}
-
-variable "proxmox_node" {
-  description = "Proxmox node name (`hostname` on the Proxmox host)"
+  description = "Proxmox API URL (any cluster node serves the whole cluster's API)"
   type        = string
 }
 
@@ -52,10 +47,16 @@ variable "gateway" {
 variable "nodes" {
   description = "Talos VMs, keyed by hostname"
   type = map(object({
+    proxmox_node     = string # key of proxmox_hosts; changing it live-migrates the VM
     ip               = string # CIDR, e.g. 10.0.11.1/16
     cores            = number
     memory_mb        = number
     system_disk_gb   = number
     longhorn_disk_gb = number
   }))
+
+  validation {
+    condition     = alltrue([for node in values(var.nodes) : contains(keys(var.proxmox_hosts), node.proxmox_node)])
+    error_message = "Every node's proxmox_node must be a key of proxmox_hosts."
+  }
 }
