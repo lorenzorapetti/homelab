@@ -16,7 +16,6 @@ configMapGenerator:
     files:
       - ./blueprints/forward-auth.yaml
       - ./blueprints/passkeys.yaml
-      # Uncomment once your passkeys are enrolled and passkey-login works.
-      # - ./blueprints/passkeys-enforce.yaml
+      - ./blueprints/passkeys-enforce.yaml
     options:
       disableNameSuffixHash: true
