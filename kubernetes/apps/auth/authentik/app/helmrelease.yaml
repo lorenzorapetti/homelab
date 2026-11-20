@@ -1,0 +1,55 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# CRD install/upgrade policies come from the FluxInstance's injected HelmRelease defaults.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: authentik
+spec:
+  interval: 1h
+  # The first start runs every database migration; Helm's default 5m is tight.
+  timeout: 15m
+  chartRef:
+    kind: OCIRepository
+    name: authentik
+  values:
+    # Non-secret settings. The chart writes these into the Secret `authentik`.
+    authentik:
+      email:
+        host: smtp.resend.com
+        port: 587
+        use_tls: true                 # STARTTLS
+      error_reporting:
+        enabled: false
+      postgresql:
+        host: authentik-db-rw         # CNPG's read-write Service for Cluster authentik-db
+        name: authentik
+        user: authentik
+        port: 5432
+    global:
+      # Secret values: the SOPS Secret authentik-secrets holds AUTHENTIK_SECRET_KEY
+      # and the Resend credentials (AUTHENTIK_EMAIL__USERNAME, __PASSWORD, __FROM).
+      envFrom:
+        - secretRef:
+            name: authentik-secrets
+      # CNPG generates the database password, so nobody knows it in advance.
+      env:
+        - name: AUTHENTIK_POSTGRESQL__PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: authentik-db-app
+              key: password
+    server:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+    worker:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 384Mi
+        limits:
+          memory: 1Gi

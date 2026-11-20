@@ -1,0 +1,74 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+# authentik's Postgres: a one-instance CNPG Cluster on Longhorn, archived to R2.
+# Separate from the app so authentik only starts once the database is Ready.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app authentik-db
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: longhorn
+      namespace: longhorn-system
+    - name: plugin-barman-cloud
+      namespace: cnpg-system
+  interval: 1h
+  path: ./kubernetes/apps/auth/authentik/db
+  patches: []                       # required by the FluxInstance's injected patch
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: auth
+  timeout: 10m
+  # A CNPG Cluster reports a Ready condition once the primary accepts connections.
+  healthChecks:
+    - apiVersion: postgresql.cnpg.io/v1
+      kind: Cluster
+      name: authentik-db
+      namespace: auth
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app authentik
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: authentik-db
+    - name: gateway
+      namespace: kube-system
+  interval: 1h
+  path: ./kubernetes/apps/auth/authentik/app
+  patches: []                       # required by the FluxInstance's injected patch
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: auth
+  timeout: 20m
+  # The HelmRelease is Ready only once helm-controller has waited for the
+  # server and worker Deployments.
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: authentik
+      namespace: auth

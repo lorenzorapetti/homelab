@@ -1,0 +1,11 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# The R2 backup credentials (Secret `r2-backup`, keys AWS_ACCESS_KEY_ID and
+# AWS_SECRET_ACCESS_KEY). Include it only in namespaces whose apps take backups
+# (CNPG ObjectStores, VolSync). The endpoint and bucket are in cluster-secrets
+# as ${SECRET_R2_ENDPOINT} and ${SECRET_R2_BUCKET}.
+# Docs: docs/adr/0003-backups-to-r2.md
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ./secret.sops.yaml

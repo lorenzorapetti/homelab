@@ -1,0 +1,25 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/barmancloud.cnpg.io/objectstore_v1.json
+# Where authentik-db's WAL and base backups go: s3://<bucket>/authentik on R2.
+# Docs: docs/adr/0003-backups-to-r2.md
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: authentik-r2
+spec:
+  # Recovery window: any point in time within the last 30 days can be restored.
+  retentionPolicy: 30d
+  configuration:
+    destinationPath: s3://${SECRET_R2_BUCKET}/authentik
+    endpointURL: ${SECRET_R2_ENDPOINT}
+    s3Credentials:
+      accessKeyId:
+        name: r2-backup
+        key: AWS_ACCESS_KEY_ID
+      secretAccessKey:
+        name: r2-backup
+        key: AWS_SECRET_ACCESS_KEY
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
