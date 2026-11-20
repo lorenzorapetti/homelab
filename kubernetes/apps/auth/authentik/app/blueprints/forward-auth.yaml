@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=https://goauthentik.io/blueprints/schema.json
+# Apps without their own login, behind the Shared Gateway's ExternalAuth filter.
+# One forward-auth (single application) Proxy provider and Application per app,
+# admins only, all served by the embedded outpost.
+# Docs: docs/docs/kubernetes/observability/intro.md#authentik-forward-auth
+#
+# To add an app: add its provider, application and policy binding below, and
+# its provider to the outpost's list at the end. That list REPLACES the outpost's
+# providers, so a provider attached only in the UI is dropped on the next apply.
+version: 1
+metadata:
+  name: Forward auth apps
+entries:
+  # --- Alertmanager ----------------------------------------------------------
+  - model: authentik_providers_proxy.proxyprovider
+    id: provider-alertmanager
+    identifiers:
+      name: Alertmanager
+    attrs:
+      mode: forward_single
+      external_host: https://alertmanager.${SECRET_DOMAIN}
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+  - model: authentik_core.application
+    id: app-alertmanager
+    identifiers:
+      slug: alertmanager
+    attrs:
+      name: Alertmanager
+      provider: !KeyOf provider-alertmanager
+      meta_launch_url: https://alertmanager.${SECRET_DOMAIN}
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf app-alertmanager
+      order: 0
+    attrs:
+      group: !Find [authentik_core.group, [name, authentik Admins]]
+
+  # --- Prometheus ------------------------------------------------------------
+  - model: authentik_providers_proxy.proxyprovider
+    id: provider-prometheus
+    identifiers:
+      name: Prometheus
+    attrs:
+      mode: forward_single
+      external_host: https://prometheus.${SECRET_DOMAIN}
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+  - model: authentik_core.application
+    id: app-prometheus
+    identifiers:
+      slug: prometheus
+    attrs:
+      name: Prometheus
+      provider: !KeyOf provider-prometheus
+      meta_launch_url: https://prometheus.${SECRET_DOMAIN}
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf app-prometheus
+      order: 0
+    attrs:
+      group: !Find [authentik_core.group, [name, authentik Admins]]
+
+  # --- The embedded outpost serves every provider above ----------------------
+  - model: authentik_outposts.outpost
+    identifiers:
+      managed: goauthentik.io/outposts/embedded
+    attrs:
+      providers:
+        - !KeyOf provider-alertmanager
+        - !KeyOf provider-prometheus

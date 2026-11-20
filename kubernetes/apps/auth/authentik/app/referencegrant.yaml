@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/gateway.networking.k8s.io/referencegrant_v1beta1.json
+# Lets forward-auth apps' HTTPRoutes point at authentik-server across namespaces:
+# their ExternalAuth filter checks every request against the embedded outpost,
+# and their /outpost.goauthentik.io rule carries the login callback.
+# Add a namespace here when an app in it moves behind forward auth.
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: authentik-forward-auth
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: observability
+  to:
+    - group: ""
+      kind: Service
+      name: authentik-server

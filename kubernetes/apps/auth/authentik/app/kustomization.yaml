@@ -6,4 +6,14 @@ resources:
   - ./helmrelease.yaml
   - ./ocirepository.yaml
   - ./httproute.yaml
+  - ./referencegrant.yaml
   - ./secret.sops.yaml     # Secret `authentik-secrets`: AUTHENTIK_SECRET_KEY and AUTHENTIK_EMAIL__{USERNAME,PASSWORD,FROM}
+# Blueprints, mounted through the chart's `blueprints.configMaps`. The worker
+# watches the files and re-applies them when the ConfigMap changes, so no hash
+# suffix (and no restart) is needed. ${SECRET_DOMAIN} is substituted by Flux.
+configMapGenerator:
+  - name: authentik-blueprints
+    files:
+      - ./blueprints/forward-auth.yaml
+    options:
+      disableNameSuffixHash: true

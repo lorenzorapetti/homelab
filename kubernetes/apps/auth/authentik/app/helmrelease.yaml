@@ -26,6 +26,10 @@ spec:
         name: authentik
         user: authentik
         port: 5432
+    # Generated from blueprints/ by kustomization.yaml.
+    blueprints:
+      configMaps:
+        - authentik-blueprints
     global:
       # Secret values: the SOPS Secret authentik-secrets holds AUTHENTIK_SECRET_KEY
       # and the Resend credentials (AUTHENTIK_EMAIL__USERNAME, __PASSWORD, __FROM).
