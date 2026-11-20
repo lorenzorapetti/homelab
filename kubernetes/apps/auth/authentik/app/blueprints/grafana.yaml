@@ -23,6 +23,12 @@ entries:
       client_type: confidential
       client_id: grafana
       client_secret: !Env GRAFANA_OIDC_CLIENT_SECRET
+      # Required: a blueprint-created provider defaults to none, and authentik
+      # then refuses the login ("Invalid grant_type for provider"). The UI
+      # fills these in, a blueprint doesn't.
+      grant_types:
+        - authorization_code
+        - refresh_token
       redirect_uris:
         - matching_mode: strict
           url: https://grafana.${SECRET_DOMAIN}/login/generic_oauth

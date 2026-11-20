@@ -142,11 +142,14 @@ spec:
       grafana.ini:
         server:
           root_url: https://grafana.${SECRET_DOMAIN}
+        # The login page shows only "Sign in with authentik". The local admin
+        # still logs in through the API (break-glass, see the docs).
+        auth:
+          disable_login_form: true
         auth.generic_oauth:
           enabled: true
           name: authentik
           icon: signin
-          # No auto_login: the login page keeps the local form for break-glass.
           client_id: grafana
           # client_secret: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET, from Secret grafana-oidc
           scopes: openid profile email
