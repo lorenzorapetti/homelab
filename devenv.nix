@@ -1,6 +1,8 @@
-{ pkgs, config, ... }:
-
-let
+{
+  pkgs,
+  config,
+  ...
+}: let
   # topf isn't in nixpkgs: install the pinned upstream release binary.
   # To bump: change `version`, then refresh `hash` with
   #   nix store prefetch-file https://github.com/postfinance/topf/releases/download/v<version>/topf_linux_amd64.tar.gz
@@ -12,7 +14,7 @@ let
       hash = "sha256-eT3IfJemVF/XPbgsNVgwZkTZ5pFAEPJjbRRwz1UnJAU=";
     };
     sourceRoot = ".";
-    nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+    nativeBuildInputs = [pkgs.autoPatchelfHook];
     installPhase = ''
       runHook preInstall
       install -Dm755 topf $out/bin/topf
@@ -23,11 +25,10 @@ let
   # helm with the helm-diff plugin: `helmfile apply` diffs before upgrading, so
   # re-running `just bootstrap::helmfile` on an unchanged release is a no-op.
   helm = pkgs.wrapHelm pkgs.kubernetes-helm {
-    plugins = [ pkgs.kubernetes-helmPlugins.helm-diff ];
+    plugins = [pkgs.kubernetes-helmPlugins.helm-diff];
   };
-  helmfile = pkgs.helmfile.override { inherit (helm.passthru) pluginsDir; };
-in
-{
+  helmfile = pkgs.helmfile.override {inherit (helm.passthru) pluginsDir;};
+in {
   packages = with pkgs; [
     terraform
     sops
@@ -42,6 +43,7 @@ in
     helmfile
     cilium-cli
     fluxcd
+    k9s
   ];
 
   # Node for the Docusaurus site in docs/ (package.json engines: >=26).
