@@ -56,4 +56,7 @@ _run command *args:
     }
     trap reencrypt EXIT
 
-    terraform {{ command }} {{ args }}
+    # Split args on whitespace without letting bash strip quotes or expand globs, so
+    # -target='proxmox_virtual_environment_vm.talos["talos-1"]' reaches terraform intact.
+    read -ra tf_args <<< {{ quote(args) }}
+    terraform {{ command }} "${tf_args[@]}"
