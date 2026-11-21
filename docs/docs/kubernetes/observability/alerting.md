@@ -85,11 +85,11 @@ From inside the Alertmanager pod, with `amtool`. The alert goes straight to Aler
 kubectl -n observability exec alertmanager-kube-prometheus-stack-0 -c alertmanager -- \
   amtool alert add --alertmanager.url=http://localhost:9093 \
   alertname=TestAlert severity=warning namespace=observability \
-  --annotation=summary="Test alert, please ignore" \
+  --annotation='summary="Test alert, please ignore"' \
   --end="$(date -u -d '+3 minutes' +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
-About 30 seconds later (`group_wait`) Pushover shows `[FIRING:1] TestAlert`. When `--end` passes, the alert resolves, and the resolved notification follows at the next group interval, within 5 minutes. Use `severity=critical` to test the high-priority path.
+About 30 seconds later (`group_wait`) Pushover shows `[FIRING:1] TestAlert`. When `--end` passes, the alert resolves, and the resolved notification follows at the next group interval, within 5 minutes. Use `severity=critical` to test the high-priority path. Don't send both severities with the same `alertname` at once: the critical one inhibits the warning one, which then never notifies. The annotation value needs its inner double quotes, or `amtool` warns that it fell back to the classic matcher parser.
 
 To test the whole chain from Prometheus instead, apply a temporary rule that always fires, and delete it afterwards:
 
