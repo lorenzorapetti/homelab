@@ -54,10 +54,15 @@ spec:
               {{ $value | humanizePercentage }} of requests to {{ $labels.route }} fail with a 5xx.
               Pushes failing means lost logs; queries failing means Grafana shows errors.
         # The compactor applies retention every 10 minutes. If it stops, old logs
-        # pile up until the volume is full.
+        # pile up until the volume is full. The timestamp is 0 until the first
+        # successful run after a start, so count from Loki's start until then.
         - alert: LokiRetentionNotApplied
           expr: |
-            time() - max(loki_compactor_apply_retention_last_successful_run_timestamp_seconds) > 3 * 3600
+            time() - max(
+                loki_compactor_apply_retention_last_successful_run_timestamp_seconds{job="observability/loki"} > 0
+              or
+                process_start_time_seconds{job="observability/loki"}
+            ) > 3 * 3600
           for: 15m
           labels:
             severity: warning
