@@ -4,8 +4,11 @@
 # Reference: https://github.com/glanceapp/glance/blob/main/docs/configuration.md
 pages:
   - name: Home
-    hide-desktop-navigation: true
     columns:
+      - size: small
+        widgets:
+          - type: calendar
+            first-day-of-week: monday
       - size: full
         widgets:
           - type: bookmarks
@@ -35,3 +38,13 @@ pages:
                   - title: persephone
                     url: https://persephone.pve.${SECRET_DOMAIN}
                     icon: sh:proxmox
+          - type: group
+            widgets:
+              - type: hacker-news
+              - type: lobsters
+      - size: small
+        widgets:
+          - type: weather
+            location: Rome, Italy
+            units: metric
+            hour-format: 24h
