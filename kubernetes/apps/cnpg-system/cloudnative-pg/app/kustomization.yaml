@@ -5,6 +5,7 @@ kind: Kustomization
 resources:
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+  - ./prometheusrule.yaml          # alerts for every Cluster: instance down, WAL archiving, backups
 # CNPG's cluster dashboard, copied from the chart's grafanaDashboard ConfigMap
 # (chart 0.29.2) with these changes:
 #   - Last Base Backup / First Recoverability Point also read the barman-cloud

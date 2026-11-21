@@ -1,0 +1,108 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+# Every CNPG Cluster's instances, WAL archiving and base backups, from the
+# instances' exporter (one PodMonitor per Cluster, next to it) and the
+# barman-cloud plugin's barman_cloud_cloudnative_pg_io_* metrics. Lives with the
+# operator so a new Cluster is covered without adding anything.
+# The series carry the Cluster's namespace and pod; `cluster` is the pod name
+# without its -<n> suffix (only cnpg_collector_up has the label itself).
+# Docs: docs/docs/kubernetes/backups-postgres.md#alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cloudnative-pg
+spec:
+  groups:
+    - name: cloudnative-pg
+      rules:
+        # The scrape failing (pod gone or not running) or the exporter unable
+        # to reach Postgres. With one instance per Cluster, the app is down.
+        - alert: CNPGInstanceDown
+          expr: |
+            label_replace(
+              max by (namespace, pod) (
+                up{container="postgres", endpoint="metrics"} == 0
+                or cnpg_collector_up == 0
+              ),
+              "cluster", "$1", "pod", "(.+)-[0-9]+"
+            )
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Postgres instance {{ $labels.namespace }}/{{ $labels.pod }} down"
+            description: >-
+              {{ $labels.pod }} of Cluster {{ $labels.namespace }}/{{ $labels.cluster }} has not been
+              reachable for 5 minutes. Check `kubectl get cluster -n {{ $labels.namespace }} {{ $labels.cluster }}`
+              and the pod's events and logs.
+        # Only with more than one instance per Cluster (none today).
+        - alert: CNPGReplicationLagging
+          expr: |
+            label_replace(
+              max by (namespace, pod) (cnpg_pg_replication_lag) > 300,
+              "cluster", "$1", "pod", "(.+)-[0-9]+"
+            )
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Postgres replica {{ $labels.namespace }}/{{ $labels.pod }} lags by {{ $value | humanizeDuration }}"
+            description: >-
+              Replica {{ $labels.pod }} of Cluster {{ $labels.namespace }}/{{ $labels.cluster }} is more
+              than 5 minutes behind its primary.
+        # WAL archiving is what keeps R2 within ~5 minutes of the live database
+        # (ADR 0003): the last attempt failed, or nothing was archived for 30
+        # minutes although CNPG switches segments at least every 5 (the
+        # observed maximum gap is under 8). Primaries only: replicas don't archive.
+        - alert: CNPGWALArchivingFailing
+          expr: |
+            label_replace(
+              max by (namespace, pod) (
+                (cnpg_pg_stat_archiver_last_failed_time > cnpg_pg_stat_archiver_last_archived_time)
+                or cnpg_pg_stat_archiver_seconds_since_last_archival > 1800
+              )
+              unless on (namespace, pod) cnpg_pg_replication_in_recovery == 1,
+              "cluster", "$1", "pod", "(.+)-[0-9]+"
+            )
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "WAL archiving to R2 failing for {{ $labels.namespace }}/{{ $labels.cluster }}"
+            description: >-
+              {{ $labels.pod }} has not archived WAL to R2 for at least 10 minutes: new writes
+              are not backed up, and unarchived WAL piles up on the volume. See
+              "Checking that backups work" in docs/docs/kubernetes/backups-postgres.md.
+        # The latest base backup in the ObjectStore is older than the latest
+        # failed one, i.e. the last attempt failed. Clears once one succeeds.
+        - alert: CNPGBackupFailed
+          expr: |
+            max by (namespace, cluster) (label_replace(barman_cloud_cloudnative_pg_io_last_failed_backup_timestamp, "cluster", "$1", "pod", "(.+)-[0-9]+"))
+              > max by (namespace, cluster) (label_replace(barman_cloud_cloudnative_pg_io_last_available_backup_timestamp, "cluster", "$1", "pod", "(.+)-[0-9]+"))
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Last base backup of {{ $labels.namespace }}/{{ $labels.cluster }} failed"
+            description: >-
+              The most recent base backup of Cluster {{ $labels.namespace }}/{{ $labels.cluster }} to R2
+              failed. WAL archiving may still work, but the next restore has to replay more WAL.
+              See "Checking that backups work" in docs/docs/kubernetes/backups-postgres.md.
+        # Tied to the ScheduledBackups: every Cluster's runs daily (03:00 and
+        # 03:15 UTC), so the newest base backup is at most ~24h old. 26h allows
+        # for a slow upload. A Cluster on another schedule needs its own rule.
+        # A backup timestamp of 0 (never backed up) fires too.
+        - alert: CNPGBackupStale
+          expr: |
+            time() - max by (namespace, cluster) (
+              label_replace(barman_cloud_cloudnative_pg_io_last_available_backup_timestamp, "cluster", "$1", "pod", "(.+)-[0-9]+")
+            ) > 26 * 3600
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "No base backup of {{ $labels.namespace }}/{{ $labels.cluster }} for {{ $value | humanizeDuration }}"
+            description: >-
+              The newest base backup of Cluster {{ $labels.namespace }}/{{ $labels.cluster }} on R2 is
+              {{ $value | humanizeDuration }} old; a nightly one should never be older than 24 hours.
+              See "Checking that backups work" in docs/docs/kubernetes/backups-postgres.md.

@@ -32,6 +32,27 @@ spec:
       # one per Proxmox host, one host down. A third would land on hecate again.
       defaultClassReplicaCount: 2
       reclaimPolicy: Delete
-    # Not exposed yet; an HTTPRoute comes after the Gateway. One replica is plenty.
+    # Exposed at longhorn.<domain> behind authentik forward auth by the longhorn-ui
+    # Kustomization (../ui/httproute.yaml), not the chart's httproute: that one
+    # can't add the /outpost.goauthentik.io rule. One replica is plenty.
     longhornUI:
       replicas: 1
+    # longhorn-manager's metrics (volumes, replicas, nodes, disks) on port
+    # `manager` of every manager pod. Rules and dashboard: ./prometheusrule.yaml,
+    # ./dashboards/longhorn.json.
+    metrics:
+      serviceMonitor:
+        enabled: true
+        interval: 30s
+    networkPolicies:
+      # The chart's longhorn-manager NetworkPolicy (restrictInternalTraffic,
+      # on by default) only lets Longhorn's own pods reach port 9500, which also
+      # serves the manager's REST API. Let in Prometheus's pods, and only those.
+      metricsScrapeSources:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+              operator.prometheus.io/name: kube-prometheus-stack

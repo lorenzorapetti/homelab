@@ -1,6 +1,8 @@
 ---
 # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/postgresql.cnpg.io/scheduledbackup_v1.json
 # Nightly base backup; WAL is archived continuously in between.
+# CNPGBackupStale (cnpg-system/cloudnative-pg/app/prometheusrule.yaml) assumes
+# a daily schedule: change its 26h threshold if this one changes.
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:

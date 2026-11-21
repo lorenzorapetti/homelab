@@ -1,0 +1,96 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+# Longhorn volumes, nodes and disks, from longhorn-manager's metrics (chart
+# ServiceMonitor). In Longhorn 1.13 robustness and state are labels: one series
+# per possible value, 1 for the current one.
+# Docs: docs/docs/kubernetes/storage-longhorn.md#alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: longhorn
+spec:
+  groups:
+    - name: longhorn
+      rules:
+        # Volume alerts carry the PVC's namespace as `namespace` (the scrape
+        # target's is always longhorn-system), so Alertmanager groups and
+        # inhibits them with the app's other alerts.
+        - alert: LonghornVolumeFaulted
+          expr: |
+            label_replace(
+              max by (pvc_namespace, pvc, volume) (longhorn_volume_robustness{state="faulted"}) == 1,
+              "namespace", "$1", "pvc_namespace", "(.*)"
+            )
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Longhorn volume {{ $labels.namespace }}/{{ $labels.pvc }} is faulted"
+            description: >-
+              Volume {{ $labels.volume }} (PVC {{ $labels.namespace }}/{{ $labels.pvc }}) has no
+              healthy replica left, so its data is unavailable. See "When an alert fires" in
+              docs/docs/kubernetes/storage-longhorn.md.
+        # A replica rebuilds after every node reboot (a Talos upgrade), which can
+        # take a while for the 20Gi Prometheus volume: 30 minutes keeps that quiet.
+        - alert: LonghornVolumeDegraded
+          expr: |
+            label_replace(
+              max by (pvc_namespace, pvc, volume) (longhorn_volume_robustness{state="degraded"}) == 1,
+              "namespace", "$1", "pvc_namespace", "(.*)"
+            )
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn volume {{ $labels.namespace }}/{{ $labels.pvc }} degraded for 30 minutes"
+            description: >-
+              Volume {{ $labels.volume }} (PVC {{ $labels.namespace }}/{{ $labels.pvc }}) is running
+              with fewer healthy replicas than configured, and has not rebuilt in 30 minutes.
+        # Used space against what Longhorn may use: capacity minus the reserved
+        # part (storageReservedPercentageForDefaultDisk, 30% by default).
+        - alert: LonghornDiskSpaceLow
+          expr: |
+            longhorn_disk_usage_bytes
+              / (longhorn_disk_capacity_bytes - longhorn_disk_reservation_bytes)
+              > 0.8
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn disk on {{ $labels.node }} over 80% full"
+            description: >-
+              Disk {{ $labels.disk }} on {{ $labels.node }} uses {{ $value | humanizePercentage }} of
+              the space Longhorn may use (capacity minus reservation).
+        # Talos upgrades reboot one node at a time, a few minutes each.
+        - alert: LonghornNodeNotReady
+          expr: max by (node) (longhorn_node_status{condition="ready"}) == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn node {{ $labels.node }} not ready for 10 minutes"
+            description: >-
+              Longhorn reports node {{ $labels.node }} as not ready: replicas on it are down and
+              volumes attached there are unavailable.
+        # Schedulable goes False while a node is cordoned (a Talos upgrade drains
+        # it), so 30 minutes.
+        - alert: LonghornNodeUnschedulable
+          expr: max by (node, condition_reason) (longhorn_node_status{condition="schedulable"}) == 0
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn node {{ $labels.node }} unschedulable for 30 minutes"
+            description: >-
+              Longhorn won't place new replicas on {{ $labels.node }} (reason:
+              {{ $labels.condition_reason }}). Volumes can't rebuild their second replica there.
+        - alert: LonghornDiskUnschedulable
+          expr: max by (node, disk, condition, condition_reason) (longhorn_disk_status{condition=~"ready|schedulable"}) == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Longhorn disk on {{ $labels.node }} not {{ $labels.condition }} for 15 minutes"
+            description: >-
+              Disk {{ $labels.disk }} on {{ $labels.node }} is not {{ $labels.condition }}
+              (reason: {{ $labels.condition_reason }}). Longhorn won't place replicas on it.

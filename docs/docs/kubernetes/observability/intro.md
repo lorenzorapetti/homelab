@@ -70,7 +70,7 @@ Prometheus and Alertmanager have no login of their own. They are the first apps 
 - **An `ExternalAuth` filter on `/`.** Before forwarding a request, Cilium's Envoy asks Authentik's embedded outpost at `authentik-server.auth:80/outpost.goauthentik.io/auth/envoy`, passing the `cookie` header. A `2xx` lets the request through, with `x-authentik-username`, `-groups` and `-email` added. Anything else, normally a redirect to the login page, goes back to the browser.
 - **A rule for `/outpost.goauthentik.io`** that sends the login start and callback on the app's own host straight to `authentik-server`, which hands them to the embedded outpost.
 
-Both point across namespaces, which ReferenceGrant `authentik-forward-auth` in `auth` allows for HTTPRoutes in `observability`.
+Both point across namespaces, which ReferenceGrant `authentik-forward-auth` in `auth` allows for HTTPRoutes in `observability` and `longhorn-system`. The Longhorn UI uses the same setup, in its own `httproute.yaml` ([The UI](/kubernetes/storage-longhorn#the-ui)).
 
 On the Authentik side, everything comes from a blueprint in Git: `kubernetes/apps/auth/authentik/app/blueprints/forward-auth.yaml`, mounted into the worker through the chart's `blueprints.configMaps`. For each app it creates:
 
@@ -163,7 +163,10 @@ Every CNPG Postgres instance exports metrics on its `metrics` port (9187).
 - **One `PodMonitor` per Cluster**, next to the Cluster: `observability-db/app/podmonitor.yaml` and `kubernetes/apps/auth/authentik/db/podmonitor.yaml`. It selects `cnpg.io/cluster: <name>` and `cnpg.io/podRole: instance`. CNPG deprecated its own `spec.monitoring.enablePodMonitor` in favour of writing the PodMonitor yourself.
 - **A new app's database** copies that file, changes the name, and adds `prometheus-operator-crds` to its `ks.yaml` `dependsOn`.
 - **The operator** gets its PodMonitor from its chart (`monitoring.podMonitorEnabled`).
-- **The dashboard:** the chart also creates CNPG's cluster dashboard (`monitoring.grafanaDashboard.create`), in Grafana's **Databases** folder. It covers every Cluster, picked with its `cluster` variable, including WAL archiving and backup status.
+- **The dashboard:** CNPG's cluster dashboard, in Grafana's **Databases** folder. It's a copy of the chart's dashboard in `cnpg-system/cloudnative-pg/app/dashboards/`, changed to read the barman-cloud plugin's backup metrics, and the chart's own copy is turned off (`monitoring.grafanaDashboard.create: false`). It covers every Cluster, picked with its `cluster` variable, including WAL archiving and backup status.
+- **Alerts** for every Cluster (instance down, WAL archiving, failed or stale base backups) are in `cnpg-system/cloudnative-pg/app/prometheusrule.yaml`. What each one means and what to do: [Backups: Postgres → Alerts](/kubernetes/backups-postgres#alerts).
+
+Longhorn's metrics, dashboard and alerts are on the [Longhorn page](/kubernetes/storage-longhorn#monitoring).
 
 ## Grafana's database
 

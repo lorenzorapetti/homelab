@@ -5,3 +5,22 @@ kind: Kustomization
 resources:
   - ./helmrepository.yaml
   - ./helmrelease.yaml
+  - ./prometheusrule.yaml
+# Volumes with their robustness, state and size, node and disk conditions,
+# disk space and volume I/O, from longhorn-manager's metrics. Written for
+# Longhorn 1.13's metrics (robustness and state are labels, not values), which
+# the community dashboards predate. Grafana's sidecar loads it through the
+# grafana_dashboard label.
+configMapGenerator:
+  - name: longhorn-dashboard
+    files:
+      - ./dashboards/longhorn.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: Kubernetes
+        # The JSON uses ${datasource}, $namespace and label_replace's $1, which
+        # Flux must not substitute.
+        kustomize.toolkit.fluxcd.io/substitute: disabled

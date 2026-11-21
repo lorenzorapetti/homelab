@@ -61,6 +61,76 @@ kubectl exec -n auth "$PRIMARY" -c postgres -- psql -U postgres -At \
 kubectl logs -n auth "$PRIMARY" -c plugin-barman-cloud --tail=50
 ```
 
+## Alerts
+
+`kubernetes/apps/cnpg-system/cloudnative-pg/app/prometheusrule.yaml` lives with the operator and covers every `Cluster`, so a new app's database needs only its PodMonitor ([Databases](/kubernetes/observability/intro#databases)). The alerts read each instance's exporter, `cnpg_*`, and the Barman Cloud plugin's `barman_cloud_cloudnative_pg_io_*` metrics, which the plugin adds to that exporter. The alerts carry `namespace` and `cluster`, so `namespace="auth", cluster="authentik-db"` is the authentik database.
+
+| Alert | Fires when | For | Severity | Follow |
+| --- | --- | --- | --- | --- |
+| `CNPGWALArchivingFailing` | the primary's last WAL archive attempt failed, or nothing was archived for 30 minutes | 10m | critical | [WAL archiving](#wal-archiving-failing) |
+| `CNPGBackupFailed` | the newest base backup attempt failed: its time is later than the newest successful backup's | 5m | warning | [Base backup](#base-backup-failed-or-stale) |
+| `CNPGBackupStale` | the newest base backup on R2 is more than 26 hours old | 10m | warning | [Base backup](#base-backup-failed-or-stale) |
+| `CNPGInstanceDown` | an instance can't be scraped, or its exporter can't reach Postgres | 5m | critical | `kubectl describe` the pod |
+| `CNPGReplicationLagging` | a replica is more than 5 minutes behind | 5m | warning | Never fires today: every Cluster has one instance |
+
+**Why WAL archiving is the critical one.** A restore replays WAL on top of a base backup. If archiving stops, R2 falls further behind with every write, and nothing in R2 covers those writes until archiving works again. Unarchived WAL also piles up on the Postgres volume until it's full. A failed base backup is less urgent: the previous one plus the WAL archived since still restore to any point, the replay just takes longer. A failed backup gets retried the next night.
+
+**The 26 hours come from the `ScheduledBackup`s.** Both run daily (`authentik-db` at 03:00 UTC, `observability-db` at 03:15), so the newest base backup should never be older than 24 hours. The extra 2 hours allow for a slow upload. A missed night fires at about 05:00 the next day. A Cluster with no base backup at all reports a timestamp of 0, so it counts as stale too. A new Cluster doesn't fire, though, because the `ScheduledBackup`'s `immediate: true` takes its first backup within minutes, well inside the alert's 10-minute `for`. **If a `ScheduledBackup` moves to a different schedule, change the threshold** (or give that Cluster its own rule).
+
+The thresholds for archiving come from these databases. CNPG makes Postgres switch WAL segments at least every 5 minutes (`archive_timeout`), and the longest gap between archived segments over two days was under 8 minutes. 30 minutes means archiving has stopped, not just a quiet database.
+
+### WAL archiving failing
+
+1. Run [Checking that backups work](#checking-that-backups-work). The Cluster's `ContinuousArchiving` condition is `False` with a message, and `pg_stat_archiver` shows `failed_count` growing and `last_failed_wal`.
+2. The plugin sidecar's log says why (`kubectl logs … -c plugin-barman-cloud`). Common causes:
+   - **R2 credentials:** an `AccessDenied` or `InvalidAccessKeyId` error. Check the `r2-backup` Secret in the Cluster's namespace against the R2 API token ([ADR 0003](https://github.com/lorenzorapetti/homelab/blob/main/docs/adr/0003-backups-to-r2.md)).
+   - **R2 or the network is unreachable:** timeouts. The alert clears without any action once R2 is reachable again, and Postgres retries the same segment.
+   - **The sidecar was OOM-killed or isn't running:** check `kubectl describe pod` and the `instanceSidecarConfiguration` limits on the `ObjectStore`.
+   - **"Expected empty archive"** after a restore: the Cluster is archiving into another server's folder. See [Replacing a lost database](#replacing-a-lost-database), step 3.
+3. Once archiving works, `last_archived_time` catches up and the alert resolves. Take a base backup by hand ([step 5 below](#5-take-a-base-backup-right-away)) if archiving was down for long, so a restore doesn't have to replay all of it.
+
+### Base backup failed or stale
+
+1. List the backups and look at the newest one's phase and error:
+
+   ```sh
+   kubectl get backups.postgresql.cnpg.io -n auth
+   kubectl describe backups.postgresql.cnpg.io -n auth <newest>
+   ```
+
+   No new `Backup` object for the last night means the `ScheduledBackup` didn't run. Check `kubectl get scheduledbackup -n auth` (is it suspended? what's its last schedule time?) and the operator's log (`kubectl logs -n cnpg-system deploy/cloudnative-pg`).
+2. A failed `Backup` has the error in its status. The plugin sidecar's log has the details, as for archiving above. The causes are the same, plus a full volume while it uploads.
+3. After fixing, start a base backup by hand instead of waiting for the night: the manifest in [step 5 below](#5-take-a-base-backup-right-away), with a new name. `CNPGBackupFailed` and `CNPGBackupStale` resolve once it completes and the plugin reports it, within a few minutes.
+
+### Testing the alerts
+
+The stale threshold is the easiest one to trigger. Apply a temporary copy of `CNPGBackupStale` with a threshold below the current backup age, for example 1 hour, under its own name. Flux doesn't manage it:
+
+```sh
+kubectl apply -n cnpg-system -f - <<'EOF'
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cnpg-alert-test
+spec:
+  groups:
+    - name: cnpg-alert-test
+      rules:
+        - alert: CNPGBackupStaleTest
+          expr: |
+            time() - max by (namespace, cluster) (
+              label_replace(barman_cloud_cloudnative_pg_io_last_available_backup_timestamp, "cluster", "$1", "pod", "(.+)-[0-9]+")
+            ) > 3600
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Test: no base backup of {{ $labels.namespace }}/{{ $labels.cluster }} for {{ $value | humanizeDuration }}"
+EOF
+```
+
+Within about 2 minutes it fires for both Clusters, and Pushover gets one notification per namespace. Then `kubectl delete prometheusrule -n cnpg-system cnpg-alert-test`, and the resolved notifications follow.
+
 ## Restore test
 
 This rebuilds a throwaway copy of `authentik-db` from R2, next to the live one, and compares the two. It changes nothing in Git, and nothing in the live database. Run it after any change to the backup setup, and from time to time anyway: a backup counts only once a restore from it has worked.

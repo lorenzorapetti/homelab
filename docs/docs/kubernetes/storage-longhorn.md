@@ -125,7 +125,7 @@ values:
 
 - **Default StorageClass: `longhorn`.** It's the only storage in the cluster, so a PVC without `storageClassName` lands there. The chart also creates `longhorn-static` for pre-existing volumes.
 - **Two replicas, set in the chart values.** The chart writes `numberOfReplicas` into the `longhorn` StorageClass from `persistence.defaultClassReplicaCount`, and `defaultSettings.defaultReplicaCount` covers volumes made in the UI. Two replicas keep a volume available with one node down (a Talos upgrade, a VM failure). With one replica per Proxmox host (see [VM disks](#vm-disks)), two replicas also survive one host or SSD failing. A third would land on hecate again, so it would only cost another copy of every write. Go to 3 when there is a third host.
-- **The UI isn't exposed.** It's a `ClusterIP` service (`kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80`). An `HTTPRoute` comes after the Gateway.
+- **The UI** was a `ClusterIP` service only at first. It's now at `https://longhorn.<domain>`, behind authentik ([The UI](#the-ui)).
 - **The disk.** `talosctl get volumestatus u-longhorn` shows a 215 GB `/dev/sdb1` on each node, and `talosctl get mountstatus u-longhorn` shows it as `xfs` at `/var/mnt/longhorn`. Longhorn reports one schedulable disk of 214.6 GB per node.
 - **First install.** Flux reported the `HelmRelease` Ready after about 4 minutes. The CSI sidecars and instance managers needed another ~10 minutes, almost all of it Docker Hub image pulls.
 - **Test.** A 1 Gi PVC was written from a pod on `talos-1` (replicas on `talos-1` and `talos-3`), then read back from a pod on `talos-2`. Deleting the PVC removed the PV, the Longhorn volume and both replicas.
@@ -133,6 +133,75 @@ values:
 **Resource use, idle, no volumes** (open question 3): about 170–190 MB of container memory and ~30 millicores of CPU per node. Node "used" memory went from ~1.5 GB to ~1.95 GB of 4.3 GB (measured with `talosctl memory` and `talosctl stats --namespace cri`; there's no metrics-server yet). Each attached volume adds an engine and replica process on top of that.
 
 **Not done yet: backups.** Neither a Longhorn backup target nor VolSync/Restic is set up ([Data](/kubernetes/migration#data)).
+
+## The UI
+
+The Longhorn UI is at `https://longhorn.<domain>`. It has no login of its own, and anyone who reaches it can delete volumes, so it sits behind authentik forward auth for `authentik Admins` only, just like Prometheus and Alertmanager ([Authentik forward auth](/kubernetes/observability/intro#authentik-forward-auth)):
+
+- **The route** is `longhorn/ui/httproute.yaml`, HTTPRoute `longhorn` in `longhorn-system`. It sends `/` to Service `longhorn-frontend` through the `ExternalAuth` filter, and `/outpost.goauthentik.io` to `authentik-server`. The chart has an `httproute` value, but it can't add that second rule, so I don't use it.
+- **Its own Kustomization, `longhorn-ui`** (second document in `longhorn/ks.yaml`). It `dependsOn` `longhorn`, `gateway` and `authentik`. It can't go in `longhorn`, because `authentik-db` needs Longhorn, so `longhorn` depending on `authentik` would be a cycle.
+- **On the authentik side:** a `Longhorn` provider, application and policy binding in `forward-auth.yaml`, plus `longhorn-system` in ReferenceGrant `authentik-forward-auth`.
+
+If authentik is down, the UI fails closed. Port-forward to reach it anyway:
+
+```sh
+kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80
+# http://localhost:8080
+```
+
+## Monitoring
+
+Prometheus scrapes every `longhorn-manager` pod on port `manager` (9500) every 30s, through the chart's ServiceMonitor `longhorn-prometheus-servicemonitor` (`metrics.serviceMonitor.enabled`).
+
+**The NetworkPolicy.** The chart's `networkPolicies.restrictInternalTraffic` is on by default. It creates NetworkPolicy `longhorn-manager`, which lets only Longhorn's own pods reach 9500. That port also serves the manager's REST API, so `networkPolicies.metricsScrapeSources` lets in Prometheus's pods only: pods labelled `app.kubernetes.io/name: prometheus` and `operator.prometheus.io/name: kube-prometheus-stack`, in namespace `observability`. Without it the target shows as down with a timeout.
+
+**The metrics** ([Longhorn metrics](https://longhorn.io/docs/1.13.0/monitoring/metrics/)):
+
+- **Per volume**: `longhorn_volume_robustness`, `longhorn_volume_state`, `longhorn_volume_capacity_bytes`, `longhorn_volume_actual_size_bytes`, read and write throughput, IOPS and latency. Only the manager on the volume's node reports a volume. The labels are `volume`, `pvc`, `pvc_namespace` and `node`.
+- **Per node and disk**: `longhorn_node_status{condition}` and `longhorn_disk_status{condition}` (`ready`, `schedulable`…, value 1 or 0, with `condition_reason`), plus capacity, usage, reservation and scheduled bytes.
+- **Robustness and state are labels.** In 1.13 each volume has one series per possible value (`state="healthy|degraded|faulted|unknown"`), with value 1 for the current one. Older dashboards use a numeric value instead (Grafana 13032 and its copies), so their queries don't work here.
+
+### The dashboard
+
+**Longhorn** (`/d/longhorn`, folder **Kubernetes**), filterable by PVC namespace. It's `longhorn/app/dashboards/longhorn.json`, loaded through a `configMapGenerator`.
+
+- **Overview**: number of volumes, degraded and faulted counts, nodes and disks that aren't ready or schedulable, and the fullest disk.
+- **Volumes**: a table of every volume with its PVC, robustness, state, size, actual size and node, with unhealthy volumes sorted first. Below it: unhealthy volumes over time, how full each volume is, write throughput, IOPS and write latency.
+- **Nodes and disks**: every node and disk condition with its reason, disk usage against the 80% alert line, and scheduled storage per node.
+- **Longhorn pods**: CPU and memory of everything in `longhorn-system`, per node.
+
+**Space.** "Usage" is measured against what Longhorn may use: capacity minus the reservation. `storageReservedPercentageForDefaultDisk` is 30% by default, so that's about 150 GB of each 215 GB disk. "Scheduled" is the total size of the replicas placed on a node. With over-provisioning at 100%, Longhorn stops placing new replicas on a node once scheduled storage reaches that 150 GB, even if the replicas aren't full.
+
+### Alerts
+
+`longhorn/app/prometheusrule.yaml`:
+
+| Alert | Fires when | For | Severity |
+| --- | --- | --- | --- |
+| `LonghornVolumeFaulted` | a volume has no healthy replica | 2m | critical |
+| `LonghornVolumeDegraded` | a volume has fewer healthy replicas than configured | 30m | warning |
+| `LonghornDiskSpaceLow` | a disk uses more than 80% of capacity minus reservation | 15m | warning |
+| `LonghornNodeNotReady` | a node's `ready` condition is False | 10m | warning |
+| `LonghornNodeUnschedulable` | a node's `schedulable` condition is False | 30m | warning |
+| `LonghornDiskUnschedulable` | a disk's `ready` or `schedulable` condition is False | 15m | warning |
+
+- **Volume alerts carry the PVC's namespace** as `namespace`, so Alertmanager groups them with that app's other alerts. Node and disk alerts carry `longhorn-system`.
+- **The `for` durations allow for Talos upgrades.** An upgrade cordons and reboots one node at a time. Its node goes unschedulable while it's cordoned, then not ready while it reboots. Afterwards every volume with a replica on it is degraded until that replica rebuilds, which takes a while for the 20Gi Prometheus volume.
+- **If the managers stop being scraped**, the series disappear and these alerts resolve. The chart's `TargetDown` covers that case.
+
+#### When an alert fires
+
+1. Open the Longhorn dashboard, or the UI: **Volume** lists each volume's replicas and where they are, and **Node** lists the disks with their conditions.
+2. Depending on the alert:
+   - **Degraded**: a replica is missing or rebuilding. Check that every node is ready and schedulable. The UI shows the rebuild's progress under the volume. If no rebuild starts, there's usually no node left with room for the replica: see **Space** above.
+   - **Faulted**: every replica failed. Check the volume's events and the instance manager logs on the replicas' nodes (`kubectl -n longhorn-system logs -l longhorn.io/component=instance-manager --tail=100`). Longhorn's [volume recovery](https://longhorn.io/docs/1.13.0/high-availability/recover-volume/) page describes salvaging a replica. For a Postgres volume, restoring from R2 may be quicker ([Backups: Postgres](/kubernetes/backups-postgres)).
+   - **Node not ready**: the node or its `longhorn-manager` pod is down. Check `kubectl get nodes` and `kubectl -n longhorn-system get pods -o wide`.
+   - **Node or disk unschedulable**: the `condition_reason` label in the notification says why. Common reasons: the node is cordoned, the disk is full, or the disk is missing or not mounted. For a missing disk, check `talosctl get mountstatus u-longhorn` on the node.
+   - **Disk space low**: find the volumes that grew on the dashboard. Space freed inside a volume comes back only after it's trimmed (the weekly `fstrim` DaemonSet, see [VM disks](#vm-disks)). If the data really grew, add disk space: [Resizing a VM disk](/kubernetes/getting-started/deploying-the-infrastructure#sizing).
+
+### Testing the alerts
+
+Cordon a node for longer than 30 minutes, for example `kubectl cordon talos-1`. Longhorn marks the node unschedulable within a minute, then `LonghornNodeUnschedulable` fires. Run `kubectl uncordon talos-1` to resolve it.
 
 ## Data from the old cluster
 
