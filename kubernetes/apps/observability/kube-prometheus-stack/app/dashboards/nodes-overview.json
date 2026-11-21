@@ -1,0 +1,292 @@
+{
+  "title": "Nodes Overview",
+  "uid": "nodes-overview",
+  "description": "node-exporter metrics for every Talos node on one page.",
+  "tags": ["node-exporter"],
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "annotations": { "list": [] },
+  "links": [],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "selected": false, "text": "Prometheus", "value": "prometheus" },
+        "hide": 0,
+        "refresh": 1,
+        "options": []
+      },
+      {
+        "name": "node",
+        "label": "Node",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": { "qryType": 3, "query": "query_result(max by (host, nodename) (label_replace(label_join(node_uname_info, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\")))", "refId": "node" },
+        "definition": "query_result(max by (host, nodename) (label_replace(label_join(node_uname_info, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\")))",
+        "regex": "/host=\"(?<text>[^\"]+)\".*nodename=\"(?<value>[^\"]+)\"/",
+        "includeAll": true,
+        "multi": true,
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "refresh": 2,
+        "sort": 1,
+        "hide": 0,
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Nodes",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (host) ((node_time_seconds - node_boot_time_seconds) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "B", "instant": true, "range": false, "format": "table", "expr": "max by (host) (count by (instance) (node_cpu_seconds_total{mode=\"idle\"}) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "C", "instant": true, "range": false, "format": "table", "expr": "max by (host) (node_memory_MemTotal_bytes * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "D", "instant": true, "range": false, "format": "table", "expr": "1 - avg by (host) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "E", "instant": true, "range": false, "format": "table", "expr": "max by (host) ((node_load1 / on (instance) count by (instance) (node_cpu_seconds_total{mode=\"idle\"})) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "F", "instant": true, "range": false, "format": "table", "expr": "max by (host) ((1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "G", "instant": true, "range": false, "format": "table", "expr": "max by (host) ((1 - node_filesystem_avail_bytes{mountpoint=\"/var\"} / node_filesystem_size_bytes{mountpoint=\"/var\"}) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "H", "instant": true, "range": false, "format": "table", "expr": "max by (host) ((1 - node_filesystem_avail_bytes{mountpoint=\"/var/mnt/longhorn\"} / node_filesystem_size_bytes{mountpoint=\"/var/mnt/longhorn\"}) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "I", "instant": true, "range": false, "format": "table", "expr": "avg by (host) (rate(node_cpu_seconds_total{mode=\"steal\"}[5m]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "transformations": [
+        { "id": "merge", "options": {} },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "indexByName": { "host": 0, "Value #A": 1, "Value #B": 2, "Value #C": 3, "Value #D": 4, "Value #I": 5, "Value #E": 6, "Value #F": 7, "Value #G": 8, "Value #H": 9 },
+            "renameByName": {
+              "host": "Node",
+              "Value #A": "Uptime",
+              "Value #B": "Cores",
+              "Value #C": "RAM",
+              "Value #D": "CPU",
+              "Value #I": "CPU steal",
+              "Value #E": "Load 1m / core",
+              "Value #F": "Memory",
+              "Value #G": "System disk (/var)",
+              "Value #H": "Longhorn disk"
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "auto", "cellOptions": { "type": "auto" } },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Uptime" }, "properties": [ { "id": "unit", "value": "s" }, { "id": "decimals", "value": 1 } ] },
+          { "matcher": { "id": "byName", "options": "RAM" }, "properties": [ { "id": "unit", "value": "bytes" }, { "id": "decimals", "value": 1 } ] },
+          { "matcher": { "id": "byName", "options": "CPU steal" }, "properties": [
+            { "id": "unit", "value": "percentunit" }, { "id": "decimals", "value": 1 },
+            { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.05 }, { "color": "red", "value": 0.15 } ] } }
+          ] },
+          { "matcher": { "id": "byName", "options": "Load 1m / core" }, "properties": [
+            { "id": "unit", "value": "none" }, { "id": "decimals", "value": 2 },
+            { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.8 }, { "color": "red", "value": 1.2 } ] } }
+          ] },
+          { "matcher": { "id": "byRegexp", "options": "^(CPU|Memory|System disk \\(/var\\)|Longhorn disk)$" }, "properties": [
+            { "id": "unit", "value": "percentunit" }, { "id": "decimals", "value": 1 }, { "id": "min", "value": 0 }, { "id": "max", "value": 1 },
+            { "id": "custom.cellOptions", "value": { "type": "gauge", "mode": "basic", "valueDisplayMode": "text" } },
+            { "id": "thresholds", "value": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.75 }, { "color": "red", "value": 0.9 } ] } }
+          ] }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false }, "sortBy": [ { "displayName": "Node", "desc": false } ] }
+    },
+
+    { "id": 100, "type": "row", "title": "CPU", "collapsed": false, "gridPos": { "x": 0, "y": 6, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "CPU usage",
+      "description": "Share of all cores busy (everything but idle).",
+      "gridPos": { "x": 0, "y": 7, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}}", "expr": "1 - avg by (host) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "CPU steal and iowait",
+      "description": "Steal: time the hypervisor ran something else while this VM wanted the CPU. iowait: idle time spent waiting on disk.",
+      "gridPos": { "x": 8, "y": 7, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}} steal", "expr": "avg by (host) (rate(node_cpu_seconds_total{mode=\"steal\"}[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "B", "legendFormat": "{{host}} iowait", "expr": "avg by (host) (rate(node_cpu_seconds_total{mode=\"iowait\"}[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } },
+        "overrides": [ { "matcher": { "id": "byRegexp", "options": ".* iowait" }, "properties": [ { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } } ] } ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Load average per core",
+      "description": "1-minute load divided by the node's core count. Above 1 means runnable tasks are queueing.",
+      "gridPos": { "x": 16, "y": 7, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}}", "expr": "max by (host) ((node_load1 / on (instance) count by (instance) (node_cpu_seconds_total{mode=\"idle\"})) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none", "decimals": 2, "min": 0,
+          "custom": { "fillOpacity": 10, "showPoints": "never", "lineWidth": 1, "thresholdsStyle": { "mode": "dashed" } },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "transparent", "value": null }, { "color": "red", "value": 1 } ] }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    { "id": 101, "type": "row", "title": "Memory", "collapsed": false, "gridPos": { "x": 0, "y": 15, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Memory usage",
+      "description": "1 - MemAvailable / MemTotal: page cache the kernel can drop counts as free.",
+      "gridPos": { "x": 0, "y": 16, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}}", "expr": "max by (host) ((1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max", "lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Memory used vs total",
+      "description": "Solid: used (total - available). Dashed: total.",
+      "gridPos": { "x": 8, "y": 16, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}} used", "expr": "max by (host) ((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "B", "legendFormat": "{{host}} total", "expr": "max by (host) (node_memory_MemTotal_bytes * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } },
+        "overrides": [ { "matcher": { "id": "byRegexp", "options": ".* total" }, "properties": [ { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } } ] } ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Pressure stall (some)",
+      "description": "PSI: share of time at least one task was stalled waiting on CPU, memory or IO.",
+      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}} cpu", "expr": "max by (host) (rate(node_pressure_cpu_waiting_seconds_total[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "B", "legendFormat": "{{host}} memory", "expr": "max by (host) (rate(node_pressure_memory_waiting_seconds_total[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "C", "legendFormat": "{{host}} io", "expr": "max by (host) (rate(node_pressure_io_waiting_seconds_total[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    { "id": 102, "type": "row", "title": "Disk", "collapsed": false, "gridPos": { "x": 0, "y": 24, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Filesystem usage",
+      "description": "/var is Talos's system/ephemeral partition; /var/mnt/longhorn holds Longhorn replicas.",
+      "gridPos": { "x": 0, "y": 25, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}} {{mountpoint}}", "expr": "max by (host, mountpoint) ((1 - node_filesystem_avail_bytes{mountpoint=~\"/var|/var/mnt/longhorn\"} / node_filesystem_size_bytes{mountpoint=~\"/var|/var/mnt/longhorn\"}) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Disk throughput",
+      "description": "All disks of a node summed. Reads up, writes down.",
+      "gridPos": { "x": 8, "y": 25, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}} read", "expr": "sum by (host) (rate(node_disk_read_bytes_total{device!~\"sr.*\"}[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "B", "legendFormat": "{{host}} write", "expr": "sum by (host) (rate(node_disk_written_bytes_total{device!~\"sr.*\"}[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10, "showPoints": "never", "lineWidth": 1 } },
+        "overrides": [ { "matcher": { "id": "byRegexp", "options": ".* write" }, "properties": [ { "id": "custom.transform", "value": "negative-Y" } ] } ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Disk utilisation",
+      "description": "Share of time each disk had IO in flight.",
+      "gridPos": { "x": 16, "y": 25, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}} {{device}}", "expr": "max by (host, device) (rate(node_disk_io_time_seconds_total{device!~\"sr.*\"}[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    { "id": 103, "type": "row", "title": "Network (eth0)", "collapsed": false, "gridPos": { "x": 0, "y": 33, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Network traffic",
+      "description": "eth0 carries the node's traffic (bond0 is idle). Received up, transmitted down.",
+      "gridPos": { "x": 0, "y": 34, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}} rx", "expr": "max by (host) (rate(node_network_receive_bytes_total{device=\"eth0\"}[$__rate_interval]) * 8 * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "B", "legendFormat": "{{host}} tx", "expr": "max by (host) (rate(node_network_transmit_bytes_total{device=\"eth0\"}[$__rate_interval]) * 8 * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bps", "custom": { "fillOpacity": 10, "showPoints": "never", "lineWidth": 1 } },
+        "overrides": [ { "matcher": { "id": "byRegexp", "options": ".* tx" }, "properties": [ { "id": "custom.transform", "value": "negative-Y" } ] } ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Network errors and drops",
+      "description": "Packets per second on eth0. Should stay at zero.",
+      "gridPos": { "x": 12, "y": 34, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "{{host}} rx errors", "expr": "max by (host) (rate(node_network_receive_errs_total{device=\"eth0\"}[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "B", "legendFormat": "{{host}} tx errors", "expr": "max by (host) (rate(node_network_transmit_errs_total{device=\"eth0\"}[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "C", "legendFormat": "{{host}} rx drops", "expr": "max by (host) (rate(node_network_receive_drop_total{device=\"eth0\"}[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" },
+        { "refId": "D", "legendFormat": "{{host}} tx drops", "expr": "max by (host) (rate(node_network_transmit_drop_total{device=\"eth0\"}[$__rate_interval]) * on (instance) group_left (host) label_replace(label_join(node_uname_info{nodename=~\"$node\"}, \"host\", \" (\", \"nodename\", \"instance\"), \"host\", \"$1)\", \"host\", \"(.+):[0-9]+\"))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "pps", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    }
+  ]
+}
