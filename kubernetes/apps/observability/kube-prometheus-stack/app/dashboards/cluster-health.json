@@ -1,8 +1,8 @@
 {
   "title": "Cluster Health",
   "uid": "cluster-health",
-  "description": "One page to debug the cluster: Talos nodes, control plane, etcd, workloads, storage, CloudNativePG, CoreDNS and the monitoring stack itself. Every stat in the top rows counts problems, so green means zero.",
-  "tags": ["kubernetes", "talos", "etcd", "cnpg"],
+  "description": "One page to debug the cluster: Talos nodes, control plane, etcd, workloads, storage, Flux, CloudNativePG, CoreDNS and the monitoring stack itself. Every stat in the top rows counts problems, so green means zero.",
+  "tags": ["kubernetes", "talos", "etcd", "flux", "cnpg"],
   "editable": true,
   "graphTooltip": 1,
   "refresh": "30s",
@@ -13,6 +13,7 @@
   "annotations": { "list": [] },
   "links": [
     { "type": "link", "title": "Nodes Overview", "url": "/d/nodes-overview", "icon": "dashboard", "keepTime": true, "targetBlank": false },
+    { "type": "link", "title": "Flux", "url": "/d/flux", "icon": "dashboard", "keepTime": true, "targetBlank": false },
     { "type": "link", "title": "CloudNativePG", "url": "/d/cloudnative-pg", "icon": "dashboard", "keepTime": true, "targetBlank": false }
   ],
   "templating": {
@@ -486,11 +487,74 @@
       "options": { "orientation": "horizontal", "displayMode": "gradient", "showUnfilled": true, "valueMode": "color", "namePlacement": "left", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
     },
 
-    { "id": 104, "type": "row", "title": "CloudNativePG", "collapsed": false, "gridPos": { "x": 0, "y": 66, "w": 24, "h": 1 }, "panels": [] },
+    { "id": 106, "type": "row", "title": "Flux", "collapsed": false, "gridPos": { "x": 0, "y": 66, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 43, "type": "stat", "title": "Flux resources not ready",
+      "description": "Kustomizations, HelmReleases, sources and the FluxInstance whose Ready condition is not True, suspended ones left out. A resource that is reconciling right now counts for a moment (Ready Unknown); one that stays here 15 minutes fires FluxResourceNotReady.",
+      "gridPos": { "x": 0, "y": 67, "w": 3, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(flux_resource_info{ready!=\"True\",suspended=\"False\"} or flux_instance_info{ready!=\"True\",suspended=\"False\"}) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 44, "type": "stat", "title": "Flux resources suspended",
+      "description": "Suspended Flux resources: Flux ignores Git for them until they are resumed (flux resume …). Fine during maintenance, easy to forget afterwards.",
+      "gridPos": { "x": 3, "y": 67, "w": 3, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(flux_resource_info{suspended=\"True\"} or flux_instance_info{suspended=\"True\"}) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 45, "type": "stat", "title": "Flux reconcile errors",
+      "description": "Failed reconciles in the time range, summed over the Flux controllers and the Flux Operator. A few during an upgrade or a bad commit are normal; the Flux dashboard shows which controller.",
+      "gridPos": { "x": 0, "y": 71, "w": 3, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "round(sum(increase(controller_runtime_reconcile_errors_total{namespace=\"flux-system\"}[$__range]))) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 46, "type": "stat", "title": "Flux targets down",
+      "description": "Flux controllers and the Flux Operator that Prometheus failed to scrape. While the operator is down, the not-ready count above goes blind.",
+      "gridPos": { "x": 3, "y": 71, "w": 3, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(up{namespace=\"flux-system\"} == 0) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 47, "type": "table", "title": "Flux resources not ready or suspended",
+      "description": "Every Flux resource that is not Ready, or is suspended, with the reason from its Ready condition and the revision it last applied. `flux get all -A` and `kubectl describe` give the full message. The Flux dashboard in the links above lists every resource.",
+      "gridPos": { "x": 6, "y": 67, "w": 10, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (kind, exported_namespace, name, ready, suspended, reason, revision) (flux_resource_info{ready!=\"True\"} or flux_resource_info{suspended=\"True\"} or flux_instance_info{ready!=\"True\"} or flux_instance_info{suspended=\"True\"})" } ],
+      "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true }, "indexByName": { "kind": 0, "exported_namespace": 1, "name": 2, "ready": 3, "suspended": 4, "reason": 5, "revision": 6 }, "renameByName": { "kind": "Kind", "exported_namespace": "Namespace", "name": "Name", "ready": "Ready", "suspended": "Suspended", "reason": "Reason", "revision": "Revision" } } } ],
+      "fieldConfig": {
+        "defaults": { "noValue": "Every Flux resource Ready", "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Ready" }, "properties": [ { "id": "custom.width", "value": 80 }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "mappings", "value": [ { "type": "value", "options": { "True": { "color": "green", "index": 0 }, "False": { "color": "red", "index": 1 }, "Unknown": { "color": "orange", "index": 2 } } } ] } ] },
+          { "matcher": { "id": "byName", "options": "Suspended" }, "properties": [ { "id": "custom.width", "value": 95 }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "mappings", "value": [ { "type": "value", "options": { "True": { "color": "orange", "index": 0 } } } ] } ] }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false }, "sortBy": [ { "displayName": "Ready", "desc": false } ] }
+    },
+    {
+      "id": 48, "type": "timeseries", "title": "Flux reconcile p99 by kind",
+      "description": "How long the slowest 1% of reconciles take, per kind. HelmReleases wait for their workloads to become ready, so they run longest; a kind that climbs towards its timeout is about to fail.",
+      "gridPos": { "x": 16, "y": 67, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{kind}}", "expr": "histogram_quantile(0.99, sum by (le, kind) (rate(gotk_reconcile_duration_seconds_bucket[$__rate_interval])))" } ],
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1, "spanNulls": true } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    { "id": 104, "type": "row", "title": "CloudNativePG", "collapsed": false, "gridPos": { "x": 0, "y": 75, "w": 24, "h": 1 }, "panels": [] },
     {
       "id": 35, "type": "table", "title": "Postgres instances",
       "description": "One row per CNPG instance. WAL archived: time since the last WAL segment reached the object store. Last backup: age of the newest barman-cloud base backup. The CloudNativePG dashboard in the links above goes deeper.",
-      "gridPos": { "x": 0, "y": 67, "w": 24, "h": 5 },
+      "gridPos": { "x": 0, "y": 76, "w": 24, "h": 5 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (namespace, pod) (cnpg_collector_up)" },
@@ -578,7 +642,7 @@
     {
       "id": 36, "type": "timeseries", "title": "Postgres connections",
       "description": "Backends per instance, by state. Dashed: max_connections.",
-      "gridPos": { "x": 0, "y": 72, "w": 6, "h": 8 },
+      "gridPos": { "x": 0, "y": 81, "w": 6, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         { "refId": "A", "legendFormat": "{{pod}} {{state}}", "expr": "sum by (pod, state) (cnpg_backends_total)" },
@@ -593,7 +657,7 @@
     {
       "id": 37, "type": "timeseries", "title": "Postgres memory vs limit",
       "description": "Working set of the postgres container. Dashed: its memory limit. Reaching the limit gets the instance OOM-killed.",
-      "gridPos": { "x": 6, "y": 72, "w": 6, "h": 8 },
+      "gridPos": { "x": 6, "y": 81, "w": 6, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         { "refId": "A", "legendFormat": "{{pod}}", "expr": "sum by (pod) (container_memory_working_set_bytes{container=\"postgres\"} and on (namespace, pod) cnpg_collector_up)" },
@@ -608,7 +672,7 @@
     {
       "id": 38, "type": "timeseries", "title": "Time since last WAL archived",
       "description": "Sawtooth is normal: it resets every time a segment is archived (at least every archive_timeout). A line that keeps climbing means archiving to the object store is stuck, and point-in-time recovery falls behind.",
-      "gridPos": { "x": 12, "y": 72, "w": 6, "h": 8 },
+      "gridPos": { "x": 12, "y": 81, "w": 6, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [ { "refId": "A", "legendFormat": "{{pod}}", "expr": "max by (pod) (time() - cnpg_pg_stat_archiver_last_archived_time)" } ],
       "fieldConfig": {
@@ -620,7 +684,7 @@
     {
       "id": 39, "type": "timeseries", "title": "Postgres transactions",
       "description": "Commits and rollbacks per second across each instance's databases. A spike of rollbacks usually means the app is failing queries.",
-      "gridPos": { "x": 18, "y": 72, "w": 6, "h": 8 },
+      "gridPos": { "x": 18, "y": 81, "w": 6, "h": 8 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         { "refId": "A", "legendFormat": "{{pod}} commit", "expr": "sum by (pod) (rate(cnpg_pg_stat_database_xact_commit[$__rate_interval]))" },
@@ -633,11 +697,11 @@
       "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
     },
 
-    { "id": 105, "type": "row", "title": "DNS and monitoring", "collapsed": false, "gridPos": { "x": 0, "y": 80, "w": 24, "h": 1 }, "panels": [] },
+    { "id": 105, "type": "row", "title": "DNS and monitoring", "collapsed": false, "gridPos": { "x": 0, "y": 89, "w": 24, "h": 1 }, "panels": [] },
     {
       "id": 40, "type": "timeseries", "title": "CoreDNS responses by code",
       "description": "SERVFAIL means CoreDNS could not reach the upstream resolver; a burst of NXDOMAIN is usually search-path noise.",
-      "gridPos": { "x": 0, "y": 81, "w": 8, "h": 7 },
+      "gridPos": { "x": 0, "y": 90, "w": 8, "h": 7 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [ { "refId": "A", "legendFormat": "{{rcode}}", "expr": "sum by (rcode) (rate(coredns_dns_responses_total[$__rate_interval]))" } ],
       "fieldConfig": {
@@ -649,7 +713,7 @@
     {
       "id": 41, "type": "table", "title": "Scrape targets down",
       "description": "Targets Prometheus could not scrape on its last attempt. Their metrics on this page are stale or missing.",
-      "gridPos": { "x": 8, "y": 81, "w": 8, "h": 7 },
+      "gridPos": { "x": 8, "y": 90, "w": 8, "h": 7 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [ { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (job, instance) (up == 0)" } ],
       "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true }, "indexByName": { "job": 0, "instance": 1 }, "renameByName": { "job": "Job", "instance": "Instance" } } } ],
@@ -659,7 +723,7 @@
     {
       "id": 42, "type": "timeseries", "title": "Prometheus storage",
       "description": "TSDB blocks plus WAL on disk. Dashed: retentionSize (15 GB), past which Prometheus drops the oldest blocks; the volume is 20 Gi.",
-      "gridPos": { "x": 16, "y": 81, "w": 8, "h": 7 },
+      "gridPos": { "x": 16, "y": 90, "w": 8, "h": 7 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         { "refId": "A", "legendFormat": "blocks", "expr": "max(prometheus_tsdb_storage_blocks_bytes)" },

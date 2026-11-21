@@ -479,6 +479,8 @@ On a fresh cluster, `just bootstrap::apps` installs the releases and Flux then t
 - `flux-operator` (13 objects) and `flux-instance` (1 object) are identical.
 - Cilium has the same 32 objects. The only differences are equivalent spellings: `defaultMode: 0400` stored as `256`, and `annotations: null` or `labels: {}` stored as absent. Render with `--validate`, or Cilium leaves out the objects it only adds when the cluster serves the API (the `GatewayClass` and the `ValidatingAdmissionPolicy`).
 
+Since [#189](https://github.com/lorenzorapetti/homelab/issues/189) the diff also removes the `flux-operator` ServiceMonitor: `bootstrap/helmfile/apps.yaml` turns it off because the CRD doesn't exist on a fresh cluster ([Monitoring Flux](/kubernetes/flux/monitoring#the-servicemonitor-crd-and-the-bootstrap)).
+
 So on the running cluster, use `just bootstrap::diff` to compare, and expect those differences. Don't run `just bootstrap::apps` or `just bootstrap::helmfile`: helm-controller would notice the release changed outside Flux and upgrade it back, rolling the pods twice. I haven't checked whether helm-controller can turn off the digest suffix.
 
 ## The justfile

@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+# Flux resources (and the FluxInstance) that stay not Ready, from the Flux
+# Operator's flux_resource_info / flux_instance_info. Goes through Alertmanager
+# like every other alert; there is no notification-controller Provider.
+# Docs: docs/docs/kubernetes/flux/monitoring.md
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: flux
+spec:
+  groups:
+    - name: flux
+      rules:
+        # ready is "Unknown" while a resource reconciles and "False" once it
+        # failed: both count, so one stuck progressing alerts too. `max by`
+        # keeps the series continuous when ready flips between the two, so
+        # `for` doesn't restart. `namespace` is set to the resource's own
+        # namespace (the scrape target's is always flux-system), so Alertmanager
+        # groups and inhibits per app namespace like other alerts.
+        - alert: FluxResourceNotReady
+          expr: |
+            label_replace(
+              max by (exported_namespace, kind, name) (
+                flux_resource_info{ready!="True", suspended="False"}
+                or flux_instance_info{ready!="True", suspended="False"}
+              ),
+              "namespace", "$1", "exported_namespace", "(.*)"
+            )
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.kind }} {{ $labels.namespace }}/{{ $labels.name }} not ready for 15 minutes"
+            description: >-
+              Flux {{ $labels.kind }} {{ $labels.namespace }}/{{ $labels.name }} has not been Ready
+              for 15 minutes. Check `flux get all -n {{ $labels.namespace }}` and
+              `kubectl -n {{ $labels.namespace }} describe {{ $labels.kind }} {{ $labels.name }}`,
+              or the Flux dashboard in Grafana.

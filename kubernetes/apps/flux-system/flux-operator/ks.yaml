@@ -12,6 +12,11 @@ spec:
       # Deleting this Kustomization must never uninstall Flux: the injected
       # deletionPolicy (WaitForTermination) skips objects with this annotation.
       kustomize.toolkit.fluxcd.io/prune: disabled
+  # The chart's ServiceMonitor needs the CRD. Only delays Flux taking over the
+  # release that bootstrap/helmfile already installed.
+  dependsOn:
+    - name: prometheus-operator-crds
+      namespace: observability
   interval: 1h
   path: ./kubernetes/apps/flux-system/flux-operator/app
   patches: []                       # required by the FluxInstance's injected patch

@@ -23,8 +23,8 @@ configMapGenerator:
         # The JSON uses ${datasource} and $node, which Flux must not substitute.
         kustomize.toolkit.fluxcd.io/substitute: disabled
   # Everything worth checking when debugging the cluster, on one page: problem
-  # counters, Talos nodes, control plane and etcd, workloads and PVCs, CNPG,
-  # CoreDNS and Prometheus itself.
+  # counters, Talos nodes, control plane and etcd, workloads and PVCs, Flux,
+  # CNPG, CoreDNS and Prometheus itself.
   - name: cluster-health-dashboard
     files:
       - ./dashboards/cluster-health.json

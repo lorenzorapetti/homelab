@@ -43,6 +43,7 @@ What Prometheus scrapes:
 | node-exporter, kubelet and cAdvisor, kube-state-metrics, apiserver, CoreDNS | On |
 | The stack itself: Prometheus, Alertmanager, the operator, Grafana | On |
 | CloudNativePG: the operator (chart `PodMonitor`) and every `Cluster`'s instances (one `PodMonitor` per Cluster) | On, see [Databases](#databases) |
+| Flux: the Flux Operator (chart `ServiceMonitor`) and the four controllers (`PodMonitor`) | On, see [Monitoring Flux](/kubernetes/flux/monitoring) |
 | kube-proxy | **Off for good.** Cilium replaces kube-proxy, so there is nothing to scrape |
 | kube-controller-manager, kube-scheduler, etcd | On, on the three node IPs. Needs the Talos patch `talos/control-plane/10-metrics.yaml`, see [Control-plane metrics](/kubernetes/observability/control-plane-metrics) |
 

@@ -16,3 +16,5 @@ resources:
   - ./namespace.yaml
   - ./flux-operator/ks.yaml
   - ./flux-instance/ks.yaml
+  # Also gets the prune annotation above (harmless: its own objects still prune).
+  - ./flux-monitoring/ks.yaml

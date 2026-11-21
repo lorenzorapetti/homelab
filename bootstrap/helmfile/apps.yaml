@@ -22,6 +22,11 @@ releases:
     namespace: flux-system
     inherit: [{template: default}]
     needs: ["kube-system/cilium"]
+    # Appended after the template's values: the ServiceMonitor CRD doesn't
+    # exist yet on a fresh cluster. Flux turns it on when it takes over.
+    values:
+      - serviceMonitor:
+          create: false
 
   - name: flux-instance
     namespace: flux-system

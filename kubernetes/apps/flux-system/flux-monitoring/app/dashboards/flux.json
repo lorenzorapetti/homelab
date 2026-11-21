@@ -1,0 +1,200 @@
+{
+  "title": "Flux",
+  "uid": "flux",
+  "description": "Reconciliation state of every Flux object (Kustomizations, HelmReleases, sources and the FluxInstance) from the Flux Operator's flux_resource_info, plus the Flux controllers' own reconcile durations, errors and resources.",
+  "tags": ["kubernetes", "flux"],
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "annotations": { "list": [] },
+  "links": [
+    { "type": "link", "title": "Cluster Health", "url": "/d/cluster-health", "icon": "dashboard", "keepTime": true, "targetBlank": false }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "selected": false, "text": "Prometheus", "value": "prometheus" },
+        "hide": 0,
+        "refresh": 1,
+        "options": []
+      },
+      {
+        "name": "kind",
+        "label": "Kind",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": { "query": "label_values(flux_resource_info, kind)", "refId": "kind" },
+        "definition": "label_values(flux_resource_info, kind)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "hide": 0,
+        "refresh": 2,
+        "sort": 1,
+        "options": []
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": { "query": "label_values(flux_resource_info{kind=~\"$kind\"}, exported_namespace)", "refId": "namespace" },
+        "definition": "label_values(flux_resource_info{kind=~\"$kind\"}, exported_namespace)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "selected": true, "text": ["All"], "value": ["$__all"] },
+        "hide": 0,
+        "refresh": 2,
+        "sort": 1,
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    { "id": 100, "type": "row", "title": "Overview", "collapsed": false, "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 1, "type": "stat", "title": "Resources",
+      "description": "Flux resources matching the Kind and Namespace filters.",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(flux_resource_info{kind=~\"$kind\",exported_namespace=~\"$namespace\"}) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Not ready",
+      "description": "Resources whose Ready condition is not True, suspended ones left out. Reconciling resources count for a moment (Ready Unknown); FluxResourceNotReady fires after 15 minutes.",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(flux_resource_info{kind=~\"$kind\",exported_namespace=~\"$namespace\",ready!=\"True\",suspended=\"False\"}) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Suspended",
+      "description": "Suspended resources: Flux ignores Git for them until `flux resume`.",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(flux_resource_info{kind=~\"$kind\",exported_namespace=~\"$namespace\",suspended=\"True\"}) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 4, "type": "stat", "title": "FluxInstance",
+      "description": "Ready condition of the FluxInstance `flux`: whether the operator managed to install the Flux distribution it describes.",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (ready) (flux_instance_info)" } ],
+      "fieldConfig": { "defaults": { "noValue": "No data", "mappings": [ { "type": "value", "options": { "True": { "text": "Ready", "color": "green", "index": 0 }, "False": { "text": "Not ready", "color": "red", "index": 1 }, "Unknown": { "text": "Reconciling", "color": "orange", "index": 2 } } } ], "color": { "mode": "fixed", "fixedColor": "text" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^ready$/", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 5, "type": "stat", "title": "Flux version",
+      "description": "The Flux distribution the FluxInstance runs (spec.distribution.version resolves to this).",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (version) (label_replace(flux_instance_info, \"version\", \"$1\", \"revision\", \"([^@]*).*\"))" } ],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "text" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^version$/", "values": false }, "colorMode": "none", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 6, "type": "stat", "title": "Flux Operator version",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (version) (flux_operator_info)" } ],
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "text" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^version$/", "values": false }, "colorMode": "none", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+
+    { "id": 101, "type": "row", "title": "Resources", "collapsed": false, "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 7, "type": "table", "title": "Flux resources",
+      "description": "Every Flux resource with its Ready condition, the reason for it, whether it is suspended, and the revision it last applied or fetched. Source is the source a Kustomization or HelmRelease reads from; Path and URL are set only for the kinds that have them. Not-ready rows sort first. `flux get all -A` and `kubectl describe` give the full message.",
+      "gridPos": { "x": 0, "y": 6, "w": 24, "h": 14 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (kind, exported_namespace, name, ready, suspended, reason, revision, source_name, path, url) (flux_resource_info{kind=~\"$kind\",exported_namespace=~\"$namespace\"})" } ],
+      "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true }, "indexByName": { "kind": 0, "exported_namespace": 1, "name": 2, "ready": 3, "suspended": 4, "reason": 5, "revision": 6, "source_name": 7, "path": 8, "url": 9 }, "renameByName": { "kind": "Kind", "exported_namespace": "Namespace", "name": "Name", "ready": "Ready", "suspended": "Suspended", "reason": "Reason", "revision": "Revision", "source_name": "Source", "path": "Path", "url": "URL" } } } ],
+      "fieldConfig": {
+        "defaults": { "noValue": "No Flux resources (is the Flux Operator scraped?)", "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "filterable": true } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Ready" }, "properties": [ { "id": "custom.width", "value": 80 }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "mappings", "value": [ { "type": "value", "options": { "True": { "color": "green", "index": 0 }, "False": { "color": "red", "index": 1 }, "Unknown": { "color": "orange", "index": 2 } } } ] } ] },
+          { "matcher": { "id": "byName", "options": "Suspended" }, "properties": [ { "id": "custom.width", "value": 95 }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "mappings", "value": [ { "type": "value", "options": { "True": { "color": "orange", "index": 0 }, "False": { "color": "text", "index": 1 } } } ] } ] },
+          { "matcher": { "id": "byName", "options": "Kind" }, "properties": [ { "id": "custom.width", "value": 130 } ] }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false }, "sortBy": [ { "displayName": "Ready", "desc": false } ] }
+    },
+
+    { "id": 102, "type": "row", "title": "Reconciliation", "collapsed": false, "gridPos": { "x": 0, "y": 20, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 8, "type": "timeseries", "title": "Not ready over time",
+      "description": "Resources not Ready (suspended ones left out), by kind. Short blips are reconciles in progress; a plateau is a resource stuck failing.",
+      "gridPos": { "x": 0, "y": 21, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{kind}}", "expr": "count by (kind) (flux_resource_info{kind=~\"$kind\",exported_namespace=~\"$namespace\",ready!=\"True\",suspended=\"False\"})" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "min": 0, "custom": { "drawStyle": "bars", "fillOpacity": 80, "stacking": { "mode": "normal" }, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Reconcile p99 by kind",
+      "description": "How long the slowest 1% of reconciles take, per kind (gotk_reconcile_duration_seconds from the controllers). HelmReleases wait for their workloads, so they run longest; one that nears its timeout is about to fail.",
+      "gridPos": { "x": 8, "y": 21, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{kind}}", "expr": "histogram_quantile(0.99, sum by (le, kind) (rate(gotk_reconcile_duration_seconds_bucket{kind=~\"$kind\",exported_namespace=~\"$namespace\"}[$__rate_interval])))" } ],
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1, "spanNulls": true } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "Reconcile errors by controller",
+      "description": "Failed reconciles per controller (controller_runtime_reconcile_errors_total), from the Flux controllers and the Flux Operator. Not filtered by Kind or Namespace: the metric has neither.",
+      "gridPos": { "x": 16, "y": 21, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{controller}}", "expr": "sum by (controller) (increase(controller_runtime_reconcile_errors_total{namespace=\"flux-system\"}[$__rate_interval])) > 0" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "min": 0, "noValue": "No errors", "custom": { "drawStyle": "bars", "fillOpacity": 80, "stacking": { "mode": "normal" }, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    { "id": 103, "type": "row", "title": "Controllers", "collapsed": false, "gridPos": { "x": 0, "y": 29, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 11, "type": "table", "title": "Slowest reconciles in range",
+      "description": "The 15 resources with the longest average reconcile in the time range.",
+      "gridPos": { "x": 0, "y": 30, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "topk(15, sum by (kind, exported_namespace, name) (increase(gotk_reconcile_duration_seconds_sum{kind=~\"$kind\",exported_namespace=~\"$namespace\"}[$__range])) / sum by (kind, exported_namespace, name) (increase(gotk_reconcile_duration_seconds_count{kind=~\"$kind\",exported_namespace=~\"$namespace\"}[$__range])) > 0)" } ],
+      "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true }, "indexByName": { "kind": 0, "exported_namespace": 1, "name": 2, "Value": 3 }, "renameByName": { "kind": "Kind", "exported_namespace": "Namespace", "name": "Name", "Value": "Average" } } } ],
+      "fieldConfig": {
+        "defaults": { "noValue": "No reconciles in range", "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
+        "overrides": [ { "matcher": { "id": "byName", "options": "Average" }, "properties": [ { "id": "unit", "value": "s" }, { "id": "decimals", "value": 1 }, { "id": "custom.width", "value": 100 } ] } ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false }, "sortBy": [ { "displayName": "Average", "desc": true } ] }
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "CPU by pod",
+      "description": "CPU used by the Flux controllers and the Flux Operator.",
+      "gridPos": { "x": 12, "y": 30, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{pod}}", "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"flux-system\",container!=\"\"}[$__rate_interval]))" } ],
+      "fieldConfig": { "defaults": { "unit": "cores", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 13, "type": "timeseries", "title": "Memory by pod",
+      "description": "Working set of the Flux controllers and the Flux Operator. helm-controller and source-controller grow with chart sizes.",
+      "gridPos": { "x": 18, "y": 30, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{pod}}", "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"flux-system\",container!=\"\"})" } ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    }
+  ]
+}

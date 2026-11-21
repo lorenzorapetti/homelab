@@ -12,4 +12,15 @@ spec:
   chartRef:
     kind: OCIRepository
     name: flux-operator
-  values: {}
+  values:
+    # flux_resource_info / flux_instance_info are refreshed with the FluxReport.
+    # The Flux Operator docs recommend 30s (default 5m) when Prometheus reads them.
+    # Docs: docs/docs/kubernetes/flux/monitoring.md
+    reporting:
+      interval: 30s
+    # Scrapes the operator's Service on 8080. Needs the ServiceMonitor CRD:
+    # ks.yaml dependsOn prometheus-operator-crds, and bootstrap/helmfile/apps.yaml
+    # turns it off for the first install, before the CRD exists.
+    serviceMonitor:
+      create: true
+      interval: 30s

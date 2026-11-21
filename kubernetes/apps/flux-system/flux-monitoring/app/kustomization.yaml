@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./podmonitor.yaml
+  - ./prometheusrule.yaml
+# Every Flux resource with its Ready/suspended state and revision, plus the
+# controllers' reconcile durations and errors. Grafana's sidecar loads it
+# through the grafana_dashboard label.
+configMapGenerator:
+  - name: flux-dashboard
+    files:
+      - ./dashboards/flux.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: Kubernetes
+        # The JSON uses ${datasource}, $kind and label_replace's $1, which Flux
+        # must not substitute.
+        kustomize.toolkit.fluxcd.io/substitute: disabled

@@ -233,6 +233,8 @@ There is no `flux bootstrap` any more. On a fresh cluster, Flux is installed by 
 
 The values were first installed and checked in [#178](https://github.com/lorenzorapetti/homelab/issues/178) ([Checking Flux](/kubernetes/getting-started/bootstrap#checking-flux)), from what was then `bootstrap/helmfile/values/flux-instance.yaml`.
 
+Prometheus scrapes the operator and the controllers, Grafana has a Flux dashboard, and `FluxResourceNotReady` alerts on a resource that stays broken: see [Monitoring Flux](/kubernetes/flux/monitoring).
+
 The `flux` CLI (in `devenv.nix` as `fluxcd`) is still useful for inspecting and driving Flux:
 
 ```bash

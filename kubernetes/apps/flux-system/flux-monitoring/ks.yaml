@@ -1,0 +1,29 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+# Flux's PodMonitor, its not-ready alert and the Flux dashboard. Kept out of
+# flux-operator/flux-instance, whose objects are never pruned, so these can be
+# changed or removed like any app's. The Flux Operator's ServiceMonitor comes
+# from its chart (flux-operator/app/helmrelease.yaml).
+# Docs: docs/docs/kubernetes/flux/monitoring.md
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app flux-monitoring
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: prometheus-operator-crds
+      namespace: observability
+  interval: 1h
+  path: ./kubernetes/apps/flux-system/flux-monitoring/app
+  patches: []                       # required by the FluxInstance's injected patch
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: flux-system
+  timeout: 5m
