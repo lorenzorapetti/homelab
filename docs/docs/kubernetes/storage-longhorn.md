@@ -170,6 +170,8 @@ Prometheus scrapes every `longhorn-manager` pod on port `manager` (9500) every 3
 - **Nodes and disks**: every node and disk condition with its reason, disk usage against the 80% alert line, and scheduled storage per node.
 - **Longhorn pods**: CPU and memory of everything in `longhorn-system`, per node.
 
+**Cluster Health** has a **Longhorn** row too. It shows four counters, where green means zero: degraded volumes, faulted volumes, nodes and disks that aren't ready or schedulable, and Longhorn targets down. Next to them are a table listing only the degraded and faulted volumes, and disk usage per node with the 80% alert line.
+
 **Space.** "Usage" is measured against what Longhorn may use: capacity minus the reservation. `storageReservedPercentageForDefaultDisk` is 30% by default, so that's about 150 GB of each 215 GB disk. "Scheduled" is the total size of the replicas placed on a node. With over-provisioning at 100%, Longhorn stops placing new replicas on a node once scheduled storage reaches that 150 GB, even if the replicas aren't full.
 
 ### Alerts

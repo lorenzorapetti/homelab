@@ -1,8 +1,8 @@
 {
   "title": "Cluster Health",
   "uid": "cluster-health",
-  "description": "One page to debug the cluster: Talos nodes, control plane, etcd, workloads, storage, Flux, CloudNativePG, CoreDNS and the monitoring stack itself. Every stat in the top rows counts problems, so green means zero.",
-  "tags": ["kubernetes", "talos", "etcd", "flux", "cnpg"],
+  "description": "One page to debug the cluster: Talos nodes, control plane, etcd, workloads, storage, Flux, CloudNativePG, Longhorn, CoreDNS and the monitoring stack itself. Every stat in the top rows counts problems, so green means zero.",
+  "tags": ["kubernetes", "talos", "etcd", "flux", "cnpg", "longhorn"],
   "editable": true,
   "graphTooltip": 1,
   "refresh": "30s",
@@ -14,7 +14,8 @@
   "links": [
     { "type": "link", "title": "Nodes Overview", "url": "/d/nodes-overview", "icon": "dashboard", "keepTime": true, "targetBlank": false },
     { "type": "link", "title": "Flux", "url": "/d/flux", "icon": "dashboard", "keepTime": true, "targetBlank": false },
-    { "type": "link", "title": "CloudNativePG", "url": "/d/cloudnative-pg", "icon": "dashboard", "keepTime": true, "targetBlank": false }
+    { "type": "link", "title": "CloudNativePG", "url": "/d/cloudnative-pg", "icon": "dashboard", "keepTime": true, "targetBlank": false },
+    { "type": "link", "title": "Longhorn", "url": "/d/longhorn", "icon": "dashboard", "keepTime": true, "targetBlank": false }
   ],
   "templating": {
     "list": [
@@ -697,11 +698,73 @@
       "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
     },
 
-    { "id": 105, "type": "row", "title": "DNS and monitoring", "collapsed": false, "gridPos": { "x": 0, "y": 89, "w": 24, "h": 1 }, "panels": [] },
+    { "id": 107, "type": "row", "title": "Longhorn", "collapsed": false, "gridPos": { "x": 0, "y": 89, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 49, "type": "stat", "title": "Longhorn volumes degraded",
+      "description": "Volumes running with fewer healthy replicas than configured. Normal for a while after a node reboot, until the replica rebuilds; LonghornVolumeDegraded fires after 30 minutes.",
+      "gridPos": { "x": 0, "y": 90, "w": 3, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(max by (volume) (longhorn_volume_robustness{state=\"degraded\"}) == 1) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 50, "type": "stat", "title": "Longhorn volumes faulted",
+      "description": "Volumes with no healthy replica: their data is unavailable. LonghornVolumeFaulted (critical) fires after 2 minutes.",
+      "gridPos": { "x": 3, "y": 90, "w": 3, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(max by (volume) (longhorn_volume_robustness{state=\"faulted\"}) == 1) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 51, "type": "stat", "title": "Longhorn nodes and disks not usable",
+      "description": "Longhorn nodes and disks whose ready or schedulable condition is False. A cordoned node (a Talos upgrade) counts. The Longhorn dashboard lists every condition with its reason.",
+      "gridPos": { "x": 0, "y": 94, "w": 3, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "(count(min by (node) (longhorn_node_status{condition=~\"ready|schedulable\"}) == 0) or vector(0)) + (count(min by (node, disk) (longhorn_disk_status{condition=~\"ready|schedulable\"}) == 0) or vector(0))" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 52, "type": "stat", "title": "Longhorn targets down",
+      "description": "longhorn-manager pods that Prometheus failed to scrape. While they are down, the counts above go blind.",
+      "gridPos": { "x": 3, "y": 94, "w": 3, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(up{namespace=\"longhorn-system\"} == 0) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 53, "type": "table", "title": "Longhorn volumes not healthy",
+      "description": "Degraded and faulted volumes with their PVC, state and the node they are attached to. Detached volumes (robustness unknown) are left out. The Longhorn dashboard in the links above lists every volume.",
+      "gridPos": { "x": 6, "y": 90, "w": 10, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (pvc_namespace, pvc, volume, node, robustness) (label_replace(longhorn_volume_robustness{state=~\"degraded|faulted\"} == 1, \"robustness\", \"$1\", \"state\", \"(.*)\"))" } ],
+      "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true }, "indexByName": { "pvc_namespace": 0, "pvc": 1, "robustness": 2, "node": 3, "volume": 4 }, "renameByName": { "pvc_namespace": "Namespace", "pvc": "PVC", "robustness": "Robustness", "node": "Node", "volume": "Volume" } } } ],
+      "fieldConfig": {
+        "defaults": { "noValue": "Every attached volume healthy", "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Robustness" }, "properties": [ { "id": "custom.width", "value": 110 }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "mappings", "value": [ { "type": "value", "options": { "degraded": { "color": "orange", "index": 0 }, "faulted": { "color": "red", "index": 1 } } } ] } ] }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false }, "sortBy": [ { "displayName": "Robustness", "desc": true } ] }
+    },
+    {
+      "id": 54, "type": "timeseries", "title": "Longhorn disk usage",
+      "description": "Space used on each node's Longhorn disk, as a share of what Longhorn may use (capacity minus the 30% reservation). LonghornDiskSpaceLow fires above 80% (dashed line).",
+      "gridPos": { "x": 16, "y": 90, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{node}}", "expr": "longhorn_disk_usage_bytes / (longhorn_disk_capacity_bytes - longhorn_disk_reservation_bytes)" } ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [ { "color": "transparent", "value": null }, { "color": "orange", "value": 0.8 } ] }, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1, "thresholdsStyle": { "mode": "dashed" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    { "id": 105, "type": "row", "title": "DNS and monitoring", "collapsed": false, "gridPos": { "x": 0, "y": 98, "w": 24, "h": 1 }, "panels": [] },
     {
       "id": 40, "type": "timeseries", "title": "CoreDNS responses by code",
       "description": "SERVFAIL means CoreDNS could not reach the upstream resolver; a burst of NXDOMAIN is usually search-path noise.",
-      "gridPos": { "x": 0, "y": 90, "w": 8, "h": 7 },
+      "gridPos": { "x": 0, "y": 99, "w": 8, "h": 7 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [ { "refId": "A", "legendFormat": "{{rcode}}", "expr": "sum by (rcode) (rate(coredns_dns_responses_total[$__rate_interval]))" } ],
       "fieldConfig": {
@@ -713,7 +776,7 @@
     {
       "id": 41, "type": "table", "title": "Scrape targets down",
       "description": "Targets Prometheus could not scrape on its last attempt. Their metrics on this page are stale or missing.",
-      "gridPos": { "x": 8, "y": 90, "w": 8, "h": 7 },
+      "gridPos": { "x": 8, "y": 99, "w": 8, "h": 7 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [ { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (job, instance) (up == 0)" } ],
       "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true }, "indexByName": { "job": 0, "instance": 1 }, "renameByName": { "job": "Job", "instance": "Instance" } } } ],
@@ -723,7 +786,7 @@
     {
       "id": 42, "type": "timeseries", "title": "Prometheus storage",
       "description": "TSDB blocks plus WAL on disk. Dashed: retentionSize (15 GB), past which Prometheus drops the oldest blocks; the volume is 20 Gi.",
-      "gridPos": { "x": 16, "y": 90, "w": 8, "h": 7 },
+      "gridPos": { "x": 16, "y": 99, "w": 8, "h": 7 },
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
       "targets": [
         { "refId": "A", "legendFormat": "blocks", "expr": "max(prometheus_tsdb_storage_blocks_bytes)" },
