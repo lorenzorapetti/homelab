@@ -19,7 +19,7 @@ The chart's `prometheus.rules` stays off: those are recording rules over 30-seco
 **authentik** (`/d/authentik`, folder **Auth**), from `auth/authentik/app/dashboards/authentik.json` (the chart ships none):
 
 - **Overview**: server and worker pods ready, outposts with no connected instance, HTTP 5xx and task errors over the selected range, and targets down.
-- **Requests**: responses by status, p95 latency per destination (`core` is the Django app; `embedded_outpost` is the forward-auth checks for Prometheus, Alertmanager and Longhorn), and the ten slowest views.
+- **Requests**: responses by status, p95 latency per destination (`core` is the Django app; `embedded_outpost` is the forward-auth checks for Prometheus, Alertmanager, Longhorn and Glance), and the ten slowest views.
 - **Flows and policies**: flow executions per flow (roughly, logins and app authorizations), p95 time per stage and per policy evaluation. Logins are rare here, so these panels are mostly points rather than lines.
 - **Worker tasks**: tasks run, errors and retries per task, and the queue. A queue that only grows means the worker is stuck or down.
 - **Database**: query latency and rate from server and worker, and connection and query errors. The database's own view is the CloudNativePG dashboard (`authentik-db`).

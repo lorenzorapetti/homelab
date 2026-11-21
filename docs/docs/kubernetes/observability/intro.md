@@ -76,7 +76,7 @@ Prometheus and Alertmanager have no login of their own. They are the first apps 
 - **An `ExternalAuth` filter on `/`.** Before forwarding a request, Cilium's Envoy asks Authentik's embedded outpost at `authentik-server.auth:80/outpost.goauthentik.io/auth/envoy`, passing the `cookie` header. A `2xx` lets the request through, with `x-authentik-username`, `-groups` and `-email` added. Anything else, normally a redirect to the login page, goes back to the browser.
 - **A rule for `/outpost.goauthentik.io`** that sends the login start and callback on the app's own host straight to `authentik-server`, which hands them to the embedded outpost.
 
-Both point across namespaces, which ReferenceGrant `authentik-forward-auth` in `auth` allows for HTTPRoutes in `observability` and `longhorn-system`. The Longhorn UI uses the same setup, in its own `httproute.yaml` ([The UI](/kubernetes/storage-longhorn#the-ui)).
+Both point across namespaces, which ReferenceGrant `authentik-forward-auth` in `auth` allows for HTTPRoutes in `observability`, `longhorn-system` and `glance`. The Longhorn UI and [Glance](/kubernetes/glance) use the same setup, each in its own `httproute.yaml` ([The UI](/kubernetes/storage-longhorn#the-ui)).
 
 On the Authentik side, everything comes from a blueprint in Git: `kubernetes/apps/auth/authentik/app/blueprints/forward-auth.yaml`, mounted into the worker through the chart's `blueprints.configMaps`. For each app it creates:
 

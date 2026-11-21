@@ -16,6 +16,9 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       namespace: longhorn-system
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: glance
   to:
     - group: ""
       kind: Service

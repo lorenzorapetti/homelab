@@ -1,0 +1,50 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/gateway.networking.k8s.io/httproute_v1.json
+# Glance has no login of its own, so authentik's embedded outpost checks every
+# request (ExternalAuth), admins only. Same filter and /outpost.goauthentik.io
+# rule as Longhorn (longhorn-system/longhorn/ui/httproute.yaml); the
+# cross-namespace references are allowed by ReferenceGrant authentik-forward-auth.
+# Provider and application: kubernetes/apps/auth/authentik/app/blueprints/forward-auth.yaml
+# ExternalDNS publishes home.<domain> to Home DNS from this route.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: glance
+spec:
+  parentRefs:
+    - name: main
+      namespace: kube-system
+      sectionName: https
+  hostnames: ["home.${SECRET_DOMAIN}"]
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ExternalAuth
+          externalAuth:
+            protocol: HTTP
+            backendRef:
+              name: authentik-server
+              namespace: auth
+              port: 80
+            http:
+              path: /outpost.goauthentik.io/auth/envoy
+              allowedHeaders: [cookie, x-forwarded-proto]
+              allowedResponseHeaders:
+                - x-authentik-username
+                - x-authentik-groups
+                - x-authentik-email
+      backendRefs:
+        - name: glance
+          port: 80
+    # Login start and callback on this host go straight to authentik.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /outpost.goauthentik.io
+      backendRefs:
+        - name: authentik-server
+          namespace: auth
+          port: 80

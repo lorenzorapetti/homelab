@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/not-first/glance-schema/master/schema.json
+# The Glance page. ${SECRET_DOMAIN} is substituted by Flux before Glance reads it.
+# Icons: sh: = selfh.st icons, di: = homarr-labs dashboard-icons.
+# Reference: https://github.com/glanceapp/glance/blob/main/docs/configuration.md
+pages:
+  - name: Home
+    hide-desktop-navigation: true
+    columns:
+      - size: full
+        widgets:
+          - type: bookmarks
+            groups:
+              - title: Cluster
+                links:
+                  - title: Authentik
+                    url: https://auth.${SECRET_DOMAIN}
+                    icon: sh:authentik
+                  - title: Grafana
+                    url: https://grafana.${SECRET_DOMAIN}
+                    icon: sh:grafana
+                  - title: Prometheus
+                    url: https://prometheus.${SECRET_DOMAIN}
+                    icon: sh:prometheus
+                  - title: Alertmanager
+                    url: https://alertmanager.${SECRET_DOMAIN}
+                    icon: di:alertmanager
+                  - title: Longhorn
+                    url: https://longhorn.${SECRET_DOMAIN}
+                    icon: sh:rancher-longhorn
+              - title: Proxmox
+                links:
+                  - title: hecate
+                    url: https://hecate.pve.${SECRET_DOMAIN}
+                    icon: sh:proxmox
+                  - title: persephone
+                    url: https://persephone.pve.${SECRET_DOMAIN}
+                    icon: sh:proxmox

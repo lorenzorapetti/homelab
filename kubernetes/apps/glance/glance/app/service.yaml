@@ -1,0 +1,13 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/v1/service.json
+apiVersion: v1
+kind: Service
+metadata:
+  name: glance
+spec:
+  selector:
+    app.kubernetes.io/name: glance
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

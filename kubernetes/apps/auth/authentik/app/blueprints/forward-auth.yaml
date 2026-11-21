@@ -86,6 +86,31 @@ entries:
     attrs:
       group: !Find [authentik_core.group, [name, authentik Admins]]
 
+  # --- Glance ----------------------------------------------------------------
+  - model: authentik_providers_proxy.proxyprovider
+    id: provider-glance
+    identifiers:
+      name: Glance
+    attrs:
+      mode: forward_single
+      external_host: https://home.${SECRET_DOMAIN}
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+  - model: authentik_core.application
+    id: app-glance
+    identifiers:
+      slug: glance
+    attrs:
+      name: Glance
+      provider: !KeyOf provider-glance
+      meta_launch_url: https://home.${SECRET_DOMAIN}
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf app-glance
+      order: 0
+    attrs:
+      group: !Find [authentik_core.group, [name, authentik Admins]]
+
   # --- The embedded outpost serves every provider above ----------------------
   - model: authentik_outposts.outpost
     identifiers:
@@ -95,3 +120,4 @@ entries:
         - !KeyOf provider-alertmanager
         - !KeyOf provider-prometheus
         - !KeyOf provider-longhorn
+        - !KeyOf provider-glance
