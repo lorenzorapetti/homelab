@@ -1,0 +1,67 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+# Cilium agents, Envoy and node-to-node connectivity, from kube-state-metrics
+# and the agents' own metrics (chart ServiceMonitors).
+# Docs: docs/docs/kubernetes/observability/networking.md#alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cilium
+spec:
+  groups:
+    - name: cilium
+      rules:
+        # An agent or Envoy pod that isn't ready: pods on that node lose
+        # networking, or the Gateway loses a listener. A Talos upgrade reboots
+        # one node at a time, a few minutes each, so 10 minutes.
+        - alert: CiliumAgentUnhealthy
+          expr: |
+            max by (namespace, daemonset) (
+              kube_daemonset_status_number_unavailable{namespace="kube-system", daemonset=~"cilium|cilium-envoy"}
+            ) > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $value }} {{ $labels.daemonset }} pod(s) unavailable for 10 minutes"
+            description: >-
+              DaemonSet kube-system/{{ $labels.daemonset }} has pods that aren't ready. Without a
+              ready agent, pods on that node have no working network; without Envoy, the Shared
+              Gateway has no listener there. Check `kubectl -n kube-system get pods -l
+              k8s-app={{ $labels.daemonset }} -o wide` and `cilium status`.
+        # Each agent probes every other node (and its health endpoint). A node
+        # rebooting is unreachable for a few minutes.
+        - alert: CiliumNodeUnreachable
+          expr: |
+            max by (node, type) (cilium_node_health_connectivity_status{status="unreachable"}) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Cilium on {{ $labels.node }} can't reach {{ $value }} {{ $labels.type }}(s)"
+            description: >-
+              The agent on {{ $labels.node }} has failed its {{ $labels.type }} health probes to
+              {{ $value }} peer(s) for 10 minutes: pod traffic between those nodes is probably
+              broken. `kubectl -n kube-system exec ds/cilium -- cilium-dbg status --all-health`
+              shows which.
+        - alert: CiliumControllersFailing
+          expr: max by (node) (cilium_controllers_failing) > 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $value }} Cilium controller(s) failing on {{ $labels.node }}"
+            description: >-
+              Agent controllers retry until they succeed; these have been failing for 15
+              minutes. `kubectl -n kube-system exec <agent pod> -- cilium-dbg status
+              --all-controllers` names them and their last error.
+        - alert: CiliumBPFMapPressureHigh
+          expr: max by (node, map_name) (cilium_bpf_map_pressure) > 0.9
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Cilium BPF map {{ $labels.map_name }} on {{ $labels.node }} over 90% full"
+            description: >-
+              When a BPF map fills up, new entries (connections, services, endpoints) are
+              dropped. Map {{ $labels.map_name }} is at {{ $value | humanizePercentage }}.

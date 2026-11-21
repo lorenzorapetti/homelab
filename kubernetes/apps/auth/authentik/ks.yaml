@@ -52,6 +52,8 @@ spec:
     - name: authentik-db
     - name: gateway
       namespace: kube-system
+    - name: prometheus-operator-crds  # for the chart's ServiceMonitors
+      namespace: observability
   interval: 1h
   path: ./kubernetes/apps/auth/authentik/app
   patches: []                       # required by the FluxInstance's injected patch

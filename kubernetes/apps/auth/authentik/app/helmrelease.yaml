@@ -44,7 +44,17 @@ spec:
             secretKeyRef:
               name: authentik-db-app
               key: password
+    # Server and worker metrics on port 9300: a metrics Service and a
+    # ServiceMonitor each. Dashboard: ./dashboards/authentik.json. The chart's
+    # prometheus.rules are recording rules over 30s windows, which return
+    # nothing at a 30s scrape interval, so they stay off.
+    # Docs: docs/docs/kubernetes/observability/authentik.md
     server:
+      metrics:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+          interval: 30s
       resources:
         requests:
           cpu: 100m
@@ -52,6 +62,11 @@ spec:
         limits:
           memory: 1Gi
     worker:
+      metrics:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+          interval: 30s
       resources:
         requests:
           cpu: 50m

@@ -1,0 +1,95 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+# Certificates and issuers, from cert-manager's controller metrics (chart
+# ServiceMonitor). `namespace` and `name` are the Certificate's.
+# Let's Encrypt certificates last 90 days and renew 30 days before expiry, so
+# 14 days left means renewal has been failing for over two weeks.
+# Docs: docs/docs/kubernetes/observability/networking.md#when-a-certificate-alert-fires
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cert-manager
+  annotations:
+    # $labels and $value are Prometheus templating, not Flux variables.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+spec:
+  groups:
+    - name: cert-manager
+      rules:
+        - alert: CertificateExpiringSoon
+          expr: |
+            max by (namespace, name, issuer_name) (
+              certmanager_certificate_expiration_timestamp_seconds - time()
+            ) < 14 * 86400
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in {{ $value | humanizeDuration }}"
+            description: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }} (issuer {{ $labels.issuer_name }})
+              has under 14 days left and hasn't renewed. See "When a certificate alert fires" in
+              docs/docs/kubernetes/observability/networking.md.
+        - alert: CertificateExpiringSoon
+          expr: |
+            max by (namespace, name, issuer_name) (
+              certmanager_certificate_expiration_timestamp_seconds - time()
+            ) < 3 * 86400
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in {{ $value | humanizeDuration }}"
+            description: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }} (issuer {{ $labels.issuer_name }})
+              expires in under 3 days. For the Gateway's wildcard, every app's HTTPS breaks then.
+        # The renewal time is when cert-manager should have renewed; it moves
+        # forward once the new certificate is issued. A DNS-01 renewal takes a
+        # couple of minutes, and cert-manager retries with backoff, so an hour
+        # past it means renewal is failing.
+        - alert: CertificateRenewalFailed
+          expr: |
+            time() - max by (namespace, name, issuer_name) (certmanager_certificate_renewal_timestamp_seconds) > 3600
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} hasn't renewed"
+            description: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }} was due for renewal
+              {{ $value | humanizeDuration }} ago and still hasn't renewed. The current certificate
+              is still valid; CertificateExpiringSoon fires at 14 days left.
+        - alert: CertificateNotReady
+          expr: |
+            max by (namespace, name, issuer_name) (certmanager_certificate_ready_status{condition!="True"}) == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.namespace }}/{{ $labels.name }} not ready for 15 minutes"
+            description: >-
+              Certificate {{ $labels.namespace }}/{{ $labels.name }} (issuer {{ $labels.issuer_name }})
+              has Ready not True: its Secret is missing, out of date or doesn't match the spec.
+        - alert: CertManagerIssuerNotReady
+          expr: |
+            max by (name) (certmanager_clusterissuer_ready_status{condition!="True"}) == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ClusterIssuer {{ $labels.name }} not ready for 15 minutes"
+            description: >-
+              cert-manager can't issue or renew certificates from ClusterIssuer {{ $labels.name }},
+              usually because its ACME account or Cloudflare token is broken.
+        # Without the controller's metrics, none of the rules above can fire.
+        - alert: CertManagerAbsent
+          expr: absent(up{job="cert-manager"} == 1)
+          for: 15m
+          labels:
+            severity: warning
+            namespace: cert-manager
+          annotations:
+            summary: "cert-manager's metrics are missing"
+            description: >-
+              Prometheus has no up cert-manager controller target, so certificate expiry and
+              renewal alerts can't fire.

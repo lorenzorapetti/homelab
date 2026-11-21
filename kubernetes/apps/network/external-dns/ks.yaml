@@ -13,6 +13,8 @@ spec:
   dependsOn:
     - name: gateway                 # the HTTPRoute CRD, and the Gateway address it publishes
       namespace: kube-system
+    - name: prometheus-operator-crds  # for the chart's ServiceMonitor and the PrometheusRule
+      namespace: observability
   interval: 1h
   path: ./kubernetes/apps/network/external-dns/app
   patches: []                       # required by the FluxInstance's injected patch

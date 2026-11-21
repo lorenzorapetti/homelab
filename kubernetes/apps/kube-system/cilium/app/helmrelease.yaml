@@ -46,3 +46,72 @@ spec:
       enabled: true
       enableAlpn: true
       enableAppProtocol: true
+
+    # --- Metrics ---------------------------------------------------------------
+    # Agent, operator, Envoy and Hubble ServiceMonitors, and the chart's
+    # dashboards (ConfigMaps picked up by Grafana's sidecar). bootstrap/helmfile
+    # turns the ServiceMonitors off for the first install, before the CRD exists.
+    # Scraped every 30s rather than the chart's 10s: Prometheus is short on memory.
+    # Rules: ./prometheusrule.yaml.
+    # Docs: docs/docs/kubernetes/observability/networking.md
+    prometheus:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+        interval: 30s
+        relabelings: &ciliumRelabelings
+          # The chart's default, kept because setting relabelings replaces it.
+          - sourceLabels: [__meta_kubernetes_pod_node_name]
+            targetLabel: node
+            action: replace
+            replacement: ${1}
+          # Hubble's namespace dashboards filter on a `cluster` label.
+          - targetLabel: cluster
+            action: replace
+            replacement: homelab
+    dashboards:
+      enabled: true
+      annotations: &dashboardAnnotations
+        grafana_folder: Network
+    operator:
+      prometheus:
+        enabled: true
+        serviceMonitor:
+          enabled: true
+          interval: 30s
+      dashboards:
+        enabled: true
+        annotations: *dashboardAnnotations
+    # Envoy runs the Shared Gateway's listeners (listener-secure,
+    # listener-insecure) and one cluster per backend Service. It exports ~4k
+    # series per pod; keep what the Gateway panels and alerts use.
+    envoy:
+      prometheus:
+        serviceMonitor:
+          enabled: true
+          interval: 30s
+          metricRelabelings:
+            - sourceLabels: [__name__]
+              action: keep
+              regex: envoy_(http_downstream_(rq_xx|rq_total|rq_time_bucket|rq_time_sum|rq_time_count|cx_active)|cluster_upstream_(rq_xx|rq_total|rq_timeout|rq_time_bucket|rq_time_sum|rq_time_count|cx_active|cx_connect_fail)|cluster_membership_(healthy|total)|listener_downstream_cx_active|server_(live|uptime|memory_allocated))
+    # Flow metrics from every agent. Source and destination are workloads (or
+    # the reserved identity: world, host…), plus both namespaces for Hubble's
+    # namespace dashboards. httpV2 covers the L7 flows Envoy reports for
+    # Gateway traffic. Contexts are joined without spaces: the chart joins the
+    # list with spaces.
+    hubble:
+      metrics:
+        enabled:
+          - dns:query;ignoreAAAA;sourceContext=workload-name|reserved-identity;destinationContext=workload-name|reserved-identity;labelsContext=source_namespace,destination_namespace
+          - drop:sourceContext=workload-name|reserved-identity;destinationContext=workload-name|reserved-identity;labelsContext=source_namespace,destination_namespace
+          - tcp:sourceContext=workload-name|reserved-identity;destinationContext=workload-name|reserved-identity;labelsContext=source_namespace,destination_namespace
+          - flow:sourceContext=workload-name|reserved-identity;destinationContext=workload-name|reserved-identity;labelsContext=source_namespace,destination_namespace
+          - icmp:sourceContext=workload-name|reserved-identity;destinationContext=workload-name|reserved-identity;labelsContext=source_namespace,destination_namespace
+          - httpV2:labelsContext=source_namespace,source_workload,destination_namespace,destination_workload,traffic_direction
+        serviceMonitor:
+          enabled: true
+          interval: 30s
+          relabelings: *ciliumRelabelings
+        dashboards:
+          enabled: true
+          annotations: *dashboardAnnotations

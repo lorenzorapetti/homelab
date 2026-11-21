@@ -5,4 +5,5 @@ kind: Kustomization
 resources:
   - ./helmrepository.yaml
   - ./helmrelease.yaml
+  - ./prometheusrule.yaml
   - ./secret.sops.yaml     # TSIG key from Technitium, Secret `external-dns-tsig` key `secret`

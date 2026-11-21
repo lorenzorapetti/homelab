@@ -5,7 +5,7 @@ sidebar_label: Overview
 
 # Observability
 
-Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack), in the `observability` namespace (step 8 of the [migration](/kubernetes/migration)). It gives node and pod health out of the box. [Control-plane metrics](/kubernetes/observability/control-plane-metrics) adds etcd, the scheduler and the controller-manager. [Alerting](/kubernetes/observability/alerting) sends alerts to Pushover. Later pages will add app metrics and logs.
+Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack), in the `observability` namespace (step 8 of the [migration](/kubernetes/migration)). It gives node and pod health out of the box. [Control-plane metrics](/kubernetes/observability/control-plane-metrics) adds etcd, the scheduler and the controller-manager. [Alerting](/kubernetes/observability/alerting) sends alerts to Pushover. [Networking and certificates](/kubernetes/observability/networking) covers Cilium, Hubble, the Gateway's Envoy and cert-manager, and [authentik](/kubernetes/observability/authentik) authentik's server and worker. Later pages will add logs.
 
 ## What runs where
 
@@ -44,6 +44,11 @@ What Prometheus scrapes:
 | The stack itself: Prometheus, Alertmanager, the operator, Grafana | On |
 | CloudNativePG: the operator (chart `PodMonitor`) and every `Cluster`'s instances (one `PodMonitor` per Cluster) | On, see [Databases](#databases) |
 | Flux: the Flux Operator (chart `ServiceMonitor`) and the four controllers (`PodMonitor`) | On, see [Monitoring Flux](/kubernetes/flux/monitoring) |
+| Longhorn: every `longhorn-manager` (chart `ServiceMonitor`) | On, see [Longhorn → Monitoring](/kubernetes/storage-longhorn#monitoring) |
+| Cilium: agent, operator, Envoy and Hubble (chart `ServiceMonitor`s) | On, see [Networking and certificates](/kubernetes/observability/networking#cilium-and-hubble) |
+| cert-manager: controller, cainjector, webhook (chart `ServiceMonitor`) | On, see [Networking and certificates](/kubernetes/observability/networking#cert-manager) |
+| ExternalDNS (chart `ServiceMonitor`) | On, see [DNS: ExternalDNS → Alerts](/kubernetes/dns-externaldns#alerts) |
+| authentik: server and worker (chart `ServiceMonitor`s) | On, see [authentik](/kubernetes/observability/authentik) |
 | kube-proxy | **Off for good.** Cilium replaces kube-proxy, so there is nothing to scrape |
 | kube-controller-manager, kube-scheduler, etcd | On, on the three node IPs. Needs the Talos patch `talos/control-plane/10-metrics.yaml`, see [Control-plane metrics](/kubernetes/observability/control-plane-metrics) |
 

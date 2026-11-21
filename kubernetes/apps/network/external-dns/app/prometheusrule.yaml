@@ -1,0 +1,50 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+# ExternalDNS sync health, from its own metrics (chart ServiceMonitor). Written
+# per pod, so another ExternalDNS instance (say, one for Public DNS) is covered
+# as soon as it has a ServiceMonitor.
+#   registry errors: listing the zone failed (for rfc2136, the AXFR from Home DNS)
+#   source errors: reading HTTPRoutes from the API server failed
+#   soft errors: applying changes failed (a refused dynamic update); counts
+#     consecutive failed loops, back to 0 after a good one
+# Docs: docs/docs/kubernetes/dns-externaldns.md#alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: external-dns
+  annotations:
+    # $labels and $value are Prometheus templating, not Flux variables.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+spec:
+  groups:
+    - name: external-dns
+      rules:
+        - alert: ExternalDNSSyncErrors
+          expr: |
+            sum by (namespace, job, pod) (
+                increase(external_dns_registry_errors_total[10m])
+              + increase(external_dns_source_errors_total[10m])
+            ) > 0
+            or
+            max by (namespace, job, pod) (external_dns_controller_consecutive_soft_errors) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ExternalDNS {{ $labels.namespace }}/{{ $labels.job }} failing to sync records"
+            description: >-
+              {{ $labels.pod }} has hit registry, source or apply errors for 10 minutes, so new or
+              removed routes aren't reaching DNS. Its logs name the error: see "Alerts" in
+              docs/docs/kubernetes/dns-externaldns.md.
+        # The last *successful* sync. The loop runs every minute (and on every
+        # route change), so 15 minutes without one means it's stuck or failing.
+        - alert: ExternalDNSSyncStale
+          expr: |
+            time() - max by (namespace, job, pod) (external_dns_controller_last_sync_timestamp_seconds) > 900
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ExternalDNS {{ $labels.namespace }}/{{ $labels.job }} hasn't synced for {{ $value | humanizeDuration }}"
+            description: >-
+              {{ $labels.pod }} last synced its records {{ $value | humanizeDuration }} ago.

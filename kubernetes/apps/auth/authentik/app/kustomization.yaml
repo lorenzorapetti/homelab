@@ -20,3 +20,17 @@ configMapGenerator:
       - ./blueprints/passkeys-enforce.yaml
     options:
       disableNameSuffixHash: true
+  # Server requests, flows, policies, worker tasks and database queries. The
+  # chart ships no dashboard. Grafana's sidecar loads it through the
+  # grafana_dashboard label.
+  - name: authentik-dashboard
+    files:
+      - ./dashboards/authentik.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: Auth
+        # The JSON uses ${datasource} and label_replace's $1, which Flux must not substitute.
+        kustomize.toolkit.fluxcd.io/substitute: disabled

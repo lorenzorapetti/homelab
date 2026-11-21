@@ -1,0 +1,152 @@
+{
+  "title": "cert-manager",
+  "uid": "cert-manager",
+  "description": "Certificates with their expiry, renewal time and readiness, ClusterIssuers, and cert-manager's ACME and controller activity. Alerts: CertificateExpiringSoon, CertificateRenewalFailed, CertificateNotReady, CertManagerIssuerNotReady.",
+  "tags": ["cert-manager", "certificates"],
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "time": { "from": "now-7d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "annotations": { "list": [] },
+  "links": [
+    { "type": "link", "title": "Cluster Health", "url": "/d/cluster-health", "icon": "dashboard", "keepTime": true, "targetBlank": false }
+  ],
+  "templating": {
+    "list": [
+      { "name": "datasource", "label": "Data source", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "prometheus" }, "hide": 0, "refresh": 1, "options": [] }
+    ]
+  },
+  "panels": [
+    { "id": 100, "type": "row", "title": "Overview", "collapsed": false, "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 1, "type": "stat", "title": "Certificates",
+      "description": "Certificate objects cert-manager knows about, in every namespace.",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(max by (namespace, name) (certmanager_certificate_expiration_timestamp_seconds)) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Not ready",
+      "description": "Certificates whose Ready condition isn't True. CertificateNotReady fires after 15 minutes.",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(max by (namespace, name) (certmanager_certificate_ready_status{condition!=\"True\"}) == 1) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Renewal overdue",
+      "description": "Certificates more than an hour past their renewal time. CertificateRenewalFailed fires 15 minutes later.",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(time() - max by (namespace, name) (certmanager_certificate_renewal_timestamp_seconds) > 3600) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 4, "type": "stat", "title": "Soonest expiry",
+      "description": "Time left on the certificate closest to expiry. Orange under 14 days (CertificateExpiringSoon, warning), red under 3 days (critical).",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "min(certmanager_certificate_expiration_timestamp_seconds - time())" } ],
+      "fieldConfig": { "defaults": { "unit": "dtdurations", "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "orange", "value": 259200 }, { "color": "green", "value": 1209600 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 5, "type": "stat", "title": "ClusterIssuers not ready",
+      "description": "ClusterIssuers whose Ready condition isn't True. CertManagerIssuerNotReady fires after 15 minutes.",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(max by (name) (certmanager_clusterissuer_ready_status{condition!=\"True\"}) == 1) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 6, "type": "stat", "title": "Targets down",
+      "description": "cert-manager controller, cainjector and webhook pods Prometheus failed to scrape. While the controller is down, every number above is stale.",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(up{job=~\"cert-manager|cainjector|webhook\", namespace=\"cert-manager\"} == 0) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 7, "type": "table", "title": "Certificates",
+      "description": "Every Certificate, with its issuer, Ready condition, time left before expiry and before (or past, when negative) its renewal time.",
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "instant": true, "range": false, "format": "table", "expr": "max by (namespace, name, issuer_kind, issuer_name) (certmanager_certificate_expiration_timestamp_seconds - time())" },
+        { "refId": "B", "instant": true, "range": false, "format": "table", "expr": "max by (namespace, name, issuer_kind, issuer_name) (certmanager_certificate_renewal_timestamp_seconds - time())" },
+        { "refId": "C", "instant": true, "range": false, "format": "table", "expr": "max by (namespace, name, issuer_kind, issuer_name, condition) (certmanager_certificate_ready_status == 1)" }
+      ],
+      "transformations": [
+        { "id": "merge", "options": {} },
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "Value #C": true }, "indexByName": { "namespace": 0, "name": 1, "issuer_kind": 2, "issuer_name": 3, "condition": 4, "Value #A": 5, "Value #B": 6 }, "renameByName": { "namespace": "Namespace", "name": "Certificate", "issuer_kind": "Issuer kind", "issuer_name": "Issuer", "condition": "Ready", "Value #A": "Expires in", "Value #B": "Renews in" } } }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Expires in" }, "properties": [ { "id": "unit", "value": "dtdurations" }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "thresholds", "value": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "orange", "value": 259200 }, { "color": "green", "value": 1209600 } ] } } ] },
+          { "matcher": { "id": "byName", "options": "Renews in" }, "properties": [ { "id": "unit", "value": "s" }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "thresholds", "value": { "mode": "absolute", "steps": [ { "color": "orange", "value": null }, { "color": "text", "value": -3600 } ] } } ] },
+          { "matcher": { "id": "byName", "options": "Ready" }, "properties": [ { "id": "custom.width", "value": 90 }, { "id": "custom.cellOptions", "value": { "type": "color-text" } }, { "id": "mappings", "value": [ { "type": "value", "options": { "True": { "color": "green", "index": 0 }, "False": { "color": "red", "index": 1 }, "Unknown": { "color": "orange", "index": 2 } } } ] } ] }
+        ]
+      },
+      "options": { "showHeader": true, "cellHeight": "sm", "footer": { "show": false }, "sortBy": [ { "displayName": "Expires in", "desc": false } ] }
+    },
+
+    { "id": 101, "type": "row", "title": "Expiry over time", "collapsed": false, "gridPos": { "x": 0, "y": 13, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 8, "type": "timeseries", "title": "Time left before expiry",
+      "description": "A healthy certificate is a sawtooth: it counts down, then jumps back up at renewal. Dashed: the 14-day warning line.",
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{namespace}}/{{name}}", "expr": "max by (namespace, name) (certmanager_certificate_expiration_timestamp_seconds - time())" } ],
+      "fieldConfig": { "defaults": { "unit": "dtdurations", "min": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "transparent", "value": null }, { "color": "orange", "value": 1209600 } ] }, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1, "thresholdsStyle": { "mode": "dashed" } } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "asc" } }
+    },
+    {
+      "id": 9, "type": "state-timeline", "title": "Ready condition",
+      "description": "Each Certificate's Ready condition over time. A short False or Unknown at issuance is normal.",
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{namespace}}/{{name}}", "expr": "max by (namespace, name) (certmanager_certificate_ready_status{condition=\"True\"})" } ],
+      "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "0": { "text": "Not ready", "color": "red", "index": 0 }, "1": { "text": "Ready", "color": "green", "index": 1 } } } ], "custom": { "fillOpacity": 80, "lineWidth": 0 } }, "overrides": [] },
+      "options": { "showValue": "never", "mergeValues": true, "rowHeight": 0.8, "legend": { "showLegend": false }, "tooltip": { "mode": "single" } }
+    },
+
+    { "id": 102, "type": "row", "title": "ACME and controllers", "collapsed": false, "gridPos": { "x": 0, "y": 22, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 10, "type": "timeseries", "title": "ACME requests by status",
+      "description": "Requests to Let's Encrypt (production and staging). 4xx/5xx during an issuance point at rate limits or a failing DNS-01 challenge; the Order and Challenge objects say which.",
+      "gridPos": { "x": 0, "y": 23, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{host}} {{status}}", "expr": "sum by (host, status) (increase(certmanager_http_acme_client_request_count[$__rate_interval]))" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" }, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Controller sync errors",
+      "description": "Reconcile errors per cert-manager controller (certificates, orders, challenges…). A single error at startup or during an issuance is normal; a steady rate isn't.",
+      "gridPos": { "x": 8, "y": 23, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{controller}}", "expr": "sum by (controller) (increase(certmanager_controller_sync_error_count[$__rate_interval]))" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" }, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Controller syncs",
+      "description": "Reconciles per controller: cert-manager's workload.",
+      "gridPos": { "x": 16, "y": 23, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{controller}}", "expr": "sum by (controller) (rate(certmanager_controller_sync_call_count[$__rate_interval]))" } ],
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    }
+  ]
+}

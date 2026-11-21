@@ -1,0 +1,214 @@
+{
+  "title": "authentik",
+  "uid": "authentik",
+  "description": "authentik's server (HTTP, flows, policies, the embedded outpost) and worker (background tasks), and their database queries. From the server and worker metrics endpoints (port 9300).",
+  "tags": ["authentik", "auth"],
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "annotations": { "list": [] },
+  "links": [
+    { "type": "link", "title": "Cluster Health", "url": "/d/cluster-health", "icon": "dashboard", "keepTime": true, "targetBlank": false },
+    { "type": "link", "title": "CloudNativePG", "url": "/d/cloudnative-pg", "icon": "dashboard", "keepTime": true, "targetBlank": false }
+  ],
+  "templating": {
+    "list": [
+      { "name": "datasource", "label": "Data source", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "prometheus" }, "hide": 0, "refresh": 1, "options": [] }
+    ]
+  },
+  "panels": [
+    { "id": 100, "type": "row", "title": "Overview", "collapsed": false, "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 1, "type": "stat", "title": "Server pods ready",
+      "description": "Ready authentik-server pods (HTTP, flows, the embedded outpost). At 0, every login and every forward-auth app fails.",
+      "gridPos": { "x": 0, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "sum(kube_deployment_status_replicas_available{namespace=\"auth\", deployment=\"authentik-server\"}) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Worker pods ready",
+      "description": "Ready authentik-worker pods (background tasks, blueprints, outpost updates). Logins keep working without one, but blueprints and outpost config stop applying.",
+      "gridPos": { "x": 4, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "sum(kube_deployment_status_replicas_available{namespace=\"auth\", deployment=\"authentik-worker\"}) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Outposts disconnected",
+      "description": "Outposts with no connected instance. The embedded outpost runs inside the server and answers the Gateway's forward-auth checks (Prometheus, Alertmanager, Longhorn).",
+      "gridPos": { "x": 8, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(max by (outpost) (authentik_outposts_connected) == 0) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 4, "type": "stat", "title": "HTTP 5xx in range",
+      "description": "Server errors returned by authentik's Django app over the selected time range.",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "round(sum(increase(django_http_responses_total_by_status_total{job=\"authentik-server-metrics\", status=~\"5..\"}[$__range]))) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 5, "type": "stat", "title": "Task errors in range",
+      "description": "Background tasks that raised an error over the selected time range. A few are normal (a task retried after a restart); Worker tasks below says which.",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "round(sum(increase(authentik_tasks_errors_total{job=\"authentik-worker-metrics\"}[$__range]))) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 5 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 6, "type": "stat", "title": "Targets down",
+      "description": "authentik server and worker metrics endpoints Prometheus failed to scrape.",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "count(up{job=~\"authentik-(server|worker)-metrics\"} == 0) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+
+    { "id": 101, "type": "row", "title": "Requests", "collapsed": false, "gridPos": { "x": 0, "y": 5, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 7, "type": "timeseries", "title": "Responses by status",
+      "description": "HTTP responses from authentik's Django app. Most of the steady traffic is the embedded outpost polling the API.",
+      "gridPos": { "x": 0, "y": 6, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{status}}", "expr": "sum by (status) (rate(django_http_responses_total_by_status_total{job=\"authentik-server-metrics\"}[$__rate_interval]))" } ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10, "showPoints": "never", "lineWidth": 1, "stacking": { "mode": "normal" } } },
+        "overrides": [
+          { "matcher": { "id": "byRegexp", "options": "5.." }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+          { "matcher": { "id": "byRegexp", "options": "4.." }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } } ] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Request latency p95 by destination",
+      "description": "The server's router: `core` is the Django app (UI, API, flows), `embedded_outpost` the forward-auth checks and proxy, `static` assets.",
+      "gridPos": { "x": 8, "y": 6, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{dest}}", "expr": "max by (dest) (authentik_main_request_duration_seconds{job=\"authentik-server-metrics\", quantile=\"0.95\"})" } ],
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Slowest views p95",
+      "description": "The ten Django views with the highest 95th-percentile latency.",
+      "gridPos": { "x": 16, "y": 6, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{view}}", "expr": "topk(10, histogram_quantile(0.95, sum by (view, le) (rate(django_http_requests_latency_seconds_by_view_method_bucket{job=\"authentik-server-metrics\"}[$__rate_interval]))))" } ],
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    { "id": 102, "type": "row", "title": "Flows and policies", "collapsed": false, "gridPos": { "x": 0, "y": 14, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 10, "type": "timeseries", "title": "Flow executions",
+      "description": "Flow plans per flow: roughly, logins (passkey-login, default-authentication-flow) and app authorizations.",
+      "gridPos": { "x": 0, "y": 15, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{flow_slug}}", "expr": "sum by (flow_slug) (increase(authentik_flows_plan_time_count{job=\"authentik-server-metrics\"}[$__rate_interval]))" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" }, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 11, "type": "timeseries", "title": "Stage execution p95",
+      "description": "Time spent in each flow stage (identification, passkey validation, consent…).",
+      "gridPos": { "x": 8, "y": 15, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{stage}}", "expr": "label_replace(histogram_quantile(0.95, sum by (stage_type, le) (rate(authentik_flows_execution_stage_time_bucket{job=\"authentik-server-metrics\"}[$__rate_interval]))), \"stage\", \"$1\", \"stage_type\", \".*\\\\.([^.]+)\")" } ],
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "always", "lineWidth": 1, "spanNulls": false } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Policy engine p95",
+      "description": "Time to evaluate the policies bound to an object (an application's access policy, a flow's).",
+      "gridPos": { "x": 16, "y": 15, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{type}}", "expr": "label_replace(histogram_quantile(0.95, sum by (obj_type, le) (rate(authentik_policies_engine_time_total_seconds_bucket[$__rate_interval]))), \"type\", \"$1\", \"obj_type\", \".*\\\\.([^.]+)\")" } ],
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "always", "lineWidth": 1, "spanNulls": false } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    { "id": 103, "type": "row", "title": "Worker tasks", "collapsed": false, "gridPos": { "x": 0, "y": 23, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 13, "type": "timeseries", "title": "Tasks run",
+      "description": "Background tasks run by the worker, per task.",
+      "gridPos": { "x": 0, "y": 24, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{task}}", "expr": "label_replace(sum by (actor_name) (increase(authentik_tasks_total{job=\"authentik-worker-metrics\"}[$__rate_interval])) > 0, \"task\", \"$1\", \"actor_name\", \"authentik\\\\.(.*)\")" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" }, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 14, "type": "timeseries", "title": "Task errors and retries",
+      "description": "Tasks that raised an error (solid) and were retried (dashed). The task's own log in Admin → System → Tasks has the traceback.",
+      "gridPos": { "x": 8, "y": 24, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "error {{task}}", "expr": "label_replace(sum by (actor_name) (increase(authentik_tasks_errors_total{job=\"authentik-worker-metrics\"}[$__rate_interval])) > 0, \"task\", \"$1\", \"actor_name\", \"authentik\\\\.(.*)\")" },
+        { "refId": "B", "legendFormat": "retry {{task}}", "expr": "label_replace(sum by (actor_name) (increase(authentik_tasks_retries_total{job=\"authentik-worker-metrics\"}[$__rate_interval])) > 0, \"task\", \"$1\", \"actor_name\", \"authentik\\\\.(.*)\")" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none", "custom": { "drawStyle": "bars", "fillOpacity": 60, "showPoints": "never", "lineWidth": 1 } },
+        "overrides": [ { "matcher": { "id": "byFrameRefID", "options": "B" }, "properties": [ { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [6, 4] } }, { "id": "custom.fillOpacity", "value": 0 } ] } ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 15, "type": "timeseries", "title": "Task queue",
+      "description": "Tasks waiting (queued) and running (in progress). A queue that only grows means the worker is stuck or down.",
+      "gridPos": { "x": 16, "y": 24, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "queued", "expr": "sum(max by (actor_name, queue_name) (authentik_tasks_queued))" },
+        { "refId": "B", "legendFormat": "in progress", "expr": "sum(authentik_tasks_in_progress{job=\"authentik-worker-metrics\"})" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "decimals": 0, "custom": { "fillOpacity": 10, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    { "id": 104, "type": "row", "title": "Database", "collapsed": false, "gridPos": { "x": 0, "y": 32, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 16, "type": "timeseries", "title": "Query latency p95",
+      "description": "Postgres query time seen by the server and the worker (authentik-db, CNPG).",
+      "gridPos": { "x": 0, "y": 33, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{component}}", "expr": "label_replace(histogram_quantile(0.95, sum by (job, le) (rate(django_db_query_duration_seconds_bucket{job=~\"authentik-(server|worker)-metrics\"}[$__rate_interval]))), \"component\", \"$1\", \"job\", \"authentik-(.*)-metrics\")" } ],
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 17, "type": "timeseries", "title": "Queries",
+      "description": "Queries per second from the server and the worker.",
+      "gridPos": { "x": 8, "y": 33, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{component}}", "expr": "label_replace(sum by (job) (rate(django_db_query_duration_seconds_count{job=~\"authentik-(server|worker)-metrics\"}[$__rate_interval])), \"component\", \"$1\", \"job\", \"authentik-(.*)-metrics\")" } ],
+      "fieldConfig": { "defaults": { "unit": "ops", "min": 0, "custom": { "fillOpacity": 0, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 18, "type": "timeseries", "title": "Database errors",
+      "description": "Failed connections (the database down, restarting or failing over) and query errors by type (deadlocks…).",
+      "gridPos": { "x": 16, "y": 33, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [
+        { "refId": "A", "legendFormat": "connection errors {{component}}", "expr": "label_replace(sum by (job) (increase(django_db_new_connection_errors_total{job=~\"authentik-(server|worker)-metrics\"}[$__rate_interval])), \"component\", \"$1\", \"job\", \"authentik-(.*)-metrics\")" },
+        { "refId": "B", "legendFormat": "{{type}} {{component}}", "expr": "label_replace(sum by (job, type) (increase(django_db_errors_total{job=~\"authentik-(server|worker)-metrics\"}[$__rate_interval])), \"component\", \"$1\", \"job\", \"authentik-(.*)-metrics\")" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" }, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    }
+  ]
+}

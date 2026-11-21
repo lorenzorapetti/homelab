@@ -55,3 +55,22 @@ dig +short <app>.lorenzolab.com @10.0.1.30                # → 10.0.12.1
 ```
 
 `failed to fetch records via AXFR … connection refused` means Technitium isn't taking TCP on port 53 again (see above). `NOTAUTH` or `REFUSED` points at the TSIG key or the zone's ACLs.
+
+## Alerts
+
+Prometheus scrapes ExternalDNS on port `http` (7979) every 30s, through the chart's ServiceMonitor (`serviceMonitor.enabled`; Prometheus `job` `external-dns`). The rules are in `app/prometheusrule.yaml`:
+
+| Alert | Fires when | For | Severity |
+| --- | --- | --- | --- |
+| `ExternalDNSSyncErrors` | registry, source or apply errors in the last 10 minutes | 10m | warning |
+| `ExternalDNSSyncStale` | no successful sync for 15 minutes | 5m | warning |
+
+What the errors mean, for this setup:
+
+- **Registry errors** (`external_dns_registry_errors_total`): listing the zone failed, which for `rfc2136` is the AXFR from Home DNS. Usually Technitium is down, isn't taking TCP on 53, or refuses the transfer (ACL or TSIG).
+- **Source errors** (`external_dns_source_errors_total`): reading HTTPRoutes from the API server failed.
+- **Apply errors** (`external_dns_controller_consecutive_soft_errors`): a dynamic update was refused, typically by the zone's update security policy (a record type or name it doesn't allow).
+
+The rules are written per pod, not for this instance by name, so a second ExternalDNS (for example one writing to Public DNS, if [ADR 0001](https://github.com/lorenzorapetti/homelab/blob/main/docs/adr/0001-app-names-only-in-home-dns.md) ever changes) is covered as soon as its chart's ServiceMonitor is on.
+
+When one fires, the logs say which: `kubectl -n network logs deploy/external-dns --tail=50`, then the checks above. **Cluster Health**'s **Certificates and ExternalDNS** row shows the errors over the selected range and the time since the last successful sync.

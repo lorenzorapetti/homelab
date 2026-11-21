@@ -9,6 +9,9 @@ spec:
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
+  dependsOn:
+    - name: prometheus-operator-crds  # for the chart's ServiceMonitor and the PrometheusRule
+      namespace: observability
   interval: 1h
   path: ./kubernetes/apps/cert-manager/cert-manager/app
   patches: []                       # required by the FluxInstance's injected patch

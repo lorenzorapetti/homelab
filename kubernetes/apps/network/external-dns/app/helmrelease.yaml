@@ -27,6 +27,11 @@ spec:
     domainFilters:
       - ${SECRET_DOMAIN}
     triggerLoopOnEvent: true
+    # Sync, registry and source metrics on port `http` (7979). Rules:
+    # ./prometheusrule.yaml. Docs: docs/docs/kubernetes/dns-externaldns.md#alerts
+    serviceMonitor:
+      enabled: true
+      interval: 30s
     extraArgs:
       - --rfc2136-host=10.0.1.30
       - --rfc2136-port=53

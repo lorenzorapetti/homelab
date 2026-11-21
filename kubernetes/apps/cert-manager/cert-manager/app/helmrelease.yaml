@@ -18,3 +18,13 @@ spec:
     extraArgs:
       - --dns01-recursive-nameservers-only
       - --dns01-recursive-nameservers=1.1.1.1:53,1.0.0.1:53
+    # The controller's metrics (certificate expiry, renewal time, readiness,
+    # ACME requests). honorLabels keeps each Certificate's own `namespace`
+    # instead of renaming it exported_namespace, so its alerts group with the
+    # app's. Rules and dashboard: ./prometheusrule.yaml, ./dashboards/.
+    prometheus:
+      enabled: true
+      servicemonitor:
+        enabled: true
+        interval: 60s
+        honorLabels: true
