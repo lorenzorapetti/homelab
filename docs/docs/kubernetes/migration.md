@@ -143,5 +143,5 @@ rules:
 9. **Pod Security.** Keep Talos's `baseline` default and label privileged namespaces, or delete the admission config like cluster-template?
 10. **OCI charts.** Which of authentik, gitea, pgadmin4, netbox, kube-prometheus-stack, portainer and mattermost-operator publish OCI charts? (Longhorn doesn't, checked 2026-11-19.)
 11. **Flux webhook receiver.** Add a GitHub → Flux `Receiver` through the Gateway (and revisit `networkPolicy`) instead of polling every minute?
-12. **Flux alerts.** Flux 2.10 notification `Alert`/`Provider` are `v1` now. Where should alerts go?
+12. ~~**Flux alerts.** Flux 2.10 notification `Alert`/`Provider` are `v1` now. Where should alerts go?~~ **Settled 2026-11-21: to Alertmanager, and on to Pushover**, like every other alert ([Alerting](/kubernetes/observability/alerting)). Still to wire up: a notification-controller `Provider` of type `alertmanager`, or `PrometheusRule`s on Flux's metrics.
 13. ~~**ExternalDNS.**~~ **Settled 2026-11-19: ExternalDNS, to Home DNS only** (step 7, [as built](/kubernetes/dns-externaldns)). A wildcard couldn't give a non-Gateway service its own address. Cloudflare gets no app records; tailnet devices reach Technitium through split DNS ([ADR 0001](https://github.com/lorenzorapetti/homelab/blob/main/docs/adr/0001-app-names-only-in-home-dns.md)).

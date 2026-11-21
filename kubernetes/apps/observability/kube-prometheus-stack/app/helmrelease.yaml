@@ -109,8 +109,54 @@ spec:
             memory: 1536Mi
 
     # --- Alertmanager --------------------------------------------------------
-    # No receivers yet: the chart's default config sends everything to `null`.
+    # critical and warning alerts (and their resolution) go to Pushover. The
+    # always-firing Watchdog pings healthchecks.io, the dead man's switch that
+    # notices when Prometheus, Alertmanager or the cluster is gone (ADR 0005).
+    # info alerts and InfoInhibitor go nowhere. The chart's inhibit_rules and
+    # templates are kept: Helm merges this map into the chart's default config.
+    # Docs: docs/docs/kubernetes/observability/alerting.md
     alertmanager:
+      config:
+        route:
+          # Anything without a known severity still reaches Pushover.
+          receiver: pushover-warning
+          group_by: [alertname, namespace]
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 12h
+          routes:
+            # Re-sent every minute while it fires; healthchecks.io alerts
+            # (through its own Pushover integration) when the pings stop.
+            - receiver: healthchecks
+              matchers: ['alertname = "Watchdog"']
+              group_wait: 0s
+              group_interval: 1m
+              repeat_interval: 50s
+            # InfoInhibitor is severity "none".
+            - receiver: "null"
+              matchers: ['severity =~ "info|none"']
+            - receiver: pushover-critical
+              matchers: ['severity = "critical"']
+        receivers:
+          - name: "null"
+          - name: healthchecks
+            webhook_configs:
+              - url_file: &hcUrl /etc/alertmanager/secrets/alertmanager-notifications/healthchecks-url
+                send_resolved: false
+          # Pushover priorities: 1 high (bypasses quiet hours), 0 normal,
+          # -1 quiet (no sound or vibration).
+          - name: pushover-critical
+            pushover_configs:
+              - user_key_file: &pushoverUser /etc/alertmanager/secrets/alertmanager-notifications/pushover-user-key
+                token_file: &pushoverToken /etc/alertmanager/secrets/alertmanager-notifications/pushover-token
+                priority: '{{ if eq .Status "firing" }}1{{ else }}0{{ end }}'
+                send_resolved: true
+          - name: pushover-warning
+            pushover_configs:
+              - user_key_file: *pushoverUser
+                token_file: *pushoverToken
+                priority: '{{ if eq .Status "firing" }}0{{ else }}-1{{ end }}'
+                send_resolved: true
       route:
         main:
           enabled: true
@@ -120,6 +166,8 @@ spec:
           additionalRules: *outpostRules
       alertmanagerSpec:
         externalUrl: https://alertmanager.${SECRET_DOMAIN}
+        # Mounted at /etc/alertmanager/secrets/<name>/<key>, read through *_file.
+        secrets: [alertmanager-notifications]
         storage:
           volumeClaimTemplate:
             spec:

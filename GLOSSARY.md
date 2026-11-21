@@ -34,3 +34,9 @@ _Avoid_: local DNS
 **Split DNS**:
 The tailnet setting that sends `lorenzolab.com` queries from tailnet devices to Home DNS, so they get the same answers as the LAN.
 _Avoid_: split horizon (the old scheme, where Public DNS gave tailnet clients a different answer)
+
+### Observability
+
+**Dead man's switch**:
+The healthchecks.io check that Alertmanager pings with the always-firing `Watchdog` alert. It notifies me when the pings stop, i.e. when the alerting chain itself is down.
+_Avoid_: heartbeat, watchdog (that's the alert, not the check)

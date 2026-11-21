@@ -5,7 +5,7 @@ sidebar_label: Overview
 
 # Observability
 
-Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack), in the `observability` namespace (step 8 of the [migration](/kubernetes/migration)). It gives node and pod health out of the box. [Control-plane metrics](/kubernetes/observability/control-plane-metrics) adds etcd, the scheduler and the controller-manager. Later pages will add app metrics, logs and alert routing.
+Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack), in the `observability` namespace (step 8 of the [migration](/kubernetes/migration)). It gives node and pod health out of the box. [Control-plane metrics](/kubernetes/observability/control-plane-metrics) adds etcd, the scheduler and the controller-manager. [Alerting](/kubernetes/observability/alerting) sends alerts to Pushover. Later pages will add app metrics and logs.
 
 ## What runs where
 
@@ -31,7 +31,7 @@ The chart installs:
 | --- | --- | --- | --- |
 | Prometheus Operator (`v0.95.2`) | Deployment | — | Turns `Prometheus`, `Alertmanager`, `ServiceMonitor`, `PodMonitor`, `PrometheusRule`… into running config |
 | Prometheus | StatefulSet (1 replica) | 20Gi Longhorn PVC | 14 days or 15 GB of data, whichever comes first |
-| Alertmanager | StatefulSet (1 replica) | 1Gi Longhorn PVC | No receivers yet: everything goes to the `null` receiver |
+| Alertmanager | StatefulSet (1 replica) | 1Gi Longhorn PVC | `critical` and `warning` alerts to Pushover, `Watchdog` to healthchecks.io ([Alerting](/kubernetes/observability/alerting)) |
 | Grafana (chart `14.5.0`, Grafana 13.3) | Deployment | none: state is in Postgres | Plus the dashboard and datasource sidecars |
 | kube-state-metrics | Deployment | — | Object state: pod start time, readiness, restarts… |
 | node-exporter | DaemonSet | — | Host metrics on every node. Needs `hostNetwork`/`hostPID`, so the namespace is labelled `pod-security.kubernetes.io/enforce: privileged` (Talos applies `baseline` everywhere else, as for `longhorn-system`) |

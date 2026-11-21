@@ -1,0 +1,47 @@
+# Read by Alertmanager from /etc/alertmanager/secrets/alertmanager-notifications/<key>
+# (alertmanagerSpec.secrets). Docs: docs/docs/kubernetes/observability/alerting.md
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-notifications
+stringData:
+  pushover-user-key: ENC[AES256_GCM,data:RLeOEecrlF6Hl2mEnY0gEoZpB2xNxoVrusIR2pjp,iv:8j74/rALkEm00eCsTG13M9fe7bG6bkJtj9NBEVQoHnk=,tag:s/anux/EbDlngK6wrbo1CQ==,type:str]
+  pushover-token: ENC[AES256_GCM,data:msPbXhFu9BzvMmljZdYqEcI6Qr0tbBU48WuLCziD,iv:XTFLAMgXqwdmf6Ap4LxNhk0K55/p+AVs8ulflcAzi4k=,tag:mubpqOcnbMk7vSFT8IVmlA==,type:str]
+  healthchecks-url: ENC[AES256_GCM,data:OpNfPdxXccRt8JAHlqFGHG1mHw1CSJo/VJRF3Cf+Mmcw5zMK0b2S37X12SrmDxdPCXzZ/dD0txg=,iv:744C9oQHaxh586RjugAfQ8RubRrMRuA6kZLydoDjW94=,tag:fZtlzdK4kOQNDadXkdPJAA==,type:str]
+sops:
+  age:
+    - enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBmcFRMbVZGS1VSMmNocDlj
+        aFRhK3VMZU9OWkVIZzBodksrWW1SQTVON3ljClFKcW1sRXlYV0xlMHVjZk5tSThi
+        ajZkY2lRQnc2d3h1cDIzaUtSc0lPbnMKLS0tIExHM1FtdHZZQ3F1MUZKRFRaY3N1
+        ekFZZzJ2Zy94U0h1R1E5RkEzWjV4aDgKaOFsciGe2ryuprqe5gzYFFI9VnpBRXPN
+        I8UckCPS447a0xJgq0IPb4euK8hf/fR1w6R1qbpR+BSU7T/60Y60+g==
+        -----END AGE ENCRYPTED FILE-----
+      recipient: age1gt9a67gwv8jt30g4ul0rglfq38h0lreul89640jddz9xl0y9qpjs4tcggj
+  encrypted_regex: ^(data|stringData)$
+  lastmodified: "2026-11-21T13:16:11Z"
+  mac: ENC[AES256_GCM,data:8I9cMlu5eYgZZpD16ELmqV0mILG3KAeid6bbnBaPosopYqaqeA1rNyRmfRZgrrVLQLgY1Z5QhxSN8Op+/kz23ggnyVr4bNn5/YXqNilrI62qEy5GbTYBpF6qLtAUNC5NmzdIm/GpdeL1PHM9vWO0pyUFqbWCJFeJqBwr3/5UzhI=,iv:aPLz/4SSMMSo0TtZJAlpTKlqROKyekT2SLr8dvJ82fw=,tag:r8SHBBvJp0GFKKeD9YVSKQ==,type:str]
+  mac_only_encrypted: true
+  pgp:
+    - created_at: "2026-11-21T13:09:18Z"
+      enc: |-
+        -----BEGIN PGP MESSAGE-----
+
+        hQIMAwAAAAAAAAAAAQ//dNP+6sss5X//GU2j+BYM0j4QybM0eS6aFYMJr3Gtb40Q
+        pHZ+gbni66Skat/SBwStGLzUaVEr/7Hw2GsrSErLt7E+o14w9ClJb9AqMKFN7MS8
+        zjr9HiOYqgDHTUTCNi4M2ODViwJbTRHDI2Z7kYHESqCx+M+DmRJE3YYxvPKWOrGu
+        giAzPB0e1zGkxOlvcKEef6HKxU/o6Ml7J4FR7SlKGOeRWU7gSDupej/KtP+Ofma2
+        oqSWnIQmt0Y5U3Tx5mietdoGzGqaClrJ+5ojabFcJ180W9to8kanj+yD/lApRUfz
+        /FMUNWnLcgRbmZ6Ng+OfAu/nd0bjEdmnj43fiBx9Aq6BFfCHDvdI2Ltn16JS2am7
+        Tt31S7hvIWZ+laaNZmINvQUKo/6gb/ODNlEqrc1yAwuKQzmnaq34cmbipPy5W4yw
+        10Medt6tcyxbPYWseTkmOZ2OITmXFJy9HzZDzt+83WCNiXkRTSEXYjoxziyCPWby
+        cQtL/ggkzRgAermCVn+qSI/NB8cliq3l0PW6MCAQUMfT3PNjkfajshdiOrbkDpQZ
+        QLsIZJuDTvMIryacOsTkfQ/VImBQ4zlHAImrHHpiFMSfBOtnbDNAI006TRUArg5i
+        zjDqFn6OUEsdLzfY0df02PTB3iTT2UdA9ACdrMw8rzGj1kI70jGTaNGUiKVozIfS
+        XgHdQgKo9/irl2xFkKP+yUK4ZsOcrnzYYT7QKah51OD07o0X9M+Nmb1OLj4dK/s/
+        Wp4ZKXDiH+Tc56gtd6gf+FxXzMNfLv7ans32iTL63nl52HhbhYCblDsvoCPR3OM=
+        =IVOT
+        -----END PGP MESSAGE-----
+      fp: CFACE1C58F406FD74713AB0BF1F680022C252805
+  version: 3.13.3
