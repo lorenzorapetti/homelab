@@ -48,7 +48,7 @@ The chart's own dashboards, in Grafana's **Network** folder (`dashboards.enabled
 | **Cilium Metrics** (`/d/vtuWtdumz`) | One agent at a time: API and BPF latency, drops and forwards, endpoints, controllers, conntrack, Kubernetes events |
 | **Cilium Operator** (`/d/1GC0TT4Wz`) | The operator's CPU, memory and IPAM |
 | **Hubble / Network Overview (Namespace)** (`/d/nlsO8tYVz`) | Flows, drops (with their reason) and TCP flags between namespaces and workloads: start here when something can't connect |
-| **Hubble / DNS Overview (Namespace)** (`/d/_f0DUpY4k`) | DNS queries, missing answers and error codes, by workload |
+| **Hubble / DNS Overview (Namespace)** (`/d/_f0DUpY4k`) | DNS queries, missing answers and error codes, by workload. **Empty for now**: Hubble only sees DNS through Cilium's DNS proxy, which a network policy with DNS rules turns on, and there are none yet |
 | **Hubble L7 HTTP Metrics by Workload** (`/d/3g264CZVz`) | Requests, errors and latency of the Gateway's HTTP traffic per backend workload |
 | **Hubble Metrics and Monitoring** (`/d/5HftnJAWz`) | The older all-in-one Hubble dashboard, per agent; its port-distribution panel stays empty |
 
