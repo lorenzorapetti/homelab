@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+# Nightly restic backup of one PVC to s3://<bucket>/${APP}/volsync on R2.
+# Include it from an app's kustomization.yaml, and in its ks.yaml set:
+#   postBuild.substitute:  APP (the PVC's name), and optionally VOLSYNC_PUID,
+#                          VOLSYNC_PGID (the app's uid/gid, default 1000) and
+#                          VOLSYNC_SCHEDULE (cron, default 03:30 UTC)
+#   postBuild.substituteFrom: cluster-secrets, r2-backup and volsync-restic
+# The namespace needs the r2-backup component, which brings both Secrets.
+# Docs: docs/docs/kubernetes/backups-volsync.md
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+  - ./secret.yaml
+  - ./replicationsource.yaml

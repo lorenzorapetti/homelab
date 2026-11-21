@@ -50,6 +50,8 @@ What Prometheus scrapes:
 | ExternalDNS (chart `ServiceMonitor`) | On, see [DNS: ExternalDNS → Alerts](/kubernetes/dns-externaldns#alerts) |
 | authentik: server and worker (chart `ServiceMonitor`s) | On, see [authentik](/kubernetes/observability/authentik) |
 | Loki and Alloy (chart `ServiceMonitor`s) | On, see [Logs](/kubernetes/observability/logs#monitoring-loki-and-alloy) |
+| VolSync (chart `ServiceMonitor`) | On, see [Backups: volumes → Alerts](/kubernetes/backups-volsync#alerts) |
+| Forgejo (`ServiceMonitor` with a bearer token) | On, see [Forgejo → Monitoring](/kubernetes/forgejo#monitoring) |
 | kube-proxy | **Off for good.** Cilium replaces kube-proxy, so there is nothing to scrape |
 | kube-controller-manager, kube-scheduler, etcd | On, on the three node IPs. Needs the Talos patch `talos/control-plane/10-metrics.yaml`, see [Control-plane metrics](/kubernetes/observability/control-plane-metrics) |
 

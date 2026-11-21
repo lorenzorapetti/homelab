@@ -1,0 +1,43 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+# Every ReplicationSource, from the operator's volsync_* metrics (job
+# "volsync-metrics"). Lives with the operator so a new app's backup is covered
+# without adding anything.
+# Docs: docs/docs/kubernetes/backups-volsync.md#alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: volsync
+  annotations:
+    # $labels and $value are Prometheus templating, not Flux variables.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+spec:
+  groups:
+    - name: volsync
+      rules:
+        # VolSync sets this to 1 when a scheduled sync didn't start or finish
+        # in time, and back to 0 after the next successful one.
+        - alert: VolSyncVolumeOutOfSync
+          expr: |
+            max by (obj_namespace, obj_name) (volsync_volume_out_of_sync{role="source"}) == 1
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "VolSync backup {{ $labels.obj_namespace }}/{{ $labels.obj_name }} is out of sync"
+            description: >-
+              ReplicationSource {{ $labels.obj_namespace }}/{{ $labels.obj_name }} missed its
+              last scheduled backup to R2. Check
+              `kubectl -n {{ $labels.obj_namespace }} describe replicationsource {{ $labels.obj_name }}`
+              and the logs of its volsync-src-* mover pod.
+        - alert: VolSyncDown
+          expr: |
+            absent(up{job="volsync-metrics"} == 1)
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "The VolSync operator is not being scraped"
+            description: >-
+              No VolSync metrics for 15 minutes, so VolSyncVolumeOutOfSync can't fire.
+              Check the volsync Deployment in volsync-system.

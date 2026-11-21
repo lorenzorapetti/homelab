@@ -5,7 +5,7 @@ sidebar_label: Glance
 
 # Glance
 
-[Glance](https://github.com/glanceapp/glance) is the homelab's start page, at `https://home.<domain>`. For now it is one page, `Home`, in Glance's three-column layout: a calendar on the left, the weather for Rome on the right, and in the middle the links (every app in the cluster, plus the Proxmox hosts `hecate` and `persephone`) above Hacker News and Lobsters as tabs. The weather, Hacker News and Lobsters widgets fetch from the internet (Open-Meteo, the HN API and lobste.rs) from the pod.
+[Glance](https://github.com/glanceapp/glance) is the homelab's start page, at `https://home.<domain>`. For now it is one page, `Home`, in Glance's three-column layout: a calendar on the left, the weather for Rome on the right, and in the middle the links (every app in the cluster, cluster tools and apps such as Forgejo in separate groups, plus the Proxmox hosts `hecate` and `persephone`) above Hacker News and Lobsters as tabs. The weather, Hacker News and Lobsters widgets fetch from the internet (Open-Meteo, the HN API and lobste.rs) from the pod.
 
 ## As built
 

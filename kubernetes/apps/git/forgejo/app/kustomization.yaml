@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+components:
+  - ../../../../components/volsync  # nightly restic backup of PVC forgejo to R2
+resources:
+  - ./ocirepository.yaml
+  - ./helmrelease.yaml
+  - ./pvc.yaml
+  - ./servicemonitor.yaml
+  # Secrets forgejo-admin (username, password: the local break-glass admin),
+  # forgejo-oidc (key, secret: the authentik client) and forgejo-secrets
+  # (FORGEJO__MAILER__{PASSWD,FROM}, FORGEJO__METRICS__TOKEN).
+  - ./secret.sops.yaml

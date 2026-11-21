@@ -34,9 +34,13 @@ spec:
       # Secret values: the SOPS Secret authentik-secrets holds AUTHENTIK_SECRET_KEY
       # and the Resend credentials (AUTHENTIK_EMAIL__USERNAME, __PASSWORD, __FROM),
       # plus GRAFANA_OIDC_CLIENT_SECRET for blueprints/grafana.yaml (`!Env`).
+      # authentik-forgejo-oidc holds FORGEJO_OIDC_CLIENT_SECRET for
+      # blueprints/forgejo.yaml.
       envFrom:
         - secretRef:
             name: authentik-secrets
+        - secretRef:
+            name: authentik-forgejo-oidc
       # CNPG generates the database password, so nobody knows it in advance.
       env:
         - name: AUTHENTIK_POSTGRESQL__PASSWORD

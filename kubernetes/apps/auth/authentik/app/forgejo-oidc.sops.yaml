@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: authentik-forgejo-oidc
+stringData:
+  FORGEJO_OIDC_CLIENT_SECRET: ENC[AES256_GCM,data:tBplelAl2RI2PwVBHAPH37SL3VLqDuP3zkDGUcmYkHoyqgqt7Z+WytGmQCGOysP3zQ3rjdrn7ziyvZKWhMXNpw==,iv:I+4aTRzYgT6jLwYCKCBp7GsQ90dxURS0dhhoj2Lj8nk=,tag:BWv/u0snFbJHkQMKEFQsEg==,type:str]
+sops:
+  age:
+    - enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBROXZ5S0JoaEJHSkpkaXY1
+        RDdXQTNCbm0zSFVEcWhOQlJPbXRXMFRVT1JrCnFLOTBlVnhXZWhFaldDUVd6RDRY
+        czRNMmVNNjVmVkxVUlNpelVxMzkrMlkKLS0tIHQydEpyNW1kY24rK2RMQVF4VTdP
+        RytmMzNOajRwOVN5NGRkYTQ0alN2RXcKf3FzR1dTsyXKuSaK2k1Ux2DpRKNEnMkK
+        7mdU3PYGHFqOsIUuus30ivtyKXmH+F0ZP6xBeSDwPtKjvSUIhQeKeA==
+        -----END AGE ENCRYPTED FILE-----
+      recipient: age1gt9a67gwv8jt30g4ul0rglfq38h0lreul89640jddz9xl0y9qpjs4tcggj
+  encrypted_regex: ^(data|stringData)$
+  lastmodified: "2026-11-21T23:18:36Z"
+  mac: ENC[AES256_GCM,data:mhPPKUl87i47zr111o1T+iD44pBx4kIFNDfgY4+9xja3UPvYVl96yGwId/T83mMJJUH0Lq0HSe+z58smkGJ08luWx84+/dVM2mlW/2ifiIWwHZpvXoOvmeZitdeSKzWev9cisEWuOVd+l26vjoJBwLaHdHJZhRq6s2pqjvJceCo=,iv:yYaw1t9D8nybMhDsrpnPvcgZfYOI8Yr/rfcq3Q3NLb4=,tag:XpQpU4VpJx0AwLauqVc3Vw==,type:str]
+  mac_only_encrypted: true
+  pgp:
+    - created_at: "2026-11-21T23:18:36Z"
+      enc: |-
+        -----BEGIN PGP MESSAGE-----
+
+        hQIMAwAAAAAAAAAAAQ/9GPDLyDQWPmGuVbR+JbT1qGG123khFvGufRD0v9vKzTPH
+        zcA8vBN857ZX1pluhOMeeNBeS+7r21xvx0KOMBOBmh2oFOWllsKZvZqUkJC+Qw0V
+        NJySe46ulc0+GveANycUEvgyrcRtQTPSXR1HC6g/pDdGmP2BMfvn0HScBN4h2wIj
+        YncFNVJPYzt1JGQmMTFUDQQWlFGWBqHs8FOGBjDv32udiUkVYz/gOCGl+GxefSLE
+        oDlcLwR0u/EiIYmaYUt3toO/IgDuo76WLRLD6IbF6i1GdgX2xc5be+mNfrRnomcn
+        JAkUKcpcDp6v7dAPqRCshV/PAG3dkYDhmQR/iyfpva3hfvCqs6ZivmH5cv+qAf6o
+        gRyrE7HmvgVvAC9vY6N5nH7uMCnoj0F90SrLP/5bqsDDWpKi/Tjrzzw47e+Opkma
+        l65iqdKIr162GuprWlcmQyo6fevqEhyfxLcb0rmoJ6l3NjewRjvnhjCE3m1jMJ2A
+        sUJrE5qPBK2+pyqahvLqkn3x/xvTq4XG0MMQw85GXEEV0t12mKCFMDLvlP8Jsvdg
+        qL6RFosEj9F/0jZwVzVdOUKgcDuThLJHHKQMn27CMA0Uusk3BbPeLLKo183SL4Gl
+        4jD3DL+GkM5IUG+Md72I4VnRr04kyhDyp4bmcMp1V/bNEz5SRdO6AFjiuBop4DfS
+        XgF5tu83dFlkhl/4mBYisSxRRgWLPaEm1/gwOkm8gmLfJCiLiAkbkjcHmrTdrChe
+        smEVYECSJP1WzS0eHUNVettgNeKauIevjZfaApx4BUjNiUb9/+ZNAZ6HDbtK5QQ=
+        =mapE
+        -----END PGP MESSAGE-----
+      fp: CFACE1C58F406FD74713AB0BF1F680022C252805
+  version: 3.13.3

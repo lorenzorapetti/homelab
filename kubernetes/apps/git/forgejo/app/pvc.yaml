@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/v1/persistentvolumeclaim.json
+# Forgejo's /data: repositories, LFS objects, attachments, avatars, the issue
+# indexer and the generated app.ini. Ours rather than the chart's, so its name
+# is stable for the volsync component (sourcePVC: ${APP}).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: forgejo
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi

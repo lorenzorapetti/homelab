@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: volsync-restic
+stringData:
+  VOLSYNC_RESTIC_PASSWORD: ENC[AES256_GCM,data:nR0LE5vPWWt+8csbaNeOWt2yVKN/IPaf8DFnBSbhpzV+900SPZzgUkjv9xAN9Vt8PdPzTDezmDn7NkhzWAtaOg==,iv:auFdDTbCRzFdLSJBUJ9oAcR/1r4k3gLLaEujEti7fp4=,tag:JArOk3JxvILoXCZDNcRitg==,type:str]
+sops:
+  age:
+    - enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSA1Y2FUYUxqTTFWR0MrQnVW
+        MzViYSt6cTNZbUp0amJhd1BiU3BIcGVlOG1ZCkhyVEp5ZzIva2pwRTBJYStlVjZ2
+        YTl4SWV0YTlzODlzc0RoQi9RcGg0N2cKLS0tIEppUEJDaXJhNGJNSDFjQWdzUHNI
+        Z29zK1JCdkFtZHFVVzBOTlpmc29DdEkKmVQHVL2e5O3Ke22o4cVb4HENh7xnPr+m
+        UD6FQyE11rzHN7UHJ6BTi48TOcNLBEj6YTeqoeUIiQRcEMlS45ACPQ==
+        -----END AGE ENCRYPTED FILE-----
+      recipient: age1gt9a67gwv8jt30g4ul0rglfq38h0lreul89640jddz9xl0y9qpjs4tcggj
+  encrypted_regex: ^(data|stringData)$
+  lastmodified: "2026-11-21T23:16:59Z"
+  mac: ENC[AES256_GCM,data:1yBZmidMyyXfsmJOjSJmfz/MQDOCYTKN10t73+n1sFtK0sCV+TV+cdmjrwyBu+KfbLwK8QAwsr6tFHU+UQz6eJuXvfv4vaaTHDa7vs7Wge0hwDYsP3gXdYbHhzfVeDyhGCVnRb8mtnC3Y+wJsWsKY8AsRItCBl3rAxtiFDyVurc=,iv:6drsuk2tYmXHexlRO1bOm9ICG/fkPtATLsSGfwMuNqU=,tag:x0rtckLX4X3Xd/+Hta5Bzw==,type:str]
+  mac_only_encrypted: true
+  pgp:
+    - created_at: "2026-11-21T23:16:59Z"
+      enc: |-
+        -----BEGIN PGP MESSAGE-----
+
+        hQIMAwAAAAAAAAAAAQ/9Et7eHBUBgmaEVlWtXTYCxAUDUFsSWCvAt0AHdIrq9qJK
+        vzuo3VCKtMsM9LB/9Hheosf6cwFBMItWZemg21Ybd1AYC/svIOZY/y23Xur6IYJZ
+        ELYLgAlyXRP1Cv2wrPqp0dXpez7n3TZDT+AcBa4Z236JWPIVJdqF0J3H/DYLTBEE
+        NgyyX+9RoYzAGwfoaFVz/FcmETMyJBVnFK6b547WKW1W0gSe1epZDmuuvtwzffUd
+        Bjq9Ak1vu0gGyAivRTf0duqHvYh937muOESacnp+LaJILpb5oi7zeZAXNDLLe8pF
+        F9caGQ+DY+H+GYdS9GwsGzpco2OWmRUBPA8BBOZAwR/gbd82c8+wgTF9NdRLPaCk
+        E4vhuzCIiOg+afXZSAaXrf0xQn5ECuOW0HxUKHnayzX3kiJLBrEy9eWjVgoED9mh
+        NmBMO1aSo2QTww0JhVNEn59Bl61FoVEOR7WggdvuDYfQO0ZpoTAwqFZkLd24y+tP
+        bPPj4ziJjh9n2yRD4CJaf4o2Z4PVXJdJ2Hm526Kx7oj6W+OedGh5j4kbZp1qMAbK
+        iLIO6u4hOrPKS/x4mgZUJJ4rgSHcUCgxeA9ZLbZRtYDfFLQDZyzLUGfVrwKZyxQy
+        NyG2BuyajCvsBng0KLAAIW7kg1FrpOkm9ZnoY16luZZhIYkrYE2RSByU6UySTl7S
+        XAGJcvArDYJMgVJtwfQNXUFFXNsicS5qd3jjud6x357TElkmneAwwtoGR0ik+L/T
+        MQSF2EB9O/mPdxkDJQR3KzYeQccQ0nu/gP5kknWqkFZ/iPGG+zWRDct37o1a
+        =wjx0
+        -----END PGP MESSAGE-----
+      fp: CFACE1C58F406FD74713AB0BF1F680022C252805
+  version: 3.13.3

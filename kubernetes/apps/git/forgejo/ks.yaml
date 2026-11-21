@@ -1,0 +1,91 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+# Forgejo's Postgres: a one-instance CNPG Cluster on Longhorn, archived to R2.
+# Separate from the app so Forgejo only starts once the database is Ready.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app forgejo-db
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: longhorn
+      namespace: longhorn-system
+    - name: plugin-barman-cloud
+      namespace: cnpg-system
+    - name: prometheus-operator-crds  # for its PodMonitor
+      namespace: observability
+  interval: 1h
+  path: ./kubernetes/apps/git/forgejo/db
+  patches: []                       # required by the FluxInstance's injected patch
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: git
+  timeout: 10m
+  # A CNPG Cluster reports a Ready condition once the primary accepts connections.
+  healthChecks:
+    - apiVersion: postgresql.cnpg.io/v1
+      kind: Cluster
+      name: forgejo-db
+      namespace: git
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+# Forgejo at git.<domain>: HTTPS and SSH on the Shared Gateway, login through
+# authentik (OIDC), repos on the `forgejo` PVC, backed up nightly by VolSync.
+# Docs: docs/docs/kubernetes/forgejo.md
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app forgejo
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: forgejo-db
+    - name: gateway
+      namespace: kube-system
+    - name: authentik               # OIDC login
+      namespace: auth
+    - name: volsync                 # the ReplicationSource CRD
+      namespace: volsync-system
+    - name: prometheus-operator-crds  # for its ServiceMonitor
+      namespace: observability
+  interval: 1h
+  path: ./kubernetes/apps/git/forgejo/app
+  patches: []                       # required by the FluxInstance's injected patch
+  postBuild:
+    # For the volsync component: APP is the PVC to back up, the rest fill in
+    # its restic Secret.
+    substitute:
+      APP: *app
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+      - name: r2-backup
+        kind: Secret
+      - name: volsync-restic
+        kind: Secret
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: git
+  timeout: 15m
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: forgejo
+      namespace: git

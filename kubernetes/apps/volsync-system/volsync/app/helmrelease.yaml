@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# CRD install/upgrade policies come from the FluxInstance's injected HelmRelease defaults.
+# Docs: docs/docs/kubernetes/backups-volsync.md
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: volsync
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: volsync
+      version: 0.17.0               # latest on 2026-11-22; chart version = VolSync version
+      sourceRef:
+        kind: HelmRepository
+        name: backube
+  values:
+    manageCRDs: true
+    # The chart always creates a ServiceMonitor (https on 8443, no bearer
+    # token). Without this the endpoint wants a token Prometheus doesn't send,
+    # and the target is down with 401.
+    metrics:
+      disableAuth: true
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 256Mi

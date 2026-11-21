@@ -1,0 +1,171 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# CRD install/upgrade policies come from the FluxInstance's injected HelmRelease defaults.
+# Docs: docs/docs/kubernetes/forgejo.md
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: forgejo
+spec:
+  interval: 1h
+  # The first start runs every database migration.
+  timeout: 15m
+  chartRef:
+    kind: OCIRepository
+    name: forgejo
+  values:
+    # The chart defaults to the LTS (15.x); we run the latest stable. The chart
+    # adds -rootless. Its init scripts were checked against 17.0.2's CLI.
+    image:
+      tag: 17.0.2
+    # One replica on a ReadWriteOnce volume: the old pod must let go of it
+    # before the new one starts (the chart's default).
+    strategy:
+      type: Recreate
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+    persistence:
+      enabled: true
+      create: false                 # ./pvc.yaml
+      claimName: forgejo
+    test:
+      enabled: false
+
+    # --- Routes on the Shared Gateway -----------------------------------------
+    # ExternalDNS publishes git.<domain> to Home DNS from the HTTPRoute. The
+    # TCPRoute (forgejo-ssh) attaches to the Gateway's `ssh` listener on port
+    # 22 of the same address, so SSH needs no record of its own.
+    httpRoute:
+      enabled: true
+      parentRefs:
+        - name: main
+          namespace: kube-system
+          sectionName: https
+      hostnames: ["git.${SECRET_DOMAIN}"]
+    tcpRoute:
+      enabled: true
+      parentRefs:
+        - name: main
+          namespace: kube-system
+          sectionName: ssh
+    # The rootless image's sshd listens on 2222 (SSH_LISTEN_PORT); the Service
+    # maps 22 to it.
+    service:
+      ssh:
+        port: 22
+
+    gitea:
+      # Local break-glass admin, for when authentik is down. Everyone else,
+      # admins included, logs in through authentik.
+      admin:
+        existingSecret: forgejo-admin
+        email: forgejo-admin@${SECRET_DOMAIN}
+        passwordMode: initialOnlyNoReset
+      # Metrics on; scraped by ./servicemonitor.yaml with the token below.
+      metrics:
+        enabled: true
+      # Login through authentik (blueprint auth/authentik/app/blueprints/forgejo.yaml).
+      # Applied by the init container with `forgejo admin auth add-oauth` /
+      # `update-oauth`. Only `authentik Admins` may log in (the application's
+      # policy binding), and they become Forgejo admins.
+      oauth:
+        - name: authentik           # in the callback URL: /user/oauth2/authentik/callback
+          provider: openidConnect
+          existingSecret: forgejo-oidc
+          autoDiscoverUrl: https://auth.${SECRET_DOMAIN}/application/o/forgejo/.well-known/openid-configuration
+          scopes: openid,email,profile
+          groupClaimName: groups
+          adminGroup: authentik Admins
+      # Secret settings, written into app.ini by the init container.
+      additionalConfigFromEnvs:
+        # CNPG generates the database password, so nobody knows it in advance.
+        - name: FORGEJO__DATABASE__PASSWD
+          valueFrom:
+            secretKeyRef:
+              name: forgejo-db-app
+              key: password
+        - name: FORGEJO__MAILER__PASSWD
+          valueFrom:
+            secretKeyRef:
+              name: forgejo-secrets
+              key: FORGEJO__MAILER__PASSWD
+        - name: FORGEJO__MAILER__FROM
+          valueFrom:
+            secretKeyRef:
+              name: forgejo-secrets
+              key: FORGEJO__MAILER__FROM
+        - name: FORGEJO__METRICS__TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: forgejo-secrets
+              key: FORGEJO__METRICS__TOKEN
+      # app.ini. Reference: https://forgejo.org/docs/latest/admin/config-cheat-sheet/
+      config:
+        APP_NAME: Forgejo
+        server:
+          DOMAIN: git.${SECRET_DOMAIN}
+          ROOT_URL: https://git.${SECRET_DOMAIN}/
+          SSH_DOMAIN: git.${SECRET_DOMAIN}
+          SSH_PORT: 22              # what clone URLs show
+          SSH_LISTEN_PORT: 2222     # rootless image
+          LANDING_PAGE: login
+        repository:
+          # Git over SSH only. HTTPS is for the web UI (and LFS), so clone URLs
+          # show SSH and the Gateway's 15s route timeout never cuts a clone.
+          DISABLE_HTTP_GIT: true
+          DEFAULT_PRIVATE: private
+          # `git push git@git.<domain>:<user>/<new-repo>.git` creates the repo
+          # (private, DEFAULT_PUSH_CREATE_PRIVATE's default).
+          ENABLE_PUSH_CREATE_USER: true
+        security:
+          # Envoy (the Shared Gateway) connects from the node's ingress IP, which
+          # Cilium takes from the pod CIDR (talos/all/10-network.yaml), so
+          # X-Forwarded-For from there gives the real client IP.
+          REVERSE_PROXY_TRUSTED_PROXIES: 10.244.0.0/16
+        database:
+          DB_TYPE: postgres
+          HOST: forgejo-db-rw:5432  # CNPG's read-write Service for Cluster forgejo-db
+          NAME: forgejo
+          USER: forgejo
+          SSL_MODE: require
+        service:
+          # Accounts are created on first login through authentik only.
+          DISABLE_REGISTRATION: false
+          ALLOW_ONLY_EXTERNAL_REGISTRATION: true
+          REQUIRE_SIGNIN_VIEW: true
+          ENABLE_NOTIFY_MAIL: true
+          DEFAULT_KEEP_EMAIL_PRIVATE: true
+          # No HTTP Basic auth with a password on the API; API tokens still work.
+          ENABLE_BASIC_AUTHENTICATION: false
+        admin:
+          # authentik users can't set a local password (the break-glass admin
+          # is a local user, so it keeps its own).
+          EXTERNAL_USER_DISABLE_FEATURES: manage_password
+        oauth2_client:
+          ENABLE_AUTO_REGISTRATION: true
+          USERNAME: nickname        # authentik's `nickname` claim is the username
+          ACCOUNT_LINKING: login
+        openid:
+          ENABLE_OPENID_SIGNIN: false
+          ENABLE_OPENID_SIGNUP: false
+        # No Redis/Valkey (ADR 0002): cache in memory and the queue on the PVC
+        # (the chart's defaults), sessions in Postgres so a restart doesn't log
+        # everyone out.
+        session:
+          PROVIDER: db
+        mailer:
+          ENABLED: true
+          PROTOCOL: smtp+starttls
+          SMTP_ADDR: smtp.resend.com
+          SMTP_PORT: 587
+          USER: resend
+        cron.update_checker:
+          ENABLED: false            # Renovate bumps the chart
+        cron.git_gc_repos:
+          ENABLED: true             # `git gc` on every repo, every 72h by default
+        time:
+          DEFAULT_UI_LOCATION: Europe/Rome

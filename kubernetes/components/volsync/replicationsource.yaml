@@ -1,0 +1,31 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/volsync.backube/replicationsource_v1alpha1.json
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  name: ${APP}
+spec:
+  sourcePVC: ${APP}
+  trigger:
+    schedule: "${VOLSYNC_SCHEDULE:=30 3 * * *}"
+  restic:
+    # A Longhorn CSI clone of the PVC, taken at the start of each run: the
+    # mover reads a point-in-time copy, and doesn't need to share the app's
+    # node (the volume is ReadWriteOnce). No snapshot-controller needed.
+    copyMethod: Clone
+    repository: ${APP}-volsync
+    pruneIntervalDays: 7
+    retain:
+      daily: 7
+      weekly: 4
+      monthly: 3
+    # restic's cache: kept between runs, so each run doesn't re-read the
+    # repository index from R2.
+    cacheCapacity: 2Gi
+    cacheStorageClassName: longhorn
+    cacheAccessModes: [ReadWriteOnce]
+    storageClassName: longhorn
+    moverSecurityContext:
+      runAsUser: ${VOLSYNC_PUID:=1000}
+      runAsGroup: ${VOLSYNC_PGID:=1000}
+      fsGroup: ${VOLSYNC_PGID:=1000}

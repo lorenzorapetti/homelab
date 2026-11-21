@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/servicemonitor_v1.json
+# Forgejo's /metrics on the http port. Not the chart's ServiceMonitor: that one
+# can't send the bearer token, and without a token /metrics would be readable
+# by anyone through the HTTPRoute.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: forgejo
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: forgejo
+      app.kubernetes.io/instance: forgejo
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 60s                 # counts of repos, users, issues: they move slowly
+      authorization:
+        type: Bearer
+        credentials:
+          name: forgejo-secrets
+          key: FORGEJO__METRICS__TOKEN

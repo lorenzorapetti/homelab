@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=https://goauthentik.io/blueprints/schema.json
+# Forgejo logs in against authentik with native OIDC (an OpenID Connect
+# authentication source in Forgejo, named `authentik`). Only `authentik Admins`
+# may log in, and Forgejo makes them admins from the `groups` claim.
+# Docs: docs/docs/kubernetes/forgejo.md
+#
+# The client secret is FORGEJO_OIDC_CLIENT_SECRET in the SOPS Secret
+# authentik-forgejo-oidc, and the same value is `secret` in Secret forgejo-oidc
+# in `git`. The worker reads its env at start: restart it after changing the
+# secret.
+version: 1
+metadata:
+  name: Forgejo OIDC
+entries:
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-forgejo
+    identifiers:
+      name: Forgejo
+    attrs:
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      client_type: confidential
+      client_id: forgejo
+      client_secret: !Env FORGEJO_OIDC_CLIENT_SECRET
+      # Required: a blueprint-created provider defaults to none (see grafana.yaml).
+      grant_types:
+        - authorization_code
+        - refresh_token
+      redirect_uris:
+        - matching_mode: strict
+          url: https://git.${SECRET_DOMAIN}/user/oauth2/authentik/callback
+          redirect_uri_type: authorization
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      sub_mode: hashed_user_id
+      # `profile` carries `nickname` (Forgejo's username) and `groups` (admin).
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-profile]]
+  - model: authentik_core.application
+    id: app-forgejo
+    identifiers:
+      slug: forgejo                 # in the discovery URL Forgejo reads
+    attrs:
+      name: Forgejo
+      provider: !KeyOf provider-forgejo
+      meta_launch_url: https://git.${SECRET_DOMAIN}
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf app-forgejo
+      order: 0
+    attrs:
+      group: !Find [authentik_core.group, [name, authentik Admins]]

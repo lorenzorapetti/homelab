@@ -1,0 +1,16 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/ocirepository_v1.json
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: forgejo
+spec:
+  interval: 15m
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  ref:
+    # Latest on 2026-11-22. Its default is Forgejo 15 (LTS); the HelmRelease
+    # overrides image.tag to the latest stable.
+    tag: 17.3.3
+  url: oci://code.forgejo.org/forgejo-helm/forgejo

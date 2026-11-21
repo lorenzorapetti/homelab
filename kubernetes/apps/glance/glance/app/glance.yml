@@ -30,6 +30,11 @@ pages:
                   - title: Longhorn
                     url: https://longhorn.${SECRET_DOMAIN}
                     icon: sh:rancher-longhorn
+              - title: Apps
+                links:
+                  - title: Forgejo
+                    url: https://git.${SECRET_DOMAIN}
+                    icon: sh:forgejo
               - title: Proxmox
                 links:
                   - title: hecate
