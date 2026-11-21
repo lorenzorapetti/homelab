@@ -11,3 +11,4 @@ resources:
   - ./prometheus-operator-crds/ks.yaml
   - ./observability-db/ks.yaml
   - ./kube-prometheus-stack/ks.yaml
+  - ./flux-alert-test.yaml
