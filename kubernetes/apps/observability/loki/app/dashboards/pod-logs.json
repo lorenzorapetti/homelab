@@ -1,0 +1,145 @@
+{
+  "title": "Pod Logs",
+  "uid": "pod-logs",
+  "description": "Logs of one namespace, pod and container, from Loki. Cluster Health's pod tables link here with the namespace, pod and time range filled in.",
+  "tags": ["logs", "loki"],
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "",
+  "schemaVersion": 41,
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "links": [
+    { "type": "link", "title": "Cluster Health", "url": "/d/cluster-health", "icon": "dashboard", "keepTime": true, "targetBlank": false },
+    { "type": "link", "title": "Explore", "url": "/explore", "icon": "external link", "keepTime": false, "targetBlank": false }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Data source",
+        "type": "datasource",
+        "query": "loki",
+        "current": { "text": "Loki", "value": "loki" },
+        "hide": 0,
+        "refresh": 1,
+        "regex": "",
+        "options": []
+      },
+      {
+        "name": "namespace",
+        "label": "Namespace",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "${datasource}" },
+        "query": "label_values(namespace)",
+        "definition": "label_values(namespace)",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": false,
+        "multi": false,
+        "hide": 0,
+        "options": [],
+        "current": {}
+      },
+      {
+        "name": "pod",
+        "label": "Pod",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "${datasource}" },
+        "query": "label_values({namespace=\"$namespace\"}, pod)",
+        "definition": "label_values({namespace=\"$namespace\"}, pod)",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "hide": 0,
+        "options": [],
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "container",
+        "label": "Container",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "${datasource}" },
+        "query": "label_values({namespace=\"$namespace\", pod=~\"$pod\"}, container)",
+        "definition": "label_values({namespace=\"$namespace\", pod=~\"$pod\"}, container)",
+        "refresh": 2,
+        "sort": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "hide": 0,
+        "options": [],
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "search",
+        "label": "Line contains (regex)",
+        "type": "textbox",
+        "query": "",
+        "current": { "text": "", "value": "" },
+        "hide": 0,
+        "options": []
+      }
+    ]
+  },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Log lines per container",
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "expr": "sum by (pod, container) (count_over_time({namespace=\"$namespace\", pod=~\"$pod\", container=~\"$container\"} |~ `(?i)$search` [$__auto]))",
+          "legendFormat": "{{pod}}/{{container}}",
+          "queryType": "range"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "bars", "fillOpacity": 80, "stacking": { "mode": "normal", "group": "A" }, "lineWidth": 1, "showPoints": "never" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "right", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 2,
+      "type": "logs",
+      "title": "Logs",
+      "datasource": { "type": "loki", "uid": "${datasource}" },
+      "gridPos": { "h": 24, "w": 24, "x": 0, "y": 7 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "${datasource}" },
+          "expr": "{namespace=\"$namespace\", pod=~\"$pod\", container=~\"$container\"} |~ `(?i)$search`",
+          "queryType": "range",
+          "maxLines": 2000
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": false,
+        "enableLogDetails": true,
+        "enableInfiniteScrolling": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    }
+  ]
+}

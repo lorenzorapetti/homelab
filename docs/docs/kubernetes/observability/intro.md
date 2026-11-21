@@ -5,11 +5,11 @@ sidebar_label: Overview
 
 # Observability
 
-Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack), in the `observability` namespace (step 8 of the [migration](/kubernetes/migration)). It gives node and pod health out of the box. [Control-plane metrics](/kubernetes/observability/control-plane-metrics) adds etcd, the scheduler and the controller-manager. [Alerting](/kubernetes/observability/alerting) sends alerts to Pushover. [Networking and certificates](/kubernetes/observability/networking) covers Cilium, Hubble, the Gateway's Envoy and cert-manager, and [authentik](/kubernetes/observability/authentik) authentik's server and worker. Later pages will add logs.
+Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack), in the `observability` namespace (step 8 of the [migration](/kubernetes/migration)). It gives node and pod health out of the box. [Control-plane metrics](/kubernetes/observability/control-plane-metrics) adds etcd, the scheduler and the controller-manager. [Alerting](/kubernetes/observability/alerting) sends alerts to Pushover. [Networking and certificates](/kubernetes/observability/networking) covers Cilium, Hubble, the Gateway's Envoy and cert-manager, and [authentik](/kubernetes/observability/authentik) authentik's server and worker. [Logs](/kubernetes/observability/logs) covers Loki and Alloy, which keep every pod's logs. Setting all this up for a new app: [Observability for a new app](/kubernetes/observability/new-app).
 
 ## What runs where
 
-Everything is in `kubernetes/apps/observability/`, as three Flux Kustomizations:
+Everything is in `kubernetes/apps/observability/`. Metrics and alerting are three Flux Kustomizations (logs are two more, `loki` and `alloy`, on the [Logs](/kubernetes/observability/logs) page):
 
 | Kustomization | Path | What it deploys | Depends on |
 | --- | --- | --- | --- |
@@ -30,9 +30,9 @@ The chart installs:
 | Component | Kind | Storage | Notes |
 | --- | --- | --- | --- |
 | Prometheus Operator (`v0.95.2`) | Deployment | — | Turns `Prometheus`, `Alertmanager`, `ServiceMonitor`, `PodMonitor`, `PrometheusRule`… into running config |
-| Prometheus | StatefulSet (1 replica) | 20Gi Longhorn PVC | 14 days or 15 GB of data, whichever comes first |
+| Prometheus | StatefulSet (1 replica) | 20Gi Longhorn PVC | 7 days or 15 GB of data, whichever comes first |
 | Alertmanager | StatefulSet (1 replica) | 1Gi Longhorn PVC | `critical` and `warning` alerts to Pushover, `Watchdog` to healthchecks.io ([Alerting](/kubernetes/observability/alerting)) |
-| Grafana (chart `14.5.0`, Grafana 13.3) | Deployment | none: state is in Postgres | Plus the dashboard and datasource sidecars |
+| Grafana (chart `14.5.0`, Grafana 13.3) | Deployment | none: state is in Postgres | Plus the dashboard and datasource sidecars. Data sources: Prometheus, Alertmanager and Loki (`grafana.additionalDataSources`) |
 | kube-state-metrics | Deployment | — | Object state: pod start time, readiness, restarts… |
 | node-exporter | DaemonSet | — | Host metrics on every node. Needs `hostNetwork`/`hostPID`, so the namespace is labelled `pod-security.kubernetes.io/enforce: privileged` (Talos applies `baseline` everywhere else, as for `longhorn-system`) |
 
@@ -49,6 +49,7 @@ What Prometheus scrapes:
 | cert-manager: controller, cainjector, webhook (chart `ServiceMonitor`) | On, see [Networking and certificates](/kubernetes/observability/networking#cert-manager) |
 | ExternalDNS (chart `ServiceMonitor`) | On, see [DNS: ExternalDNS → Alerts](/kubernetes/dns-externaldns#alerts) |
 | authentik: server and worker (chart `ServiceMonitor`s) | On, see [authentik](/kubernetes/observability/authentik) |
+| Loki and Alloy (chart `ServiceMonitor`s) | On, see [Logs](/kubernetes/observability/logs#monitoring-loki-and-alloy) |
 | kube-proxy | **Off for good.** Cilium replaces kube-proxy, so there is nothing to scrape |
 | kube-controller-manager, kube-scheduler, etcd | On, on the three node IPs. Needs the Talos patch `talos/control-plane/10-metrics.yaml`, see [Control-plane metrics](/kubernetes/observability/control-plane-metrics) |
 
@@ -108,58 +109,11 @@ kubectl port-forward -n observability svc/kube-prometheus-stack-prometheus 9090
 
 The chart ships the usual dashboards ("Node Exporter / Nodes", "Kubernetes / Compute Resources / Pod", CoreDNS, etcd, Controller Manager, Scheduler, Prometheus, Alertmanager, Grafana…), in the **Kubernetes** folder.
 
-Every other dashboard comes from Git, through Grafana's dashboard sidecar. The sidecar watches **every namespace** for ConfigMaps labelled `grafana_dashboard: "1"`, and puts each one in the folder named by its `grafana_folder` annotation. Dashboards edited in the UI can't be saved over a provisioned one (`allowUiUpdates: false`): export the JSON and commit it instead.
+Every other dashboard comes from Git, through Grafana's dashboard sidecar. The sidecar watches **every namespace** for ConfigMaps labelled `grafana_dashboard: "1"`, and puts each one in the folder named by its `grafana_folder` annotation. Dashboards edited in the UI can't be saved over a provisioned one (`allowUiUpdates: false`): export the JSON and commit it instead. How to add one: [Observability for a new app → Dashboard](/kubernetes/observability/new-app#dashboard).
 
-### Adding a dashboard for an app
+## Metrics, alerts and logs for a new app
 
-1. Put the dashboard JSON next to the app, e.g. `kubernetes/apps/<ns>/<app>/app/dashboards/<name>.json`. Export it from Grafana with **Export → Export as JSON**, without "Export for sharing externally", so its datasource is the provisioned `prometheus` UID.
-2. Generate a ConfigMap from it in the app's `kustomization.yaml`:
-
-   ```yaml
-   configMapGenerator:
-     - name: <app>-dashboards
-       files:
-         - ./dashboards/<name>.json
-       options:
-         disableNameSuffixHash: true
-         labels:
-           grafana_dashboard: "1"
-         annotations:
-           grafana_folder: <Folder>
-           # Dashboard JSON is full of ${var}; without this Flux's postBuild
-           # substitution blanks them out.
-           kustomize.toolkit.fluxcd.io/substitute: disabled
-   ```
-
-3. Commit and reconcile. The sidecar picks it up within a few seconds, with no Grafana restart.
-
-A chart that ships its own dashboards usually has a value that creates these ConfigMaps (often `grafanaDashboard.enabled` or `dashboards.enabled`); then only the label and annotation need setting.
-
-## Metrics and rules for a new app
-
-Prometheus selects **every** `ServiceMonitor`, `PodMonitor`, `Probe`, `ScrapeConfig` and `PrometheusRule` in the cluster, in any namespace and with any labels (the `*SelectorNilUsesHelmValues: false` values). An app needs no `release:` label.
-
-1. If the app's chart has a `serviceMonitor.enabled` (or `metrics.serviceMonitor.enabled`, `podMonitor.enabled`…) value, turn it on in the chart values. Otherwise add a `ServiceMonitor` next to the app:
-
-   ```yaml
-   ---
-   # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/servicemonitor_v1.json
-   apiVersion: monitoring.coreos.com/v1
-   kind: ServiceMonitor
-   metadata:
-     name: <app>
-   spec:
-     selector:
-       matchLabels:
-         app.kubernetes.io/name: <app>   # the labels on the app's Service
-     endpoints:
-       - port: metrics                   # the Service's port *name*
-         interval: 30s
-   ```
-
-2. The app's `ks.yaml` must `dependsOn` the CRDs (`name: prometheus-operator-crds`, `namespace: observability`), not kube-prometheus-stack ([why](#the-crds-come-first)).
-3. Alerting rules go in a `PrometheusRule` next to the app, in the same way.
-4. Check it on Prometheus's targets page (above): the new job should be `UP`.
+A checklist, with templates for the `ServiceMonitor`, the dashboard ConfigMap and the `PrometheusRule`: [Observability for a new app](/kubernetes/observability/new-app).
 
 ## Databases
 
@@ -201,7 +155,7 @@ kubectl get cluster observability-db -n observability -o json \
 kubectl get backups.postgresql.cnpg.io -n observability
 ```
 
-Prometheus and Alertmanager data are **not** backed up. They live on Longhorn volumes, which survive pod restarts and node moves, but not the loss of the cluster. Losing up to 14 days of metrics is acceptable.
+Prometheus and Alertmanager data are **not** backed up. They live on Longhorn volumes, which survive pod restarts and node moves, but not the loss of the cluster. Losing up to 7 days of metrics is acceptable.
 
 ## Checks
 

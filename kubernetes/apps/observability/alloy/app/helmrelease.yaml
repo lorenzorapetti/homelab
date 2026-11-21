@@ -1,0 +1,143 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# One Alloy pod per node. It finds the pods scheduled on its own node, tails
+# their log files under /var/log/pods (what the kubelet writes, in CRI format),
+# and pushes the lines to Loki with namespace, pod, container, app and node
+# labels.
+# Docs: docs/docs/kubernetes/observability/logs.md
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: alloy
+spec:
+  interval: 1h
+  timeout: 5m
+  chartRef:
+    kind: OCIRepository
+    name: alloy
+  values:
+    # The PodLogs CRD is for Alloy's operator-style log discovery, unused here.
+    crds:
+      create: false
+
+    controller:
+      type: daemonset
+      # Every node, control plane included (all three are).
+      tolerations:
+        - operator: Exists
+      volumes:
+        extra:
+          # Read positions survive a pod restart, so a restart neither re-sends
+          # nor skips lines.
+          - name: alloy-data
+            hostPath:
+              path: /var/lib/alloy
+              type: DirectoryOrCreate
+
+    alloy:
+      enableReporting: false
+      storagePath: /var/lib/alloy
+      mounts:
+        varlog: true                # /var/log, read-only: /var/log/pods
+        extra:
+          - name: alloy-data
+            mountPath: /var/lib/alloy
+      resources:
+        requests:
+          cpu: 20m
+          memory: 96Mi
+        limits:
+          memory: 384Mi
+      configMap:
+        content: |
+          logging {
+            level  = "info"
+            format = "logfmt"
+          }
+
+          // Pods on this node only. The chart sets HOSTNAME to the node name.
+          discovery.kubernetes "pods" {
+            role = "pod"
+            selectors {
+              role  = "pod"
+              field = "spec.nodeName=" + sys.env("HOSTNAME")
+            }
+          }
+
+          discovery.relabel "pods" {
+            targets = discovery.kubernetes.pods.targets
+
+            rule {
+              source_labels = ["__meta_kubernetes_namespace"]
+              target_label  = "namespace"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_pod_name"]
+              target_label  = "pod"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_pod_container_name"]
+              target_label  = "container"
+            }
+            rule {
+              source_labels = ["__meta_kubernetes_pod_node_name"]
+              target_label  = "node"
+            }
+            // app: the first of app.kubernetes.io/name, app and k8s-app that is
+            // set, else the container name.
+            rule {
+              source_labels = ["__meta_kubernetes_pod_container_name"]
+              target_label  = "app"
+            }
+            rule {
+              source_labels = [
+                "__meta_kubernetes_pod_label_app_kubernetes_io_name",
+                "__meta_kubernetes_pod_label_app",
+                "__meta_kubernetes_pod_label_k8s_app",
+              ]
+              separator    = ";"
+              regex        = ";*([^;]+).*"
+              target_label = "app"
+            }
+            // The kubelet writes /var/log/pods/<ns>_<pod>_<uid>/<container>/<restart>.log
+            rule {
+              source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+              separator     = "/"
+              target_label  = "__path__"
+              replacement   = "/var/log/pods/*$1/*.log"
+            }
+          }
+
+          local.file_match "pods" {
+            path_targets = discovery.relabel.pods.output
+          }
+
+          loki.source.file "pods" {
+            targets    = local.file_match.pods.targets
+            forward_to = [loki.process.pods.receiver]
+          }
+
+          // CRI lines are "<time> <stream> <P|F> <message>": keep the message,
+          // use the kubelet's timestamp, join partial (P) lines.
+          loki.process "pods" {
+            stage.cri {}
+            forward_to = [loki.write.loki.receiver]
+          }
+
+          loki.write "loki" {
+            endpoint {
+              url = "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+            }
+          }
+
+    configReloader:
+      resources:
+        requests:
+          cpu: 5m
+          memory: 16Mi
+        limits:
+          memory: 64Mi
+
+    serviceMonitor:
+      enabled: true
+      interval: 30s

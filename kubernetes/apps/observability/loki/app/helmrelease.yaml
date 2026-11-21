@@ -1,0 +1,126 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/helm.toolkit.fluxcd.io/helmrelease_v2.json
+# Loki in single-binary mode: one pod runs every component (distributor,
+# ingester, querier, compactor…) and keeps the WAL, the TSDB index and the
+# chunks on one Longhorn volume. Storage choice: docs/adr/0006-logs-on-longhorn.md
+# Docs: docs/docs/kubernetes/observability/logs.md
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: loki
+spec:
+  interval: 1h
+  timeout: 10m
+  chartRef:
+    kind: OCIRepository
+    name: loki
+  values:
+    deploymentMode: SingleBinary
+
+    loki:
+      # One tenant ("fake"): Alloy and Grafana send no X-Scope-OrgID.
+      auth_enabled: false
+      commonConfig:
+        replication_factor: 1
+      storage:
+        type: filesystem            # chunks and rules under /var/loki, on the PVC
+      schemaConfig:
+        configs:
+          - from: "2026-11-21"
+            store: tsdb
+            object_store: filesystem
+            schema: v13
+            index:
+              prefix: loki_index_
+              period: 24h
+      ingester:
+        chunk_encoding: snappy
+      # Merged into the chart's defaults (reject samples older than 7 days,
+      # volume_enabled for Logs Drilldown…).
+      limits_config:
+        retention_period: 7d        # as Prometheus
+      # The compactor applies retention: it marks chunks older than
+      # retention_period and deletes them 2h later.
+      compactor:
+        retention_enabled: true
+        delete_request_store: filesystem
+      # Log patterns for Grafana's Logs Drilldown.
+      pattern_ingester:
+        enabled: true
+      querier:
+        max_concurrent: 2
+      analytics:
+        reporting_enabled: false
+
+    singleBinary:
+      replicas: 1
+      persistence:
+        enabled: true
+        storageClass: longhorn
+        size: 20Gi
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
+      extraEnv:
+        # Below the limit, so Go collects garbage before the kernel OOM-kills.
+        - name: GOMEMLIMIT
+          value: 900MiB
+
+    # Single binary: no other targets.
+    backend:
+      replicas: 0
+    read:
+      replicas: 0
+    write:
+      replicas: 0
+    ingester:
+      replicas: 0
+    querier:
+      replicas: 0
+    queryFrontend:
+      replicas: 0
+    queryScheduler:
+      replicas: 0
+    distributor:
+      replicas: 0
+    compactor:
+      replicas: 0
+    indexGateway:
+      replicas: 0
+    bloomPlanner:
+      replicas: 0
+    bloomBuilder:
+      replicas: 0
+    bloomGateway:
+      replicas: 0
+
+    # Off: the memcached caches (8 GB and 1 GB by default) are for object
+    # storage, the nginx gateway is for multi-tenant or multi-target setups,
+    # and the canary and the Helm test would only add pods.
+    chunksCache:
+      enabled: false
+    resultsCache:
+      enabled: false
+    gateway:
+      enabled: false
+    lokiCanary:
+      enabled: false
+    test:
+      enabled: false
+    # No ruler: alerts come from Prometheus.
+    ruler:
+      enabled: false
+    sidecar:
+      rules:
+        enabled: false
+
+    monitoring:
+      serviceMonitor:
+        enabled: true
+        interval: 30s
+        # Would create a Grafana Agent MetricsInstance: no such CRD here.
+        metricsInstance:
+          enabled: false

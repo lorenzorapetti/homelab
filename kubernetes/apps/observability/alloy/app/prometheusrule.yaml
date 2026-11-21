@@ -1,0 +1,53 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+# Alloy's log shipping, per pod (one per node), from its own metrics (chart
+# ServiceMonitor, job "alloy"). A missing pod is KubeDaemonSetNotScheduled or
+# KubeDaemonSetRolloutStuck, and a pod Prometheus can't scrape is TargetDown,
+# both from kube-prometheus-stack.
+# Docs: docs/docs/kubernetes/observability/logs.md#alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: alloy
+  annotations:
+    # $labels and $value are Prometheus templating, not Flux variables.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+spec:
+  groups:
+    - name: alloy
+      rules:
+        # Every node runs control-plane static pods that log all the time, so an
+        # Alloy pod that sends nothing for this long has stopped shipping.
+        - alert: AlloyNotShipping
+          expr: |
+            sum by (namespace, pod) (rate(loki_write_sent_entries_total{job="alloy"}[15m])) == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Alloy {{ $labels.pod }} has sent no log lines to Loki for 30 minutes"
+            description: >-
+              Logs from that pod's node aren't reaching Loki. Check the pod's logs for
+              loki.write errors and its UI (port 12345) for unhealthy components.
+        - alert: AlloyDroppingLogs
+          expr: |
+            sum by (namespace, pod, reason) (increase(loki_write_dropped_entries_total{job="alloy"}[10m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Alloy {{ $labels.pod }} is dropping log lines ({{ $labels.reason }})"
+            description: >-
+              {{ $value | humanize }} lines dropped in 10 minutes: Loki refused them (rate
+              limits, too old) or stayed unreachable past the retries. Those lines are lost.
+        - alert: AlloyComponentUnhealthy
+          expr: |
+            sum by (namespace, pod) (alloy_component_controller_running_components{job="alloy", health_type!="healthy"}) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Alloy {{ $labels.pod }} has unhealthy components"
+            description: >-
+              A component of the Alloy pipeline is failing (often discovery: the API server
+              unreachable). Its UI on port 12345 names it.

@@ -91,7 +91,7 @@ spec:
         podMonitorSelectorNilUsesHelmValues: false
         probeSelectorNilUsesHelmValues: false
         scrapeConfigSelectorNilUsesHelmValues: false
-        retention: 14d
+        retention: 7d                 # as Loki's logs
         retentionSize: 15GB           # below the volume, so time-based retention isn't the only guard
         storageSpec:
           volumeClaimTemplate:
@@ -249,6 +249,16 @@ spec:
           secretKeyRef:
             name: grafana-oidc
             key: client-secret
+      # Loki (kubernetes/apps/observability/loki), next to the chart's
+      # Prometheus and Alertmanager data sources. Dashboards refer to it by uid.
+      additionalDataSources:
+        - name: Loki
+          uid: loki
+          type: loki
+          access: proxy
+          url: http://loki.observability.svc.cluster.local:3100
+          jsonData:
+            maxLines: 1000
       # State lives in Postgres; no PVC.
       persistence:
         enabled: false

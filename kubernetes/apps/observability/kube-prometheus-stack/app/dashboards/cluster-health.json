@@ -1,7 +1,7 @@
 {
   "title": "Cluster Health",
   "uid": "cluster-health",
-  "description": "One page to debug the cluster: Talos nodes, control plane, etcd, workloads, storage, Flux, CloudNativePG, Longhorn, Cilium and the Gateway, certificates, ExternalDNS, authentik, CoreDNS and the monitoring stack itself. Every stat in the top rows counts problems, so green means zero.",
+  "description": "One page to debug the cluster: Talos nodes, control plane, etcd, workloads, storage, Flux, CloudNativePG, Longhorn, Cilium and the Gateway, certificates, ExternalDNS, authentik, CoreDNS, the monitoring stack itself and the log pipeline. Pod names in the tables link to their logs. Every stat in the top rows counts problems, so green means zero.",
   "tags": ["kubernetes", "talos", "etcd", "flux", "cnpg", "longhorn", "cilium", "cert-manager", "authentik"],
   "editable": true,
   "graphTooltip": 1,
@@ -19,7 +19,8 @@
     { "type": "link", "title": "Cilium", "url": "/d/vtuWtdumz", "icon": "dashboard", "keepTime": true, "targetBlank": false },
     { "type": "link", "title": "Hubble", "url": "/d/nlsO8tYVz", "icon": "dashboard", "keepTime": true, "targetBlank": false },
     { "type": "link", "title": "cert-manager", "url": "/d/cert-manager", "icon": "dashboard", "keepTime": true, "targetBlank": false },
-    { "type": "link", "title": "authentik", "url": "/d/authentik", "icon": "dashboard", "keepTime": true, "targetBlank": false }
+    { "type": "link", "title": "authentik", "url": "/d/authentik", "icon": "dashboard", "keepTime": true, "targetBlank": false },
+    { "type": "link", "title": "Pod Logs", "url": "/d/pod-logs", "icon": "doc", "keepTime": true, "targetBlank": false }
   ],
   "templating": {
     "list": [
@@ -211,6 +212,9 @@
       "fieldConfig": {
         "defaults": { "noValue": "All pods healthy", "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
         "overrides": [
+          { "matcher": { "id": "byName", "options": "Pod" }, "properties": [
+            { "id": "links", "value": [ { "title": "Logs of ${__value.raw}", "url": "/d/pod-logs?var-namespace=${__data.fields.Namespace}&var-pod=${__value.raw}&${__url_time_range}" } ] }
+          ] },
           { "matcher": { "id": "byName", "options": "State" }, "properties": [
             { "id": "custom.cellOptions", "value": { "type": "color-text" } },
             { "id": "mappings", "value": [
@@ -445,7 +449,9 @@
       "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true }, "indexByName": { "namespace": 0, "pod": 1, "container": 2, "Value": 3 }, "renameByName": { "namespace": "Namespace", "pod": "Pod", "container": "Container", "Value": "Restarts" } } } ],
       "fieldConfig": {
         "defaults": { "noValue": "No restarts", "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
-        "overrides": [ { "matcher": { "id": "byName", "options": "Restarts" }, "properties": [
+        "overrides": [ { "matcher": { "id": "byName", "options": "Pod" }, "properties": [
+          { "id": "links", "value": [ { "title": "Logs of ${__value.raw}/${__data.fields.Container}", "url": "/d/pod-logs?var-namespace=${__data.fields.Namespace}&var-pod=${__value.raw}&var-container=${__data.fields.Container}&${__url_time_range}" } ] }
+        ] }, { "matcher": { "id": "byName", "options": "Restarts" }, "properties": [
           { "id": "decimals", "value": 0 }, { "id": "custom.width", "value": 90 },
           { "id": "custom.cellOptions", "value": { "type": "color-text" } },
           { "id": "thresholds", "value": { "mode": "absolute", "steps": [ { "color": "orange", "value": null }, { "color": "red", "value": 5 } ] } }
@@ -462,7 +468,9 @@
       "transformations": [ { "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true }, "indexByName": { "namespace": 0, "pod": 1, "container": 2, "reason": 3 }, "renameByName": { "namespace": "Namespace", "pod": "Pod", "container": "Container", "reason": "Reason" } } } ],
       "fieldConfig": {
         "defaults": { "noValue": "No abnormal exits", "custom": { "align": "auto", "cellOptions": { "type": "auto" } } },
-        "overrides": [ { "matcher": { "id": "byName", "options": "Reason" }, "properties": [
+        "overrides": [ { "matcher": { "id": "byName", "options": "Pod" }, "properties": [
+          { "id": "links", "value": [ { "title": "Logs of ${__value.raw}/${__data.fields.Container}", "url": "/d/pod-logs?var-namespace=${__data.fields.Namespace}&var-pod=${__value.raw}&var-container=${__data.fields.Container}&${__url_time_range}" } ] }
+        ] }, { "matcher": { "id": "byName", "options": "Reason" }, "properties": [
           { "id": "custom.cellOptions", "value": { "type": "color-text" } },
           { "id": "mappings", "value": [ { "type": "value", "options": { "OOMKilled": { "color": "red", "index": 0 }, "Error": { "color": "orange", "index": 1 } } } ] }
         ] } ]
@@ -596,6 +604,9 @@
       "fieldConfig": {
         "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" } }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null } ] } },
         "overrides": [
+          { "matcher": { "id": "byName", "options": "Instance" }, "properties": [
+            { "id": "links", "value": [ { "title": "Logs of ${__value.raw}", "url": "/d/pod-logs?var-namespace=${__data.fields.Namespace}&var-pod=${__value.raw}&var-container=postgres&${__url_time_range}" } ] }
+          ] },
           { "matcher": { "id": "byName", "options": "Status" }, "properties": [
             { "id": "custom.cellOptions", "value": { "type": "color-background" } },
             { "id": "mappings", "value": [ { "type": "value", "options": { "1": { "text": "up", "color": "green", "index": 0 }, "0": { "text": "DOWN", "color": "red", "index": 1 } } } ] }
@@ -989,6 +1000,52 @@
         "overrides": []
       },
       "options": { "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    { "id": 111, "type": "row", "title": "Logs", "collapsed": false, "gridPos": { "x": 0, "y": 133, "w": 24, "h": 1 }, "panels": [] },
+    {
+      "id": 75, "type": "stat", "title": "Loki",
+      "description": "Whether Prometheus can scrape Loki. Down means no logs are stored and Grafana can't query them.",
+      "gridPos": { "x": 0, "y": 134, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "max(up{job=\"observability/loki\"}) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "mappings": [ { "type": "value", "options": { "0": { "text": "Down", "color": "red", "index": 0 }, "1": { "text": "Up", "color": "green", "index": 1 } } } ], "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 76, "type": "stat", "title": "Alloy pods unavailable",
+      "description": "Nodes whose Alloy pod isn't available. That node's pod logs aren't reaching Loki.",
+      "gridPos": { "x": 4, "y": 134, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "sum(kube_daemonset_status_number_unavailable{namespace=\"observability\", daemonset=\"alloy\"}) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 77, "type": "stat", "title": "Log lines dropped",
+      "description": "Lines Alloy gave up on in the selected range: Loki refused them or stayed unreachable past the retries. They are lost.",
+      "gridPos": { "x": 0, "y": 138, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "round(sum(increase(loki_write_dropped_entries_total{job=\"alloy\"}[$__range]))) or vector(0)" } ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 78, "type": "stat", "title": "Loki volume used",
+      "description": "Loki's 20 Gi Longhorn volume. Retention is by age (7 days) only, so a log flood fills it; KubePersistentVolumeFillingUp fires before it's full.",
+      "gridPos": { "x": 4, "y": 138, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "instant": true, "range": false, "expr": "max(kubelet_volume_stats_used_bytes{namespace=\"observability\", persistentvolumeclaim=\"storage-loki-0\"} / kubelet_volume_stats_capacity_bytes{namespace=\"observability\", persistentvolumeclaim=\"storage-loki-0\"})" } ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "decimals": 0, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.7 }, { "color": "red", "value": 0.85 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "colorMode": "background", "graphMode": "none", "textMode": "value", "justifyMode": "center" }
+    },
+    {
+      "id": 79, "type": "timeseries", "title": "Log lines shipped per Alloy pod",
+      "description": "Lines each Alloy pod (one per node) pushed to Loki. A pod at zero is AlloyNotShipping.",
+      "gridPos": { "x": 8, "y": 134, "w": 16, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "targets": [ { "refId": "A", "legendFormat": "{{pod}}", "expr": "sum by (pod) (rate(loki_write_sent_entries_total{job=\"alloy\"}[$__rate_interval]))" } ],
+      "fieldConfig": { "defaults": { "unit": "short", "min": 0, "custom": { "fillOpacity": 10, "showPoints": "never", "lineWidth": 1 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
     }
   ]
 }

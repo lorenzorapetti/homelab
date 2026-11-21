@@ -1,0 +1,69 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/prometheusrule_v1.json
+# Loki's health, from its own metrics (chart ServiceMonitor, job
+# "observability/loki"). Alloy's side is in ../../alloy/app/prometheusrule.yaml.
+# The PVC filling up is KubePersistentVolumeFillingUp, from kube-prometheus-stack.
+# Docs: docs/docs/kubernetes/observability/logs.md#alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: loki
+  annotations:
+    # $labels and $value are Prometheus templating, not Flux variables.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+spec:
+  groups:
+    - name: loki
+      rules:
+        - alert: LokiDown
+          expr: |
+            (up{job="observability/loki"} == 0) or absent(up{job="observability/loki"})
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Loki is down"
+            description: >-
+              Prometheus can't scrape Loki, so no logs are being stored and Grafana can't
+              query them. Alloy buffers and retries for a while, then drops lines.
+        # Three control-plane nodes always produce logs (kube-apiserver alone does),
+        # so zero lines for 15 minutes means the pipeline is broken somewhere.
+        - alert: LokiIngestionStopped
+          expr: |
+            sum(rate(loki_distributor_lines_received_total[10m])) == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Loki has received no log lines for 25 minutes"
+            description: >-
+              Loki is up but nothing is reaching it. Check the Alloy pods (AlloyNotShipping
+              names the node) and their logs.
+        - alert: LokiRequestErrors
+          expr: |
+            sum by (route) (rate(loki_request_duration_seconds_count{job="observability/loki", status_code=~"5.."}[5m]))
+              /
+            sum by (route) (rate(loki_request_duration_seconds_count{job="observability/loki"}[5m]))
+              > 0.05
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Loki returns errors on {{ $labels.route }}"
+            description: >-
+              {{ $value | humanizePercentage }} of requests to {{ $labels.route }} fail with a 5xx.
+              Pushes failing means lost logs; queries failing means Grafana shows errors.
+        # The compactor applies retention every 10 minutes. If it stops, old logs
+        # pile up until the volume is full.
+        - alert: LokiRetentionNotApplied
+          expr: |
+            time() - max(loki_compactor_apply_retention_last_successful_run_timestamp_seconds) > 3 * 3600
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Loki hasn't applied retention for {{ $value | humanizeDuration }}"
+            description: >-
+              The compactor's last successful retention run was {{ $value | humanizeDuration }}
+              ago, so logs older than 7 days aren't being deleted. Check Loki's logs for
+              "compactor".

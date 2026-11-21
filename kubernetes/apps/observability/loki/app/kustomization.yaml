@@ -1,0 +1,23 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./helmrelease.yaml
+  - ./ocirepository.yaml
+  - ./prometheusrule.yaml
+# One namespace, pod and container's logs, with a search box. Cluster Health's
+# pod tables link here. Grafana's sidecar loads it through the grafana_dashboard label.
+configMapGenerator:
+  - name: pod-logs-dashboard
+    files:
+      - ./dashboards/pod-logs.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: Kubernetes
+        # Dashboard JSON is full of ${var}; without this Flux's postBuild
+        # substitution blanks them out.
+        kustomize.toolkit.fluxcd.io/substitute: disabled
