@@ -1,0 +1,44 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/source.toolkit.fluxcd.io/gitrepository_v1.json
+# The CSI snapshot CRDs (VolumeSnapshot, VolumeSnapshotContent,
+# VolumeSnapshotClass and the group-snapshot ones). CRDs only: no
+# snapshot-controller and no VolumeSnapshotClass, so nothing takes snapshots.
+# VolSync needs them anyway: its controller watches VolumeSnapshots even with
+# copyMethod Clone, and without the CRDs it times out and restarts forever.
+# Docs: docs/docs/kubernetes/backups-volsync.md
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: snapshot-crds
+spec:
+  interval: 1h
+  url: https://github.com/kubernetes-csi/external-snapshotter
+  ref:
+    tag: v8.7.0                     # latest on 2026-11-22
+  ignore: |
+    /*
+    !/client/config/crd/
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app snapshot-crds
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+    annotations:
+      # Like gateway-api-crds: never delete the CRDs (and every object of
+      # their kinds) when this Kustomization goes away.
+      kustomize.toolkit.fluxcd.io/prune: disabled
+  interval: 1h
+  path: ./client/config/crd
+  patches: []                       # required by the FluxInstance's injected patch
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: snapshot-crds
+  timeout: 5m
+  wait: true                        # wait for the CRDs to be Established

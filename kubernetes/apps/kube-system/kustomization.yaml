@@ -10,5 +10,6 @@ components:
 resources:
   - ./cilium/ks.yaml
   - ./gateway-api-crds/ks.yaml
+  - ./snapshot-crds/ks.yaml
   - ./gateway/ks.yaml
   - ./fstrim/ks.yaml

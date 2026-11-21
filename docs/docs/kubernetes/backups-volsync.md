@@ -15,7 +15,8 @@ sidebar_label: "Backups: volumes"
   2. runs restic against `s3://<bucket>/<app>/volsync`, keeping 7 daily, 4 weekly and 3 monthly snapshots, pruned weekly;
   3. deletes the clone.
 - **The restic Secret** (`<app>-volsync`) is a plain manifest in the component, filled in by Flux's postBuild substitution: the endpoint and bucket from `cluster-secrets`, the R2 token from `r2-backup`, and the repository password from `volsync-restic`. That password is shared by every app; it's in `kubernetes/components/r2-backup/restic.sops.yaml`. **Without it the backups can't be read**: it lives in Git (SOPS) and nowhere else.
-- **Why Clone and not Snapshot**: `Snapshot` needs the external snapshot-controller, its CRDs and a `VolumeSnapshotClass`, none of which the cluster has. Longhorn clones natively. Both copy the whole volume on Longhorn, so a clone costs no more.
+- **Why Clone and not Snapshot**: `Snapshot` needs the external snapshot-controller and a `VolumeSnapshotClass`, which the cluster doesn't have. Longhorn clones natively. Both copy the whole volume on Longhorn, so a clone costs no more.
+- **The snapshot CRDs are installed anyway** (`kubernetes/apps/kube-system/snapshot-crds/`, external-snapshotter `v8.7.0`, CRDs only). VolSync's controller watches `VolumeSnapshot`s whatever the copy method, and without the CRDs it times out at start and restarts forever, so no `ReplicationSource` ever runs.
 
 The volumes today:
 
