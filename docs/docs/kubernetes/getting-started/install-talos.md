@@ -123,6 +123,17 @@ Node addresses aren't in any patch. They come from the Proxmox cloud-init data t
 
 The Longhorn data disk as a Talos user volume. The details and sources are on [Storage: Longhorn](/kubernetes/storage-longhorn#talos-machine-config).
 
+### `all/30-zone.yaml.tpl`
+
+```yaml
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+labels:
+  topology.kubernetes.io/zone: {{ .Node.Data.proxmoxHost }}
+```
+
+Each node is labelled with the Proxmox host it runs on, which each node's `data.proxmoxHost` in `topf.yaml` sets (`hecate` for talos-1 and talos-2, `persephone` for talos-3). `labels` is a `KubeNodeConfig` field in Talos 1.14 ([KubeNodeConfig reference](https://docs.siderolabs.com/talos/v1.14/reference/configuration/kubernetes/kubenodeconfig.md)). It merges with the control-plane patch's `KubeNodeConfig`, which removes the taint. Longhorn uses the label to keep a volume's replicas on different hosts ([Storage: Longhorn](/kubernetes/storage-longhorn#vm-disks)). When a VM moves to another host, update `proxmoxHost` together with `proxmox_node` in the tfvars, then `just talos::apply`.
+
 ### Control-plane patches
 
 `control-plane/00-cluster.yaml`:

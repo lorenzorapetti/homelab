@@ -70,7 +70,7 @@ Each VM has a separate Longhorn virtual disk (`scsi1`) next to the Talos system 
 
 - The Talos guide recommends "at least one dedicated disk per storage node" ([guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md)).
 - Longhorn recommends an optional `VolumeConfig` to size Talos's own system volumes, so you don't need `storageReservedPercentageForDefaultDisk` ([Longhorn page](https://longhorn.io/docs/latest/advanced-resources/os-distro-specific/talos-linux-support/)). With a dedicated data disk, this doesn't apply.
-- talos-1 and talos-2 share hecate's SSD, and talos-3 has persephone's. Longhorn doesn't know which VM is on which host, so a volume's two replicas can both land on hecate. Then a failed hecate SSD loses the volume. Backups still matter more than replicas. Labelling each node with its host as `topology.kubernetes.io/zone` would let Longhorn's zone anti-affinity spread replicas across hosts. That isn't done yet.
+- talos-1 and talos-2 share hecate's SSD, and talos-3 has persephone's. Without help, Longhorn doesn't know which VM is on which host, so a volume's two replicas could both land on hecate, and a failed hecate SSD would lose the volume. So each node carries its Proxmox host as `topology.kubernetes.io/zone` (`hecate` or `persephone`), set by `talos/all/30-zone.yaml.tpl` from `data.proxmoxHost` in `topf.yaml`. Longhorn "relies on label `topology.kubernetes.io/zone`" to identify zones, and `replica-zone-soft-anti-affinity` (default `true`) makes it prefer a different zone for a volume's next replica ([settings](https://longhorn.io/docs/1.13.0/references/settings/)). `replicaAutoBalance: best-effort` moves replicas that were already placed in the same zone ([auto balance](https://longhorn.io/docs/1.13.0/high-availability/auto-balance-replicas/)). As a result, persephone's 200GB disk holds a copy of every volume, so usable space is about 200GB, not 300GB. Backups still matter more than replicas. When a VM moves to another host, change `proxmoxHost` along with `proxmox_node` in the tfvars.
 - The VM disks are thin LVM volumes, and nothing in Talos trims them. The `fstrim` DaemonSet (`kubernetes/apps/kube-system/fstrim`) trims `/var` and `/var/mnt/longhorn` on every node at start and then weekly, so freed blocks go back to the Proxmox thin pool.
 
 ## Kubernetes side (an app in the migration)
@@ -114,6 +114,7 @@ values:
   defaultSettings:
     defaultDataPath: /var/mnt/longhorn
     defaultReplicaCount: 2          # volumes created outside a StorageClass
+    replicaAutoBalance: best-effort # added 2026-11-21: one replica per Proxmox host (VM disks)
   persistence:
     defaultClass: true
     defaultClassReplicaCount: 2
@@ -123,7 +124,7 @@ values:
 ```
 
 - **Default StorageClass: `longhorn`.** It's the only storage in the cluster, so a PVC without `storageClassName` lands there. The chart also creates `longhorn-static` for pre-existing volumes.
-- **Two replicas, set in the chart values.** The chart writes `numberOfReplicas` into the `longhorn` StorageClass from `persistence.defaultClassReplicaCount`, and `defaultSettings.defaultReplicaCount` covers volumes made in the UI. Two replicas keep a volume available with one node down (a Talos upgrade, a VM failure). A third adds nothing against a disk failure while all three VMs share one SSD, and it costs another copy of every write. Go to 3 once hosts `.2` and `.3` exist.
+- **Two replicas, set in the chart values.** The chart writes `numberOfReplicas` into the `longhorn` StorageClass from `persistence.defaultClassReplicaCount`, and `defaultSettings.defaultReplicaCount` covers volumes made in the UI. Two replicas keep a volume available with one node down (a Talos upgrade, a VM failure). With one replica per Proxmox host (see [VM disks](#vm-disks)), two replicas also survive one host or SSD failing. A third would land on hecate again, so it would only cost another copy of every write. Go to 3 when there is a third host.
 - **The UI isn't exposed.** It's a `ClusterIP` service (`kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80`). An `HTTPRoute` comes after the Gateway.
 - **The disk.** `talosctl get volumestatus u-longhorn` shows a 215 GB `/dev/sdb1` on each node, and `talosctl get mountstatus u-longhorn` shows it as `xfs` at `/var/mnt/longhorn`. Longhorn reports one schedulable disk of 214.6 GB per node.
 - **First install.** Flux reported the `HelmRelease` Ready after about 4 minutes. The CSI sidecars and instance managers needed another ~10 minutes, almost all of it Docker Hub image pulls.

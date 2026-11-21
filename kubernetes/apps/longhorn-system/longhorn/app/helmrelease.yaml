@@ -20,11 +20,16 @@ spec:
       defaultDataPath: /var/mnt/longhorn
       # Volumes created outside a StorageClass (e.g. from the UI).
       defaultReplicaCount: 2
+      # Zones are Proxmox hosts (topology.kubernetes.io/zone, talos/all/30-zone.yaml.tpl).
+      # Scheduling already prefers another zone (replicaZoneSoftAntiAffinity defaults to
+      # true); best-effort also moves existing replicas so a volume's two copies end up on
+      # different hosts. It only acts on Healthy volumes.
+      replicaAutoBalance: best-effort
     persistence:
       # The only StorageClass in the cluster.
       defaultClass: true
-      # Two replicas survive one node down (a Talos upgrade, a VM failure). A third
-      # adds nothing while all three VMs share one SSD, and costs disk and writes.
+      # Two replicas survive one node down (a Talos upgrade, a VM failure), and with
+      # one per Proxmox host, one host down. A third would land on hecate again.
       defaultClassReplicaCount: 2
       reclaimPolicy: Delete
     # Not exposed yet; an HTTPRoute comes after the Gateway. One replica is plenty.

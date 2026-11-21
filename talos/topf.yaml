@@ -9,13 +9,21 @@ schematicId: "@schematic.yaml"
 platform: nocloud                          # matches the nocloud image Terraform boots
 secretsPath: secrets.sops.yaml             # SOPS-encrypted (rule 2 in .sops.yaml)
 
+# data.proxmoxHost: the Proxmox host the VM runs on (proxmox_node in the tfvars).
+# all/30-zone.yaml.tpl turns it into the node's topology.kubernetes.io/zone label.
 nodes:
   - host: talos-1
     ip: 10.0.11.1
     role: control-plane
+    data:
+      proxmoxHost: hecate
   - host: talos-2
     ip: 10.0.11.2
     role: control-plane
+    data:
+      proxmoxHost: hecate
   - host: talos-3
     ip: 10.0.11.3
     role: control-plane
+    data:
+      proxmoxHost: persephone
