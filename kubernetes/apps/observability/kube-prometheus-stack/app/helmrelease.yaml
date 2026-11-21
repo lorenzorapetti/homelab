@@ -24,14 +24,24 @@ spec:
     # Cilium replaces kube-proxy: there is nothing to scrape.
     kubeProxy:
       enabled: false
-    # Off until the control-plane metrics ticket, which also has to open them
-    # up in the Talos machine config. Their rules and dashboards go with them.
+    # Control-plane components run as static pods that Talos binds to
+    # 127.0.0.1 unless talos/control-plane/10-metrics.yaml opens them up.
+    # `endpoints` makes the chart create selector-less Services backed by the
+    # node IPs. The controller-manager and scheduler keep the chart's defaults:
+    # HTTPS on their secure ports (10257, 10259), Prometheus's token, and
+    # insecureSkipVerify (their serving certs are self-signed). etcd: plain
+    # HTTP on 2381, the metrics-only listener.
+    # Docs: docs/docs/kubernetes/observability/control-plane-metrics.md
     kubeControllerManager:
-      enabled: false
+      endpoints: &controlPlaneNodes [10.0.11.1, 10.0.11.2, 10.0.11.3]
     kubeScheduler:
-      enabled: false
+      endpoints: *controlPlaneNodes
     kubeEtcd:
-      enabled: false
+      endpoints: *controlPlaneNodes
+      serviceMonitor:
+        # The chart sends Prometheus's token by default. 2381 is plain HTTP and
+        # ignores it, so it would only put the token on the wire in clear text.
+        authorization: null
 
     # --- Prometheus ----------------------------------------------------------
     # Prometheus and Alertmanager have no login of their own: Authentik's

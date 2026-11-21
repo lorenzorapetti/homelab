@@ -1,0 +1,24 @@
+# Control-plane metrics for Prometheus (kube-prometheus-stack's kubeControllerManager,
+# kubeScheduler and kubeEtcd targets). Talos binds all three to 127.0.0.1 by default.
+# Why this is acceptable without a firewall: docs/adr/0004-control-plane-metrics-on-the-lan.md
+# Docs: docs/docs/kubernetes/observability/control-plane-metrics.md
+#
+# Only the listen address changes: /metrics on 10257 and 10259 still needs an
+# authenticated, authorized client (Prometheus's ServiceAccount token).
+apiVersion: v1alpha1
+kind: KubeControllerManagerConfig
+extraArgs:
+  bind-address: 0.0.0.0
+---
+apiVersion: v1alpha1
+kind: KubeSchedulerConfig
+extraArgs:
+  bind-address: 0.0.0.0
+---
+# etcd has no multi-doc equivalent yet in Talos 1.14: this is the v1alpha1 config.
+# A plain-HTTP listener that serves only /metrics and /health, from the Talos
+# "Expose the Etcd Metrics Endpoint" guide. Client traffic stays on 2379 (mTLS).
+cluster:
+  etcd:
+    extraArgs:
+      listen-metrics-urls: http://0.0.0.0:2381

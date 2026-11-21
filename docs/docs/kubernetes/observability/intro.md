@@ -5,7 +5,7 @@ sidebar_label: Overview
 
 # Observability
 
-Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack), in the `observability` namespace (step 8 of the [migration](/kubernetes/migration)). It gives node and pod health out of the box. Later pages in this section add control-plane metrics, app metrics, logs and alert routing.
+Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack), in the `observability` namespace (step 8 of the [migration](/kubernetes/migration)). It gives node and pod health out of the box. [Control-plane metrics](/kubernetes/observability/control-plane-metrics) adds etcd, the scheduler and the controller-manager. Later pages will add app metrics, logs and alert routing.
 
 ## What runs where
 
@@ -44,7 +44,7 @@ What Prometheus scrapes:
 | The stack itself: Prometheus, Alertmanager, the operator, Grafana | On |
 | CloudNativePG: the operator (chart `PodMonitor`) and every `Cluster`'s instances (one `PodMonitor` per Cluster) | On, see [Databases](#databases) |
 | kube-proxy | **Off for good.** Cilium replaces kube-proxy, so there is nothing to scrape |
-| kube-controller-manager, kube-scheduler, etcd | **Off for now.** They come with the control-plane metrics ticket, which also has to open their metrics ports in the Talos machine config. The chart drops their rules and dashboards while they are off |
+| kube-controller-manager, kube-scheduler, etcd | On, on the three node IPs. Needs the Talos patch `talos/control-plane/10-metrics.yaml`, see [Control-plane metrics](/kubernetes/observability/control-plane-metrics) |
 
 The settings are all chart values in `kube-prometheus-stack/app/helmrelease.yaml`. The only env var is Grafana's database password, which CNPG generates.
 
@@ -100,7 +100,7 @@ kubectl port-forward -n observability svc/kube-prometheus-stack-prometheus 9090
 
 ## Dashboards
 
-The chart ships the usual dashboards ("Node Exporter / Nodes", "Kubernetes / Compute Resources / Pod", CoreDNS, Prometheus, Alertmanager, Grafana…), in the **Kubernetes** folder. Dashboards for control-plane components that are off are left out.
+The chart ships the usual dashboards ("Node Exporter / Nodes", "Kubernetes / Compute Resources / Pod", CoreDNS, etcd, Controller Manager, Scheduler, Prometheus, Alertmanager, Grafana…), in the **Kubernetes** folder.
 
 Every other dashboard comes from Git, through Grafana's dashboard sidecar. The sidecar watches **every namespace** for ConfigMaps labelled `grafana_dashboard: "1"`, and puts each one in the folder named by its `grafana_folder` annotation. Dashboards edited in the UI can't be saved over a provisioned one (`allowUiUpdates: false`): export the JSON and commit it instead.
 

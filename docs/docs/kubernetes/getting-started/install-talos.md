@@ -34,7 +34,8 @@ talos/
 │  ├─ 10-network.yaml
 │  └─ 20-longhorn.yaml
 └─ control-plane/
-   └─ 00-cluster.yaml
+   ├─ 00-cluster.yaml
+   └─ 10-metrics.yaml
 ```
 
 Patches merge in the order `all/` → `<role>/` (`control-plane/` or `worker/`) → `node/<host>/`, lexicographically within each folder, with later patches winning. Files ending in `.yaml.tpl` are Go templates with access to `.Node.Host`, `.Node.IP`, `.Node.Data.*` and more. JSON6902 patches are **not supported** ([configuration model](https://github.com/postfinance/topf/blob/main/docs/configuration-model.md)). This is the same layout cluster-template uses ([`talos/README`](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/README.md.j2)).
@@ -155,6 +156,8 @@ Each document and where it comes from:
 - **`KubeFlannelCNIConfig` / `KubeProxyConfig`**: the Talos 1.14 patch from the [Talos Cilium guide](https://docs.siderolabs.com/kubernetes-guides/cni/deploying-cilium.md). Jonas's 1.12-era `cluster.network.cni.name: none` and `cluster.proxy.disabled` fields are deprecated in 1.14 ([What's new](https://docs.siderolabs.com/talos/v1.14/getting-started/what's-new-in-talos.md)).
 - **Taint removal**: copied from [cluster-template's control-plane patch](https://github.com/onedr0p/cluster-template/blob/main/template/config/talos/control-plane/00-cluster.yaml.j2), which topf renders and CI validates with `talosctl validate`.
 - **`Layer2VIPConfig`**: from the [VIP docs](https://docs.siderolabs.com/talos/v1.14/networking/advanced/vip.md). It is for control-plane nodes only, needs etcd up (so it appears after bootstrap), and the nodes must share an L2 segment, which the flat `/16` provides. Jonas's Proxmox VMs used `eth0` ([post 2](https://jonashietala.se/blog/2026/05/22/talos_linux_on_proxmox_with_terraform)). Here too: `talosctl get links --insecure` shows `eth0` as the only link that is up on all three VMs.
+
+`control-plane/10-metrics.yaml` binds kube-controller-manager and kube-scheduler to `0.0.0.0` and opens etcd's metrics listener on `http://0.0.0.0:2381`, so Prometheus can scrape them. It was added after the cluster was created and applied node by node; see [Control-plane metrics](/kubernetes/observability/control-plane-metrics) and [ADR 0004](https://github.com/lorenzorapetti/homelab/blob/main/docs/adr/0004-control-plane-metrics-on-the-lan.md).
 
 **CoreDNS** stays Talos-managed: it's deployed unless `KubeCoreDNSConfig` disables it. cluster-template disables it and installs the chart instead.
 
