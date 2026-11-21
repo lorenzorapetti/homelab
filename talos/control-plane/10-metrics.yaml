@@ -9,6 +9,14 @@ apiVersion: v1alpha1
 kind: KubeControllerManagerConfig
 extraArgs:
   bind-address: 0.0.0.0
+  # Not metrics: lives here because Talos takes one KubeControllerManagerConfig.
+  # Delete finished (Failed/Succeeded) pods past the 10 newest, instead of the
+  # default 12500 that a homelab never reaches. Each node shutdown leaves a
+  # dozen Failed pods behind (reason NodeShutdown) whose ReplicaSets already
+  # replaced them; they hold no memory or CPU, only clutter `kubectl get pods`.
+  # Job pods count too, so a failed Job's pod may be gone before you read its
+  # logs: ship logs elsewhere or raise this when that matters.
+  terminated-pod-gc-threshold: "10"
 ---
 apiVersion: v1alpha1
 kind: KubeSchedulerConfig
