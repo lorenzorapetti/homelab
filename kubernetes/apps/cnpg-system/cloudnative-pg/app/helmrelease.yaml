@@ -17,10 +17,8 @@ spec:
       # The operator's own metrics. Each Cluster's instances get a PodMonitor
       # next to the Cluster (spec.monitoring.enablePodMonitor is deprecated).
       podMonitorEnabled: true
-      # CNPG's cluster dashboard, as a ConfigMap Grafana's sidecar picks up. The
-      # chart already labels it grafana_dashboard: "1" (sidecarLabel/Value);
-      # repeating that under `labels` renders a duplicate key and Helm fails.
+      # CNPG's cluster dashboard ships from ./dashboards instead (see
+      # kustomization.yaml): the chart's copy reads backup metrics the
+      # barman-cloud plugin doesn't populate.
       grafanaDashboard:
-        create: true
-        annotations:
-          grafana_folder: Databases
+        create: false

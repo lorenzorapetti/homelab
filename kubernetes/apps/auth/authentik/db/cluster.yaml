@@ -20,10 +20,13 @@ spec:
   storage:
     storageClass: longhorn
     size: 5Gi
+  # The postgres container's working set sits around 150Mi; the request leaves
+  # headroom so the dashboard's Memory Utilisation (pod working set / request)
+  # reflects real pressure.
   resources:
     requests:
       cpu: 50m
-      memory: 256Mi
+      memory: 384Mi
     limits:
       memory: 1Gi
   plugins:

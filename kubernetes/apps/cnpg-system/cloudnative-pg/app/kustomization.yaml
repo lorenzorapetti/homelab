@@ -5,3 +5,24 @@ kind: Kustomization
 resources:
   - ./helmrelease.yaml
   - ./ocirepository.yaml
+# CNPG's cluster dashboard, copied from the chart's grafanaDashboard ConfigMap
+# (chart 0.29.2) with these changes:
+#   - Last Base Backup / First Recoverability Point also read the barman-cloud
+#     plugin's barman_cloud_cloudnative_pg_io_* metrics; the cnpg_collector_*
+#     ones stay 0 when backups go through the plugin.
+#   - Reconcile error panels count errors in the selected time range
+#     (increase) rather than the counter since the operator last started.
+# Grafana's sidecar loads it through the grafana_dashboard label. Named apart
+# from the chart's cnpg-grafana-dashboard so Helm deleting that one can't race it.
+configMapGenerator:
+  - name: cnpg-dashboard
+    files:
+      - ./dashboards/cloudnative-pg.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        grafana_folder: Databases
+        # The JSON is full of ${DS_PROMETHEUS}-style variables Flux must not substitute.
+        kustomize.toolkit.fluxcd.io/substitute: disabled

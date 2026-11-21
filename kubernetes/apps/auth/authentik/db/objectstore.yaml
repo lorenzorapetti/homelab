@@ -23,3 +23,12 @@ spec:
       compression: gzip
     data:
       compression: gzip
+  # The plugin-barman-cloud sidecar in authentik-db's pod: ~90Mi idle, more
+  # while a base backup uploads. Without this it runs unbounded.
+  instanceSidecarConfiguration:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
