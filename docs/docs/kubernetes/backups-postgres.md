@@ -68,7 +68,7 @@ kubectl logs -n auth "$PRIMARY" -c plugin-barman-cloud --tail=50
 
 | Alert | Fires when | For | Severity | Follow |
 | --- | --- | --- | --- | --- |
-| `CNPGWALArchivingFailing` | the primary's last WAL archive attempt failed, or nothing was archived for 30 minutes | 10m | critical | [WAL archiving](#wal-archiving-failing) |
+| `CNPGWALArchivingFailing` | the primary's last WAL archive attempt failed, or segments are waiting to be archived and nothing was archived for 30 minutes | 10m | critical | [WAL archiving](#wal-archiving-failing) |
 | `CNPGBackupFailed` | the newest base backup attempt failed: its time is later than the newest successful backup's | 5m | warning | [Base backup](#base-backup-failed-or-stale) |
 | `CNPGBackupStale` | the newest base backup on R2 is more than 26 hours old | 10m | warning | [Base backup](#base-backup-failed-or-stale) |
 | `CNPGInstanceDown` | an instance can't be scraped, or its exporter can't reach Postgres | 5m | critical | `kubectl describe` the pod |
@@ -78,7 +78,7 @@ kubectl logs -n auth "$PRIMARY" -c plugin-barman-cloud --tail=50
 
 **The 26 hours come from the `ScheduledBackup`s.** Both run daily (`authentik-db` at 03:00 UTC, `observability-db` at 03:15), so the newest base backup should never be older than 24 hours. The extra 2 hours allow for a slow upload. A missed night fires at about 05:00 the next day. A Cluster with no base backup at all reports a timestamp of 0, so it counts as stale too. A new Cluster doesn't fire, though, because the `ScheduledBackup`'s `immediate: true` takes its first backup within minutes, well inside the alert's 10-minute `for`. **If a `ScheduledBackup` moves to a different schedule, change the threshold** (or give that Cluster its own rule).
 
-The thresholds for archiving come from these databases. CNPG makes Postgres switch WAL segments at least every 5 minutes (`archive_timeout`), and the longest gap between archived segments over two days was under 8 minutes. 30 minutes means archiving has stopped, not just a quiet database.
+The thresholds for archiving come from these databases. CNPG sets `archive_timeout` to 5 minutes, and on a busy database the longest gap between archived segments over two days was under 8 minutes. But `archive_timeout` only switches segments when something was written since the last switch. An idle database writes nothing, so it archives nothing for hours: `forgejo-db` with nobody using Forgejo, for example. So the age only counts when segments are waiting to be archived, which the exporter reports as `cnpg_collector_pg_wal_archive_status{value="ready"}` (the `.ready` files in `pg_wal/archive_status`). When segments are waiting and nothing was archived for 30 minutes, archiving has stopped. The database isn't just quiet.
 
 ### WAL archiving failing
 

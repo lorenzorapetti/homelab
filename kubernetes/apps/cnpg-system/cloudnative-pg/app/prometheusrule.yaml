@@ -51,15 +51,22 @@ spec:
               Replica {{ $labels.pod }} of Cluster {{ $labels.namespace }}/{{ $labels.cluster }} is more
               than 5 minutes behind its primary.
         # WAL archiving is what keeps R2 within ~5 minutes of the live database
-        # (ADR 0003): the last attempt failed, or nothing was archived for 30
-        # minutes although CNPG switches segments at least every 5 (the
-        # observed maximum gap is under 8). Primaries only: replicas don't archive.
+        # (ADR 0003): the last attempt failed, or segments are waiting to be
+        # archived (.ready files in pg_wal/archive_status) and nothing was
+        # archived for 30 minutes. archive_timeout (5m) only switches segments
+        # when something was written, so an idle database (forgejo-db at night)
+        # archives nothing for hours. That is fine, and the age alone used to
+        # fire on it. Primaries only: replicas don't archive.
         - alert: CNPGWALArchivingFailing
           expr: |
             label_replace(
               max by (namespace, pod) (
                 (cnpg_pg_stat_archiver_last_failed_time > cnpg_pg_stat_archiver_last_archived_time)
-                or cnpg_pg_stat_archiver_seconds_since_last_archival > 1800
+                or (
+                  cnpg_pg_stat_archiver_seconds_since_last_archival > 1800
+                  and on (namespace, pod)
+                  max by (namespace, pod) (cnpg_collector_pg_wal_archive_status{value="ready"}) > 0
+                )
               )
               unless on (namespace, pod) cnpg_pg_replication_in_recovery == 1,
               "cluster", "$1", "pod", "(.+)-[0-9]+"
