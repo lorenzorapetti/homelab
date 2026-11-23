@@ -1,0 +1,91 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+# Orbit's Postgres: a one-instance CNPG Cluster on Longhorn, archived to R2.
+# Separate from the app so Orbit only starts once the database is Ready.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app orbit-db
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: longhorn
+      namespace: longhorn-system
+    - name: plugin-barman-cloud
+      namespace: cnpg-system
+    - name: prometheus-operator-crds  # for its PodMonitor
+      namespace: observability
+  interval: 1h
+  path: ./kubernetes/apps/orbit/orbit/db
+  patches: []                       # required by the FluxInstance's injected patch
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: orbit
+  timeout: 10m
+  # A CNPG Cluster reports a Ready condition once the primary accepts connections.
+  healthChecks:
+    - apiVersion: postgresql.cnpg.io/v1
+      kind: Cluster
+      name: orbit-db
+      namespace: orbit
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/kustomize.toolkit.fluxcd.io/kustomization_v1.json
+# Orbit (coollabsio/orbit), the project board at board.<domain>. Plain
+# manifests, no chart. Login through authentik (OIDC), attachments on the
+# `orbit` PVC, backed up nightly by VolSync.
+# Docs: docs/docs/kubernetes/orbit.md
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: &app orbit
+spec:
+  commonMetadata:
+    labels:
+      app.kubernetes.io/name: *app
+  dependsOn:
+    - name: orbit-db
+    - name: gateway
+      namespace: kube-system
+    - name: authentik               # OIDC login
+      namespace: auth
+    - name: volsync                 # the ReplicationSource CRD
+      namespace: volsync-system
+    - name: prometheus-operator-crds  # for its ServiceMonitor
+      namespace: observability
+  interval: 1h
+  path: ./kubernetes/apps/orbit/orbit/app
+  patches: []                       # required by the FluxInstance's injected patch
+  postBuild:
+    # For the volsync component: APP is the PVC to back up, VOLSYNC_PUID/PGID
+    # the image's user (65532), the rest fill in its restic Secret.
+    substitute:
+      APP: *app
+      VOLSYNC_PUID: "65532"
+      VOLSYNC_PGID: "65532"
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+      - name: r2-backup
+        kind: Secret
+      - name: volsync-restic
+        kind: Secret
+  prune: true
+  retryInterval: 2m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: orbit
+  # The first start runs every database migration.
+  timeout: 10m
+  wait: true

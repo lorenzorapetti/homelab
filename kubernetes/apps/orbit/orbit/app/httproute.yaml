@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/gateway.networking.k8s.io/httproute_v1.json
+# Orbit has its own login (authentik OIDC), so no forward auth. Cilium's
+# Envoy passes WebSocket upgrades through.
+# ExternalDNS publishes board.<domain> to Home DNS from this route.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: orbit
+spec:
+  parentRefs:
+    - name: main
+      namespace: kube-system
+      sectionName: https
+  hostnames: ["board.${SECRET_DOMAIN}"]
+  rules:
+    - backendRefs:
+        - name: orbit
+          port: 80

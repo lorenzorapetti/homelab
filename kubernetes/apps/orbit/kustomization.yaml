@@ -1,0 +1,11 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: orbit
+components:
+  - ../../components/sops
+  - ../../components/r2-backup     # Secrets r2-backup and volsync-restic: orbit-db's ObjectStore, the orbit PVC's VolSync backup
+resources:
+  - ./namespace.yaml
+  - ./orbit/ks.yaml

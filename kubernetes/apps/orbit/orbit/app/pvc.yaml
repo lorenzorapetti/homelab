@@ -1,0 +1,14 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/v1/persistentvolumeclaim.json
+# Orbit's /var/lib/orbit: attachments (orbit.sqlite stays unused on Postgres).
+# Backed up by the volsync component (sourcePVC: ${APP}).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: orbit
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi

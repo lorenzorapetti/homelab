@@ -20,6 +20,7 @@ The databases today:
 | `authentik-db` | `auth` | `kubernetes/apps/auth/authentik/db/` | `s3://<bucket>/authentik/authentik-db/` |
 | `observability-db` | `observability` | `kubernetes/apps/observability/observability-db/app/` | `s3://<bucket>/observability/observability-db/` |
 | `forgejo-db` | `git` | `kubernetes/apps/git/forgejo/db/` | `s3://<bucket>/forgejo/forgejo-db/` |
+| `orbit-db` | `orbit` | `kubernetes/apps/orbit/orbit/db/` | `s3://<bucket>/orbit/orbit-db/` |
 
 The commands below use `authentik-db`. For `observability-db`, swap the names as in [Observability: backups](/kubernetes/observability/intro#backups).
 

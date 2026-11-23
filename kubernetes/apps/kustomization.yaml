@@ -16,3 +16,4 @@ resources:
   - ./glance
   - ./volsync-system
   - ./git
+  - ./orbit

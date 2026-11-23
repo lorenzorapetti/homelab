@@ -35,6 +35,9 @@ pages:
                   - title: Forgejo
                     url: https://git.${SECRET_DOMAIN}
                     icon: sh:forgejo
+                  - title: Orbit
+                    url: https://board.${SECRET_DOMAIN}
+                    icon: mdi:view-dashboard-outline
               - title: Proxmox
                 links:
                   - title: hecate

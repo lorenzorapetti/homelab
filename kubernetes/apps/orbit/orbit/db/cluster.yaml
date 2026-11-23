@@ -1,0 +1,39 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/postgresql.cnpg.io/cluster_v1.json
+# CNPG creates Secret orbit-db-app (host, port, dbname, user, password, uri)
+# and Service orbit-db-rw. The Deployment reads `uri` as ORBIT_DATABASE_URL.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: orbit-db
+spec:
+  # One instance, like forgejo-db: Longhorn keeps 2 replicas of the volume,
+  # and R2 holds the backups (ADR 0002).
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.7-minimal-trixie
+  bootstrap:
+    initdb:
+      database: orbit
+      owner: orbit
+      # Orbit refuses to start unless the database uses the builtin locale
+      # provider with C.UTF-8 (docs/self-hosting-postgres.md upstream).
+      encoding: UTF8
+      localeProvider: builtin
+      builtinLocale: C.UTF-8
+      localeCollate: C.UTF-8
+      localeCType: C.UTF-8
+  storage:
+    storageClass: longhorn
+    size: 5Gi
+  # Same as forgejo-db. Lower the request once Orbit's working set is known.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 384Mi
+    limits:
+      memory: 1Gi
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: orbit-r2

@@ -1,0 +1,45 @@
+# The Orbit OIDC client secret, for blueprints/orbit.yaml (!Env). Same value
+# as ORBIT_OIDC_CLIENT_SECRET in Secret orbit-secrets (orbit).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: authentik-orbit-oidc
+stringData:
+  ORBIT_OIDC_CLIENT_SECRET: ENC[AES256_GCM,data:Ynz9B7Attj0dzsseBhRN9PXmZ3cCQDw8Ek/vh8B/TFma71M4fVqe7nwu5drBUlqGK3I9Y3yXlOsbV7TH7DrV2w==,iv:DhH+k78CkcJ57kbVYIj18N8G99vbTncKknknqyQSJYA=,tag:Hl8kTfuZ0gLFhiWEchS1sQ==,type:str]
+sops:
+  age:
+    - enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBldU5jM1dKSDczUUF2Y0pU
+        WHNSUzhoQ2dVTDNJS0dwOHFkTzFmWVhPSDNFCjRVbTM0R29ObUhjNVhmM2tXSWlq
+        bWFSUmdqOEltUEMrWWtTSGs3NXpUY2MKLS0tIDhWWUlmck1LanBqLzAzYWkyd3ph
+        RjNRaEl6UE55UnVNNjEzcXVaNFh3V2sKndHSRy5tYv+yVXN77+mlic9T2Og1YOLO
+        dfhnRlrfATGQNulTyC3wA8bpsKvuahAZuJoZlCNEcj51TMQA6eHLaw==
+        -----END AGE ENCRYPTED FILE-----
+      recipient: age1gt9a67gwv8jt30g4ul0rglfq38h0lreul89640jddz9xl0y9qpjs4tcggj
+  encrypted_regex: ^(data|stringData)$
+  lastmodified: "2026-11-23T13:34:25Z"
+  mac: ENC[AES256_GCM,data:z8C+PDBX9Tp4jw6o/GeWuabVe+xvB5q4yy1Are8cZcgo4z4eUBxqQdw00c9/0zQ9Xvndns7/EoaSlyZs+I1O8Enc1CN7gIkhKOZPGCYudrP8MT4l53B1pb5ak+I3yrUc0oeUWAZaLaqR0ddQqrZaHRDYQ/8Ya0jNeQkjPxwJhqU=,iv:GZATnY4jkhdWBg0fQSElIiMZzZ0alVhdKeJjEhHxR+s=,tag:y7vNFzR9gOAGtzDOBleUUA==,type:str]
+  mac_only_encrypted: true
+  pgp:
+    - created_at: "2026-11-23T13:34:25Z"
+      enc: |-
+        -----BEGIN PGP MESSAGE-----
+
+        hQIMAwAAAAAAAAAAAQ//cFP67IUAij1w881rlwsSmiKhHtXdNL+sO23WLKT2w8Mf
+        RRT7Vt745P9whPYpN+mnlrQhEXMqz2HxGr5hx98SPnP7g2XZgj3jTOBxPX35ud1K
+        BU49SLXY5u7LT1aLBmWxa4kANlmwkIIcymIg94PP/7KWgphfFDLXMU5XGZvt+391
+        2bHS7rRGO1FNGPn2ZXVJjrLQJFdGfFj3XrSgFDvWKQ9Q1OcZA+A4L1vWLrMnK8sU
+        XcIzOcLk1ii+eQxlJRC7r4gxocxEiuT6VG3BNesLrzyhgB/JWdwf6/Bvn+oyNoia
+        YPPRWz7VVRwCE2PSHf2raMlJeZyv7VTU8IbyZPrunX1CZnmEX2p+RyZYB0agnIX3
+        pHx6ChV3lKBCRIDWYUJYDTNB1BYZik55SDMtec2qOuyrUxiHe6+PDL15f/JiQ5la
+        iTGQL0Qs51cVLqcdbIDx/SndKca60vT445kKHueE6+O2IFdJx1yq+1Rh15wATjzN
+        JInZWruCQ0sXezWM+CvUT9GxKdsEmbZoD+6sVkD3yur/EzL6Pb8nVSTTpF/vdehJ
+        8FI28+FWfXU8CqKwGmEbnhvjiLciyO9fuK2opOjkB653zZiUC4q5x9EdMkic+wcI
+        VHRfSS32+4TvuQt5ClDkJ2EnewXQ0h3QumCCP+sdWTln1t39yCbqfA3Vnl5sd+zS
+        XgH3tzS3KwDekwdJCOTNEH54rqOZF7hcmxi2B1tc8hhYM5amaYbpxGxc5Jf9wk6L
+        EHWOteMilIJkGclhJDDPlCZeXyyaYBXDUW8AoMWYQhWWvgHwvDHdR24Aw1CRO1w=
+        =Jx2+
+        -----END PGP MESSAGE-----
+      fp: CFACE1C58F406FD74713AB0BF1F680022C252805
+  version: 3.13.3

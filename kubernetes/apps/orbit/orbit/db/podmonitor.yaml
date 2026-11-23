@@ -1,0 +1,16 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/monitoring.coreos.com/podmonitor_v1.json
+# Postgres metrics from every instance of orbit-db (CNPG's exporter on
+# port `metrics`, 9187). CNPG's recommended replacement for the deprecated
+# spec.monitoring.enablePodMonitor.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: orbit-db
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: orbit-db
+      cnpg.io/podRole: instance
+  podMetricsEndpoints:
+    - port: metrics

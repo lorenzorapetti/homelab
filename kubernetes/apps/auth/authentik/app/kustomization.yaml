@@ -9,6 +9,7 @@ resources:
   - ./referencegrant.yaml
   - ./secret.sops.yaml     # Secret `authentik-secrets`: AUTHENTIK_SECRET_KEY, AUTHENTIK_EMAIL__{USERNAME,PASSWORD,FROM}, GRAFANA_OIDC_CLIENT_SECRET
   - ./forgejo-oidc.sops.yaml  # Secret `authentik-forgejo-oidc`: FORGEJO_OIDC_CLIENT_SECRET
+  - ./orbit-oidc.sops.yaml    # Secret `authentik-orbit-oidc`: ORBIT_OIDC_CLIENT_SECRET
 # Blueprints, mounted through the chart's `blueprints.configMaps`. The worker
 # watches the files and re-applies them when the ConfigMap changes, so no hash
 # suffix (and no restart) is needed. ${SECRET_DOMAIN} is substituted by Flux.
@@ -18,6 +19,7 @@ configMapGenerator:
       - ./blueprints/forward-auth.yaml
       - ./blueprints/grafana.yaml
       - ./blueprints/forgejo.yaml
+      - ./blueprints/orbit.yaml
       - ./blueprints/passkeys.yaml
       - ./blueprints/passkeys-enforce.yaml
     options:
