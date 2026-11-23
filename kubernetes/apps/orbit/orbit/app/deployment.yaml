@@ -21,6 +21,9 @@ spec:
         app.kubernetes.io/name: orbit
     spec:
       automountServiceAccountToken: false   # Orbit never talks to the Kubernetes API
+      # Otherwise Services orbit-db-rw/-ro/-r inject ORBIT_DB_*_PORT…, and
+      # Orbit refuses to start on an ORBIT_* variable it doesn't know.
+      enableServiceLinks: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532              # the image's USER
