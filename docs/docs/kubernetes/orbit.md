@@ -28,7 +28,7 @@ The `HTTPRoute` `orbit` on the Shared Gateway's `https` listener, no forward aut
 
 - **authentik, OIDC** (`ORBIT_OIDC_*`). The provider and application come from the blueprint `kubernetes/apps/auth/authentik/app/blueprints/orbit.yaml`, and only `authentik Admins` may use it. Callback: `/api/v1/auth/providers/oidc/callback`.
 - **`email_verified`**: Orbit links a login to an existing account only when the claim is true, and authentik's managed `email` mapping sends false. The blueprint brings its own email mapping, `Orbit: email (verified)`, which sends true.
-- **Accounts** are created on first login through authentik (`ORBIT_OIDC_PROVISION`). Registration is closed (`ORBIT_OPEN_REGISTRATION=false`).
+- **Accounts**: registration is closed (`ORBIT_OPEN_REGISTRATION=false`), and in 0.4.1 OIDC can't create accounts: a first login only links to an existing account with the same (verified) email. New people come in by invitation, then link authentik. `ORBIT_OIDC_PROVISION` (OIDC creates the account) is documented on upstream `main` but newer than 0.4.1, which refuses to start with it. **Read the docs at the pinned tag**, not `main`.
 - **The client secret** is in two SOPS Secrets that must hold the same value: `ORBIT_OIDC_CLIENT_SECRET` in `orbit-secrets` (`orbit`) and in `authentik-orbit-oidc` (`auth`). authentik's worker reads it at start, so restart it after changing it.
 - **Root account**: the only one that can open Orbit's Admin. It is created from a one-time setup URL on first start (below), with a password. It's also the break-glass login when authentik is down.
 

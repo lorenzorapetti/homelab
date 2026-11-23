@@ -78,17 +78,17 @@ spec:
               value: resend
             - name: ORBIT_SMTP_FROM_NAME
               value: Orbit
-            # Login through authentik. Registration stays closed; the first
-            # OIDC login creates the account (authentik only lets `authentik
-            # Admins` through: blueprints/orbit.yaml).
+            # Login through authentik (only `authentik Admins`:
+            # blueprints/orbit.yaml). Registration stays closed: a first OIDC
+            # login links to an existing account by verified email, and new
+            # people come in by invitation. (ORBIT_OIDC_PROVISION, which lets
+            # OIDC create accounts, is newer than 0.4.1.)
             - name: ORBIT_OIDC_ISSUER
               value: https://auth.${SECRET_DOMAIN}/application/o/orbit/
             - name: ORBIT_OIDC_CLIENT_ID
               value: orbit
             - name: ORBIT_OIDC_DISPLAY_NAME
               value: authentik
-            - name: ORBIT_OIDC_PROVISION
-              value: "true"
             - name: ORBIT_OPEN_REGISTRATION
               value: "false"
           # Exec probes: the image's own healthcheck. An httpGet probe comes
