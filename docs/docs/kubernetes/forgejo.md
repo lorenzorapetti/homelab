@@ -5,7 +5,7 @@ sidebar_label: Forgejo
 
 # Forgejo
 
-[Forgejo](https://forgejo.org/) is the homelab's Git server, at `https://git.<domain>` and `ssh://git@git.<domain>`. It replaces the k3s cluster's Gitea and starts empty: repositories come back by pushing them again, or with Forgejo's **New migration** (from GitHub, Gitea and others).
+[Forgejo](https://forgejo.org/) is the homelab's Git server, at `https://git.<domain>` and `ssh://git@git.<domain>`. Repositories are added by pushing them, or with Forgejo's **New migration** (from GitHub, Gitea and others).
 
 ## As built
 
@@ -20,7 +20,7 @@ The [Forgejo Helm chart](https://code.forgejo.org/forgejo-helm/forgejo-helm) `17
 ### Routes
 
 - **HTTPS**: the chart's `HTTPRoute` `forgejo` on the Shared Gateway's `https` listener, for the web UI only. ExternalDNS publishes `git.<domain>` to Home DNS from it. Git over HTTPS is off (`repository.DISABLE_HTTP_GIT`): clone and push go through SSH. This also keeps git away from Envoy's default 15s route timeout, which the Gateway's routes don't override.
-- **SSH**: the chart's `TCPRoute` `forgejo-ssh` on the Gateway's `ssh` listener (TCP, port 22), which only accepts TCPRoutes from namespace `git`. SSH uses the same name and address as HTTPS, so it needs no DNS record of its own. In the pod, the rootless image's built-in SSH server listens on 2222 and Service `forgejo-ssh` maps 22 to it. A TCP listener has no hostnames, so port 22 on the Gateway belongs to Forgejo alone. This settles [open question 1](/kubernetes/migration#open-questions) if it works; the fallback is a `LoadBalancer` Service on `10.0.12.2`.
+- **SSH**: the chart's `TCPRoute` `forgejo-ssh` on the Gateway's `ssh` listener (TCP, port 22), which only accepts TCPRoutes from namespace `git`. SSH uses the same name and address as HTTPS, so it needs no DNS record of its own. In the pod, the rootless image's built-in SSH server listens on 2222 and Service `forgejo-ssh` maps 22 to it. A TCP listener has no hostnames, so port 22 on the Gateway belongs to Forgejo alone. This settles [open question 1](/kubernetes/adding-apps#open-questions) if it works; the fallback is a `LoadBalancer` Service on `10.0.12.2`.
 
 ### Login
 

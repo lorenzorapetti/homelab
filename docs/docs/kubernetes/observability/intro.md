@@ -5,7 +5,7 @@ sidebar_label: Overview
 
 # Observability
 
-Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack), in the `observability` namespace (step 8 of the [migration](/kubernetes/migration)). It gives node and pod health out of the box. [Control-plane metrics](/kubernetes/observability/control-plane-metrics) adds etcd, the scheduler and the controller-manager. [Alerting](/kubernetes/observability/alerting) sends alerts to Pushover. [Networking and certificates](/kubernetes/observability/networking) covers Cilium, Hubble, the Gateway's Envoy and cert-manager, and [authentik](/kubernetes/observability/authentik) authentik's server and worker. [Logs](/kubernetes/observability/logs) covers Loki and Alloy, which keep every pod's logs. Setting all this up for a new app: [Observability for a new app](/kubernetes/observability/new-app).
+Metrics, dashboards and alerts come from [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack), in the `observability` namespace (step 8 of the [build order](/kubernetes/adding-apps#build-order)). It gives node and pod health out of the box. [Control-plane metrics](/kubernetes/observability/control-plane-metrics) adds etcd, the scheduler and the controller-manager. [Alerting](/kubernetes/observability/alerting) sends alerts to Pushover. [Networking and certificates](/kubernetes/observability/networking) covers Cilium, Hubble, the Gateway's Envoy and cert-manager, and [authentik](/kubernetes/observability/authentik) authentik's server and worker. [Logs](/kubernetes/observability/logs) covers Loki and Alloy, which keep every pod's logs. Setting all this up for a new app: [Observability for a new app](/kubernetes/observability/new-app).
 
 ## What runs where
 
@@ -74,7 +74,7 @@ The chart generates the routes itself (HTTPRoutes `kube-prometheus-stack-{grafan
 
 ### Authentik forward auth
 
-Prometheus and Alertmanager have no login of their own. They are the first apps behind Authentik through the Gateway API `ExternalAuth` filter ([plan](/kubernetes/migration#authentik-forward-auth-with-cilium-gateway)). Each of their routes has:
+Prometheus and Alertmanager have no login of their own. They are the first apps behind Authentik through the Gateway API `ExternalAuth` filter ([plan](/kubernetes/adding-apps#authentik-forward-auth-with-cilium-gateway)). Each of their routes has:
 
 - **An `ExternalAuth` filter on `/`.** Before forwarding a request, Cilium's Envoy asks Authentik's embedded outpost at `authentik-server.auth:80/outpost.goauthentik.io/auth/envoy`, passing the `cookie` header. A `2xx` lets the request through, with `x-authentik-username`, `-groups` and `-email` added. Anything else, normally a redirect to the login page, goes back to the browser.
 - **A rule for `/outpost.goauthentik.io`** that sends the login start and callback on the app's own host straight to `authentik-server`, which hands them to the embedded outpost.

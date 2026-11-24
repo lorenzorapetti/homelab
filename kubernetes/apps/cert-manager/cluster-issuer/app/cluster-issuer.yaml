@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/cert-manager.io/clusterissuer_v1.json
-# Production. Names carried over from the k3s repo.
+# Production.
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:

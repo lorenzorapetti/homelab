@@ -9,7 +9,7 @@ App names come from [ExternalDNS](https://github.com/kubernetes-sigs/external-dn
 
 ## As built (2026-11-19)
 
-The app is `kubernetes/apps/network/external-dns/` in the `network` namespace (step 7 of the [migration](/kubernetes/migration)). It `dependsOn` `gateway` and is health-checked on its `HelmRelease`.
+The app is `kubernetes/apps/network/external-dns/` in the `network` namespace (step 7 of the [build order](/kubernetes/adding-apps#build-order)). It `dependsOn` `gateway` and is health-checked on its `HelmRelease`.
 
 | Setting | Value | Why |
 | --- | --- | --- |

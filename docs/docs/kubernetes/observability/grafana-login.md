@@ -5,7 +5,7 @@ sidebar_label: Grafana login
 
 # Grafana login
 
-Grafana logs you in with authentik, through Grafana's own OIDC support (generic OAuth). This is option 3 of the [migration plan](/kubernetes/migration#authentik-forward-auth-with-cilium-gateway): unlike Prometheus and Alertmanager, Grafana's route has no `ExternalAuth` filter, because Grafana has its own login and users.
+Grafana logs you in with authentik, through Grafana's own OIDC support (generic OAuth). This is option 3 of the [forward auth plan](/kubernetes/adding-apps#authentik-forward-auth-with-cilium-gateway): unlike Prometheus and Alertmanager, Grafana's route has no `ExternalAuth` filter, because Grafana has its own login and users.
 
 The login page shows only **Sign in with authentik** (`auth.disable_login_form: true`). The local `admin` user is kept as a [break-glass](#break-glass-the-local-admin) account.
 

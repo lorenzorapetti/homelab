@@ -124,8 +124,8 @@ The sync options are `prune`, `selfHeal`, `ServerSideApply`, `SkipDryRunOnMissin
 
 - **Same Gateway design.** One Cilium `Gateway` in `kube-system` on `10.0.12.1`, HTTP/HTTPS listeners, a wildcard certificate, and an `HTTPRoute` per app ([Bootstrap: Cilium networking](/kubernetes/getting-started/bootstrap#cilium-networking)).
 - **The IP is pinned with `spec.addresses`.** Jonas uses the `io.cilium/lb-ipam-ips` annotation, which Cilium's docs say will be deprecated in favour of `spec.addresses` ([Gateway addresses](https://github.com/cilium/cilium/blob/v1.20.5/Documentation/network/servicemesh/gateway-api/addresses.rst)).
-- **Ordering.** Sync waves become `dependsOn`: `cluster-issuer` → `cert-manager`, and `gateway` → `cluster-issuer` + `gateway-api-crds` ([migration order](/kubernetes/migration#suggested-order)).
-- **DNS-01 provider.** Mine is **Cloudflare**, which cert-manager supports natively, so no webhook is needed. The existing `ClusterIssuer` carries over.
+- **Ordering.** Sync waves become `dependsOn`: `cluster-issuer` → `cert-manager`, and `gateway` → `cluster-issuer` + `gateway-api-crds` ([build order](/kubernetes/adding-apps#build-order)).
+- **DNS-01 provider.** Mine is **Cloudflare**, which cert-manager supports natively, so no webhook is needed.
 - **No HTTPRoute diff bug.** That Argo CD bug has no Flux counterpart, because kustomize-controller applies server-side and doesn't diff against defaulted fields the same way. Treat this as **unverified**.
-- **ExternalDNS** (his OPNsense webhook) vs one wildcard DNS record pointing at `10.0.12.1` is an [open question](/kubernetes/migration#open-questions).
-- **Authentik forward auth** is in the planned "SSO with Authentik" post. Until it's out, see [forward auth with Cilium Gateway](/kubernetes/migration#authentik-forward-auth-with-cilium-gateway).
+- **ExternalDNS** (his OPNsense webhook) vs one wildcard DNS record pointing at `10.0.12.1` is an [open question](/kubernetes/adding-apps#open-questions).
+- **Authentik forward auth** is in the planned "SSO with Authentik" post. Until it's out, see [forward auth with Cilium Gateway](/kubernetes/adding-apps#authentik-forward-auth-with-cilium-gateway).

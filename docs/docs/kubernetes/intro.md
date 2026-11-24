@@ -16,7 +16,7 @@ This section documents my homelab Kubernetes cluster. It is being rebuilt from s
 
 The repository uses the "home-ops" layout of [onedr0p/cluster-template](https://github.com/onedr0p/cluster-template) ([Repository Architecture](/kubernetes/flux/repository-architecture)). The narrative backbone is Jonas Hietala's [Modern Kubernetes homelab](https://www.jonashietala.se/series/kube-homelab/) series, followed with Flux instead of ArgoCD ([Jonas's series in Flux](/kubernetes/jonas-series-flux)).
 
-The old k3s cluster is gone. The new cluster starts as a [bare skeleton](/kubernetes/getting-started/bootstrap), and apps are added one at a time, following [Migrating from k3s](/kubernetes/migration).
+The cluster starts as a [bare skeleton](/kubernetes/getting-started/bootstrap), and apps are added one at a time, following [Adding apps](/kubernetes/adding-apps).
 
 ## Hardware
 

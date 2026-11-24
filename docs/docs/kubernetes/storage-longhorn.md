@@ -5,7 +5,7 @@ sidebar_label: "Storage: Longhorn"
 
 # Storage: Longhorn
 
-Persistent volumes come from [Longhorn](https://longhorn.io/) running inside the cluster. It replaces the external Ceph cluster and ceph-csi that the k3s setup used. Jonas made the same choice ([post 1](https://jonashietala.se/blog/2026/05/05/planning_my_kubernetes_homelab)). Current release: **v1.13.0** ([releases](https://github.com/longhorn/longhorn/releases)).
+Persistent volumes come from [Longhorn](https://longhorn.io/) running inside the cluster. Jonas made the same choice ([post 1](https://jonashietala.se/blog/2026/05/05/planning_my_kubernetes_homelab)). Current release: **v1.13.0** ([releases](https://github.com/longhorn/longhorn/releases)).
 
 Two sources describe Longhorn on Talos, and they don't fully agree:
 
@@ -73,9 +73,9 @@ Each VM has a separate Longhorn virtual disk (`scsi1`) next to the Talos system 
 - talos-1 and talos-2 share hecate's SSD, and talos-3 has persephone's. Without help, Longhorn doesn't know which VM is on which host, so a volume's two replicas could both land on hecate, and a failed hecate SSD would lose the volume. So each node carries its Proxmox host as `topology.kubernetes.io/zone` (`hecate` or `persephone`), set by `talos/all/30-zone.yaml.tpl` from `data.proxmoxHost` in `topf.yaml`. Longhorn "relies on label `topology.kubernetes.io/zone`" to identify zones, and `replica-zone-soft-anti-affinity` (default `true`) makes it prefer a different zone for a volume's next replica ([settings](https://longhorn.io/docs/1.13.0/references/settings/)). `replicaAutoBalance: best-effort` moves replicas that were already placed in the same zone ([auto balance](https://longhorn.io/docs/1.13.0/high-availability/auto-balance-replicas/)). As a result, persephone's 200GB disk holds a copy of every volume, so usable space is about 200GB, not 300GB. Backups still matter more than replicas. When a VM moves to another host, change `proxmoxHost` along with `proxmox_node` in the tfvars.
 - The VM disks are thin LVM volumes, and nothing in Talos trims them. The `fstrim` DaemonSet (`kubernetes/apps/kube-system/fstrim`) trims `/var` and `/var/mnt/longhorn` on every node at start and then weekly, so freed blocks go back to the Proxmox thin pool.
 
-## Kubernetes side (an app in the migration)
+## Kubernetes side
 
-Longhorn is added through Flux like any other app ([Migrating from k3s](/kubernetes/migration)). The pieces:
+Longhorn is added through Flux like any other app ([Adding apps](/kubernetes/adding-apps)). The pieces:
 
 `kubernetes/apps/longhorn-system/namespace.yaml`:
 
@@ -132,7 +132,7 @@ values:
 
 **Resource use, idle, no volumes** (open question 3): about 170–190 MB of container memory and ~30 millicores of CPU per node. Node "used" memory went from ~1.5 GB to ~1.95 GB of 4.3 GB (measured with `talosctl memory` and `talosctl stats --namespace cri`; there's no metrics-server yet). Each attached volume adds an engine and replica process on top of that.
 
-**Not done yet: backups.** Neither a Longhorn backup target nor VolSync/Restic is set up ([Data](/kubernetes/migration#data)).
+**Not done yet: backups.** Neither a Longhorn backup target nor VolSync/Restic is set up ([Data](/kubernetes/adding-apps#data)).
 
 ## The UI
 
@@ -204,13 +204,3 @@ Prometheus scrapes every `longhorn-manager` pod on port `manager` (9500) every 3
 ### Testing the alerts
 
 Cordon a node for longer than 30 minutes, for example `kubectl cordon talos-1`. Longhorn marks the node unschedulable within a minute, then `LonghornNodeUnschedulable` fires. Run `kubectl uncordon talos-1` to resolve it.
-
-## Data from the old cluster
-
-The k3s apps kept their data on the external Ceph cluster (`ceph-rbd` / `cephfs` storage classes). **Nothing moves automatically.** For each PVC-backed app (actual, pgadmin, netbox, portainer, rabbitmq, and gitea's PVC), choose one of:
-
-- **Copy.** While the Ceph cluster is still reachable, mount the old RBD image or CephFS path outside Kubernetes (for example on a Proxmox host). Then copy the files into the new Longhorn PVC through a temporary pod.
-- **Restore.** Use the app's own export/backup feature, if it has one, and import it into the fresh install. Check each app's docs; I haven't verified which ones offer this.
-- **Start fresh** when the data isn't worth keeping.
-
-Write the plan down per app at its migration step, and do it **before** the Ceph cluster is torn down.

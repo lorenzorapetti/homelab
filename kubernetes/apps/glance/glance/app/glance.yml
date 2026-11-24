@@ -60,7 +60,7 @@ pages:
             units: metric
             hour-format: 24h
 
-  # Inventory: replaces NetBox. Mirrors the network map and hardware in
+  # Inventory. Mirrors the network map and hardware in
   # docs/docs/kubernetes/intro.md and infrastructure/variables.auto.tfvars; update them together.
   - name: Network
     columns:

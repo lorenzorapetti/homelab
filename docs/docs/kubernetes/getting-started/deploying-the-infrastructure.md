@@ -212,7 +212,7 @@ Both hosts are Intel N100s (4 cores, 16GB RAM, 1TB SSD):
 | System disk | 50GB | 50GB | Above the 10GiB minimum and Jonas's 40GB suggestion for real workloads. Talos recommends 100GiB ([system requirements](https://docs.siderolabs.com/talos/v1.14/getting-started/system-requirements.md)). The system disks are about 30% used so far, so 50GB is enough for now |
 | Longhorn disk | 200GB | 200GB | Volumes have 2 replicas, so about 300GB is usable cluster-wide |
 
-Until 2026-11-21, all three VMs ran on hecate with 2 cores and 4.5GB each. That was tight, and it was [open question 3](/kubernetes/migration#open-questions). Resizing reboots the VM, so it's done one node at a time ([Adding a Proxmox host](#adding-a-proxmox-host)).
+Until 2026-11-21, all three VMs ran on hecate with 2 cores and 4.5GB each. That was tight, and it was [open question 3](/kubernetes/adding-apps#open-questions). Resizing reboots the VM, so it's done one node at a time ([Adding a Proxmox host](#adding-a-proxmox-host)).
 
 The Longhorn disk is a **separate virtual disk**, not a partition on the system disk. The Talos Longhorn guide selects a non-system disk with a `UserVolumeConfig` ([guide](https://docs.siderolabs.com/kubernetes-guides/csi/longhorn.md)).
 

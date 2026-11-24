@@ -4,7 +4,7 @@
 
 Whenever a change gives anything a new or changed IP (a service on a LoadBalancer IP, a VIP, a host, a VM, a subnet), record it in the same change in both:
 
-- the `Network` page in `kubernetes/apps/glance/glance/app/glance.yml` (the homelab inventory; NetBox is gone), and
+- the `Network` page in `kubernetes/apps/glance/glance/app/glance.yml` (the homelab inventory), and
 - the network map in `docs/docs/kubernetes/intro.md`.
 
 ## Agent skills

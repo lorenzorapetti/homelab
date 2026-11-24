@@ -7,7 +7,7 @@ sidebar_label: Alerting
 
 Prometheus evaluates the alerting rules and sends firing alerts to Alertmanager. Alertmanager groups them and sends `critical` and `warning` alerts to my phone through [Pushover](https://pushover.net), plus a second notification when they resolve. The always-firing `Watchdog` alert pings [healthchecks.io](https://healthchecks.io), which tells me when the alerting chain itself is down ([ADR 0005](https://github.com/lorenzorapetti/homelab/blob/main/docs/adr/0005-dead-mans-switch-on-healthchecks-io.md)).
 
-Flux's alerts go the same way, as [migration open question 12](/kubernetes/migration#open-questions) settled: `FluxResourceNotReady` is a `PrometheusRule` on the Flux Operator's metrics, with no notification-controller `Provider` ([Monitoring Flux](/kubernetes/flux/monitoring)).
+Flux's alerts go the same way, as [open question 12](/kubernetes/adding-apps#open-questions) settled: `FluxResourceNotReady` is a `PrometheusRule` on the Flux Operator's metrics, with no notification-controller `Provider` ([Monitoring Flux](/kubernetes/flux/monitoring)).
 
 Everything is chart values in `kube-prometheus-stack/app/helmrelease.yaml` (`alertmanager.config`), plus the Secret `alertmanager-notifications`.
 

@@ -92,11 +92,9 @@ How the rules work:
 - **Only `*.sops.*` files match.** The old catch-all `\.ya?ml$` also matched plain manifests. The structure follows [cluster-template's `.sops.yaml`](https://github.com/onedr0p/cluster-template/blob/main/template/config/.sops.yaml.j2): a whole-file rule for `talos/`, and `encrypted_regex` for `bootstrap|kubernetes`. The PGP recipient, rule 1 and the `infrastructure/` (Terraform) path are my additions. cluster-template encrypts its `bootstrap/sops-age.sops.yaml` to the age key itself ([source](https://github.com/onedr0p/cluster-template/blob/main/template/config/bootstrap/sops-age.sops.yaml.j2)), so you need the age key to bootstrap. Rule 1 means you need the YubiKey instead.
 - **topf writes `talos/secrets.sops.yaml` through rule 2.** The bundle is "SOPS-encrypted on write if a corresponding SOPS config is found" ([topf secrets](https://github.com/postfinance/topf/blob/main/docs/commands/secrets.md)).
 - **Rule 2 includes the age key on purpose.** Flux never reads these files, but the offline age backup gives a second way back to the Talos CA and the Terraform state if both YubiKeys *and* the GPG backup are lost. The cost: if the in-cluster age key leaked, it could decrypt the Talos CA too. I accept that, since the same key already decrypts every app secret.
-- **The age key is new.** For the Flux bootstrap ([#178](https://github.com/lorenzorapetti/homelab/issues/178)) I generated a fresh age key instead of reusing the k3s one (`age1dkx5…zpqxuq`). Its backup is the 1Password item "homelab: Flux SOPS age key". See [The age key for Flux](#the-age-key-for-flux).
+- **The age key is new.** For the Flux bootstrap ([#178](https://github.com/lorenzorapetti/homelab/issues/178)) I generated a fresh age key. Its backup is the 1Password item "homelab: Flux SOPS age key". See [The age key for Flux](#the-age-key-for-flux).
 
 ## Re-encrypting existing files
-
-The k3s-era secrets were moved with the old manifests to `kubernetes_old/`. They are unused and stay encrypted to the **old** age key only. No rule in `.sops.yaml` matches that path any more, so they are never re-encrypted. Moving one of them to the new cluster needs the old key (or the value from wherever it originally came from).
 
 After changing recipients, run `updatekeys` on every encrypted file. It adds or removes master keys "without rotating the data key", and `-y` skips the confirmation prompt ([SOPS key management](https://getsops.io/docs/usage/key-management/)):
 
@@ -138,12 +136,10 @@ The decrypted key goes straight from `sops` into `kubectl` and never touches the
 
 ## How Flux decrypts
 
-In the k3s repo, every child Kustomization had `decryption.secretRef: sops-age`, so `kubernetes/components/common/sops` copied the key into **every** namespace.
-
-The new setup uses kustomize-controller's **controller-level** key. The `--sops-age-secret` flag points the controller at a Secret holding age keys, which must live in the controller's namespace (`flux-system`). A Kustomization's own `.spec.decryption.secretRef` still takes precedence ([Kustomization API: decryption](https://fluxcd.io/flux/components/kustomize/kustomizations/)). The flag is set through a FluxInstance kustomize patch, and the same instance patches set `decryption.provider: sops` on the `flux-system` Kustomization and on every child ([Flux](/kubernetes/flux/intro#the-fluxinstance)). As a result:
+Flux uses kustomize-controller's **controller-level** key. The `--sops-age-secret` flag points the controller at a Secret holding age keys, which must live in the controller's namespace (`flux-system`). A Kustomization's own `.spec.decryption.secretRef` still takes precedence ([Kustomization API: decryption](https://fluxcd.io/flux/components/kustomize/kustomizations/)). The flag is set through a FluxInstance kustomize patch, and the same instance patches set `decryption.provider: sops` on the `flux-system` Kustomization and on every child ([Flux](/kubernetes/flux/intro#the-fluxinstance)). As a result:
 
 - The private key exists once, in `flux-system`.
-- `kubernetes/components/common/sops` goes away. The new `kubernetes/components/sops` holds only a `cluster-secrets` Secret for `postBuild` substitution, such as `SECRET_DOMAIN` ([cluster-template](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/components/sops/cluster-secrets.sops.yaml.j2)).
+- No namespace gets a copy of the key. `kubernetes/components/sops` holds only a `cluster-secrets` Secret for `postBuild` substitution, such as `SECRET_DOMAIN` ([cluster-template](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/components/sops/cluster-secrets.sops.yaml.j2)).
 
 ## Recovery
 

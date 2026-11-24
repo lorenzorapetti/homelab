@@ -11,7 +11,7 @@ Once [Talos is installed](/kubernetes/getting-started/install-talos), the cluste
 - the `flux-system/sops-age` Secret and the Git pull secret
 - an **empty** `kubernetes/apps/`
 
-No apps yet. They are added **one at a time, one commit/PR each**, following [Migrating from k3s](/kubernetes/migration).
+No apps yet. They are added **one at a time, one commit/PR each**, following [Adding apps](/kubernetes/adding-apps).
 
 That was the first bootstrap. **Rebuilding the cluster** later is the same `just full`, but `kubernetes/apps/` is no longer empty. The helmfile installs Cilium and Flux from their Flux manifests ([one source of truth](#one-source-of-truth-for-values)). Flux then takes over those three releases ([what the takeover does](#what-the-takeover-does-flux-2026-11-19)) and installs every other app in `kubernetes/apps/`.
 
@@ -60,7 +60,7 @@ This mirrors cluster-template's `apps-secrets` task, which runs `sops decrypt` a
 
 ## 2. Gateway API CRDs
 
-Cilium's Gateway API controller needs the Gateway API CRDs **before** Cilium starts. Cilium 1.20 documents Gateway API **v1.6.3** and requires `TLSRoute`. Either channel works, but experimental features need the experimental channel ([Cilium Gateway API docs](https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/)). The `ExternalAuth` HTTPRoute filter (GEP-1494, status *Experimental*, [GEP](https://gateway-api.sigs.k8s.io/geps/gep-1494/)) is the cleanest way to put Authentik in front of apps (see [Authentik forward auth](/kubernetes/migration#authentik-forward-auth-with-cilium-gateway)), so install the **experimental** channel:
+Cilium's Gateway API controller needs the Gateway API CRDs **before** Cilium starts. Cilium 1.20 documents Gateway API **v1.6.3** and requires `TLSRoute`. Either channel works, but experimental features need the experimental channel ([Cilium Gateway API docs](https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/)). The `ExternalAuth` HTTPRoute filter (GEP-1494, status *Experimental*, [GEP](https://gateway-api.sigs.k8s.io/geps/gep-1494/)) is the cleanest way to put Authentik in front of apps (see [Authentik forward auth](/kubernetes/adding-apps#authentik-forward-auth-with-cilium-gateway)), so install the **experimental** channel:
 
 ```bash
 kubectl apply --server-side \
@@ -69,7 +69,7 @@ kubectl apply --server-side \
 
 Both `standard-install.yaml` and `experimental-install.yaml` are assets of the [v1.6.3 release](https://github.com/kubernetes-sigs/gateway-api/releases/tag/v1.6.3). Jonas applies the CRDs first for the same reason ([post 2](https://jonashietala.se/blog/2026/05/22/talos_linux_on_proxmox_with_terraform)). Besides the CRDs, the experimental bundle also installs a `ValidatingAdmissionPolicy` and binding named `safe-upgrades.gateway.networking.k8s.io`, and three `gateway.networking.x-k8s.io` CRDs (`XBackend`, `XBackendTrafficPolicy`, `XMesh`).
 
-`just bootstrap::crds` runs this command, with the tag read from the Flux manifest below. Once Flux runs, it owns the CRDs (step 3 of the [migration](/kubernetes/migration)).
+`just bootstrap::crds` runs this command, with the tag read from the Flux manifest below. Once Flux runs, it owns the CRDs (step 3 of the [build order](/kubernetes/adding-apps#build-order)).
 
 ### The CRDs as a Flux app
 
@@ -244,7 +244,7 @@ Where these values come from:
 
 **Versions.** The Cilium 1.20.5 chart is at `oci://quay.io/cilium/charts/cilium` (`helm show chart` reports `version: 1.20.5`, `kubeVersion: '>= 1.21.0-0'`). The cluster runs Kubernetes 1.37.2, which Cilium 1.20 doesn't e2e-test: its [compatibility page](https://github.com/cilium/cilium/blob/v1.20.5/Documentation/network/kubernetes/compatibility.rst) lists 1.33–1.36, and says untested versions "depend on the forward / backward compatibility offered by Kubernetes". 1.37 is listed only on `main` (Cilium 1.21, still at `1.21.0-pre.4` on 2026-11-18). 1.20.5 works on this cluster (status checks and the connectivity test below), so move to 1.21 once it's released rather than running a pre-release.
 
-The IP pool and L2 policy are Cilium CRs, not Helm values. They arrive with the Cilium app (step 1 of the [migration](/kubernetes/migration)) as `kubernetes/apps/kube-system/cilium/app/networks.yaml`, with addresses from the [network map](/kubernetes/intro#network-map). The shared Gateway is a separate app ([below](#the-shared-gateway)):
+The IP pool and L2 policy are Cilium CRs, not Helm values. They arrive with the Cilium app (step 1 of the [build order](/kubernetes/adding-apps#build-order)) as `kubernetes/apps/kube-system/cilium/app/networks.yaml`, with addresses from the [network map](/kubernetes/intro#network-map). The shared Gateway is a separate app ([below](#the-shared-gateway)):
 
 ```yaml
 ---
@@ -274,7 +274,7 @@ spec:
 
 ### The shared Gateway
 
-Every app is exposed through one Cilium `Gateway`, `main` in `kube-system`, on `10.0.12.1`. It terminates TLS with one wildcard certificate, so an app needs only an `HTTPRoute` ([Routing an app](/kubernetes/flux/repository-architecture#routing-an-app)). It is step 6 of the [migration](/kubernetes/migration), the app `kubernetes/apps/kube-system/gateway/`, which `dependsOn` `cilium`, `gateway-api-crds` and `cluster-issuer` (in `cert-manager`). It uses `postBuild.substituteFrom: cluster-secrets` for `${SECRET_DOMAIN}`. The listener layout and wildcard certificate follow Jonas ([post 6](https://jonashietala.se/blog/2026/08/06/domains_certificates_and_dns)).
+Every app is exposed through one Cilium `Gateway`, `main` in `kube-system`, on `10.0.12.1`. It terminates TLS with one wildcard certificate, so an app needs only an `HTTPRoute` ([Routing an app](/kubernetes/flux/repository-architecture#routing-an-app)). It is step 6 of the [build order](/kubernetes/adding-apps#build-order), the app `kubernetes/apps/kube-system/gateway/`, which `dependsOn` `cilium`, `gateway-api-crds` and `cluster-issuer` (in `cert-manager`). It uses `postBuild.substituteFrom: cluster-secrets` for `${SECRET_DOMAIN}`. The listener layout and wildcard certificate follow Jonas ([post 6](https://jonashietala.se/blog/2026/08/06/domains_certificates_and_dns)).
 
 `app/gateway.yaml`:
 
@@ -394,7 +394,7 @@ kubectl -n kube-system get svc cilium-gateway-main # LoadBalancer  EXTERNAL-IP 1
   - `curl -I` on `http://` gave `301` to `https://…:443/foo?x=1`, path and query kept.
   - A hostname with no route, and the apex (no route yet), both got `404` from the Gateway over valid TLS.
 
-  Then I deleted the namespace. I didn't create a DNS record: DNS automation is still [open](/kubernetes/migration#open-questions).
+  Then I deleted the namespace. I didn't create a DNS record: DNS automation is still [open](/kubernetes/adding-apps#open-questions).
 
 ### Checking Cilium
 
@@ -441,7 +441,7 @@ Cilium, the Flux Operator and the FluxInstance are still plain Helm releases at 
 
 ### What the takeover does (Cilium, 2026-11-18)
 
-Cilium was the first release Flux took over (step 1 of the [migration](/kubernetes/migration)). Its `HelmRelease` has the same name and namespace as the helmfile release, and values identical to `values/cilium.yaml`. What happened:
+Cilium was the first release Flux took over (step 1 of the [build order](/kubernetes/adding-apps#build-order)). Its `HelmRelease` has the same name and namespace as the helmfile release, and values identical to `values/cilium.yaml`. What happened:
 
 - **helm-controller upgrades the release in place.** `helm -n kube-system history cilium` shows revision 1 (helmfile, `cilium-1.20.5`, "Install complete") `superseded`, and revision 2 `deployed` as `cilium-1.20.5+873a782bf106`, "Upgrade complete". There was no uninstall or reinstall. The `cilium` Kustomization and HelmRelease went Ready, and the HelmRelease reports `1.20.5+873a782bf106`.
 - **The chart version gains the OCI digest.** With `chartRef` to an `OCIRepository`, helm-controller stores the chart as `<version>+<first 12 hex chars of the digest>`. The chart's `helm.sh/chart` label then becomes `cilium-1.20.5_873a782bf106`.
@@ -451,7 +451,7 @@ Cilium was the first release Flux took over (step 1 of the [migration](/kubernet
 
 ### What the takeover does (Flux, 2026-11-19)
 
-Step 2 of the [migration](/kubernetes/migration) added `flux-operator` and `flux-instance` under `kubernetes/apps/flux-system/` ([#180](https://github.com/lorenzorapetti/homelab/issues/180), layout on the [Flux page](/kubernetes/flux/intro#flux-manages-itself)). After the push and `just bootstrap::reconcile`:
+Step 2 of the [build order](/kubernetes/adding-apps#build-order) added `flux-operator` and `flux-instance` under `kubernetes/apps/flux-system/` ([#180](https://github.com/lorenzorapetti/homelab/issues/180), layout on the [Flux page](/kubernetes/flux/intro#flux-manages-itself)). After the push and `just bootstrap::reconcile`:
 
 - **Same in-place upgrade as Cilium.** `helm -n flux-system history` shows revision 1 (helmfile, "Install complete") `superseded` and revision 2 (`flux-operator-0.62.1+1135514a01cc`, `flux-instance-0.62.1+38215516080c`, "Upgrade complete") `deployed` for both releases. `flux get hr -n flux-system` shows both Ready, and the FluxInstance `flux` stayed Ready at `v2.10.0`.
 - **Order.** The `flux-instance` Kustomization reported `DependencyNotReady` until `flux-operator` passed its health check (30s), then took over its release in 5s.

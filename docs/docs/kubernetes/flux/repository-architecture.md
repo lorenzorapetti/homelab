@@ -47,7 +47,7 @@ The repository follows the "home-ops" layout from [onedr0p/cluster-template](htt
                └─ secret.sops.yaml
 ```
 
-This tree is the **end state**. After the [bootstrap](/kubernetes/getting-started/bootstrap), `kubernetes/` holds only an empty `kubernetes/apps/kustomization.yaml`. Everything under `kubernetes/apps/<namespace>/` and `kubernetes/components/` is added by hand, one app per commit, following [Migrating from k3s](/kubernetes/migration). The manifests on this page are examples for when you reach that app, not files to create up front.
+This tree is the **end state**. After the [bootstrap](/kubernetes/getting-started/bootstrap), `kubernetes/` holds only an empty `kubernetes/apps/kustomization.yaml`. Everything under `kubernetes/apps/<namespace>/` and `kubernetes/components/` is added by hand, one app per commit, following [Adding apps](/kubernetes/adding-apps). The manifests on this page are examples for when you reach that app, not files to create up front.
 
 | Path | What it is |
 | --- | --- |
@@ -65,7 +65,7 @@ Flux's own [repository structure guide](https://fluxcd.io/flux/guides/repository
 
 ## No root Kustomization
 
-The k3s repo had `kubernetes/cluster/ks.yaml`, a root Kustomization that patched SOPS decryption into every child. In the new layout:
+There is no root `ks.yaml` that patches settings such as SOPS decryption into every child:
 
 - **The `FluxInstance` syncs `kubernetes/apps` directly.** It creates a GitRepository + Kustomization named `flux-system` with `path: kubernetes/apps` ([FluxInstance docs](https://fluxoperator.dev/docs/crd/fluxinstance/)).
 - **The root's job moves into `FluxInstance.spec.kustomize.patches`.** Those patches target that `flux-system` Kustomization, add `decryption.provider: sops` and `deletionPolicy`, and inject the same settings plus HelmRelease defaults into every child.
@@ -228,7 +228,7 @@ spec:
       failed: status.conditions.filter(e, e.type == 'Ready').all(e, e.status == 'False')
 ```
 
-Both files are the k3s repo's `ks.yaml` with `patches: []` and `postBuild` added. The k3s `cert-manager/ks.yaml` also health-checked the `cert-manager` `Deployment`. That check is dropped: helm-controller waits for the release's resources before it marks the `HelmRelease` Ready, so the `HelmRelease` check already covers it. Field semantics, per the [Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/):
+Both files have `patches: []` and `postBuild`. There's no separate health check on the `cert-manager` `Deployment`: helm-controller waits for the release's resources before it marks the `HelmRelease` Ready, so the `HelmRelease` check already covers it. Field semantics, per the [Kustomization API](https://fluxcd.io/flux/components/kustomize/kustomizations/):
 
 - **`dependsOn`** waits until the referenced Kustomization is `Ready`.
 - **`healthChecks`** gates readiness on the listed objects. Setting `wait: true` would check everything instead and ignore `healthChecks`.
@@ -254,7 +254,7 @@ spec:
   url: oci://quay.io/jetstack/charts/cert-manager
 ```
 
-`source.toolkit.fluxcd.io/v1` with a required `interval`. `ref.tag`/`semver`/`digest` are supported, with digest taking precedence, and `operation: copy` keeps the chart tarball "as-is" ([OCIRepository API](https://fluxcd.io/flux/components/source/ocirepositories/)). The URL and tag come from [cluster-template](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/apps/cert-manager/cert-manager/app/ocirepository.yaml.j2). The k3s repo pinned v1.19.1 from `https://charts.jetstack.io`.
+`source.toolkit.fluxcd.io/v1` with a required `interval`. `ref.tag`/`semver`/`digest` are supported, with digest taking precedence, and `operation: copy` keeps the chart tarball "as-is" ([OCIRepository API](https://fluxcd.io/flux/components/source/ocirepositories/)). The URL and tag come from [cluster-template](https://github.com/onedr0p/cluster-template/blob/main/template/config/kubernetes/apps/cert-manager/cert-manager/app/ocirepository.yaml.j2).
 
 **Kubernetes 1.37.** v1.21.3 was the latest patch on 2026-11-19. cert-manager lists 1.21 as supported and tested on Kubernetes 1.33 → 1.36 ([supported releases](https://cert-manager.io/docs/releases/)), and this cluster runs 1.37.2. No newer release exists yet: 1.22 is listed as "~Nov 2026". The chart's `kubeVersion` is `>= 1.22.0-0`, so it installs, and cert-manager only uses stable APIs. Move to 1.22 once it is released and lists 1.37.
 
@@ -280,8 +280,7 @@ spec:
       - --dns01-recursive-nameservers=1.1.1.1:53,1.0.0.1:53
 ```
 
-"One of `.spec.chart` or `.spec.chartRef` must be set, but not both", and `chartRef` accepts `OCIRepository` ([HelmRelease API](https://fluxcd.io/flux/components/helm/helmreleases/)). The CRD install/upgrade policies come from the injected defaults. The values are carried over from the current repo.
-
+"One of `.spec.chart` or `.spec.chartRef` must be set, but not both", and `chartRef` accepts `OCIRepository` ([HelmRelease API](https://fluxcd.io/flux/components/helm/helmreleases/)). The CRD install/upgrade policies come from the injected defaults.
 ### `cert-manager/app/kustomization.yaml`
 
 ```yaml
@@ -306,7 +305,7 @@ Two `ClusterIssuer`s share the Cloudflare DNS-01 solver:
 | `cloudflare-cluster-issuer` | Let's Encrypt production | `cloudflare-cluster-issuer-account-key` |
 | `cloudflare-cluster-issuer-staging` | Let's Encrypt staging | `cloudflare-cluster-issuer-staging-account-key` |
 
-The production names are carried over from the k3s repo. The staging issuer is for testing. Its certificates aren't browser-trusted, but a test doesn't count against production rate limits. Both reference `cloudflare-token` in `cert-manager`, which is cert-manager's "cluster resource namespace" for `ClusterIssuer` secrets. A `ClusterIssuer` is cluster-scoped, so the namespace that `targetNamespace` sets on it is ignored.
+The staging issuer is for testing. Its certificates aren't browser-trusted, but a test doesn't count against production rate limits. Both reference `cloudflare-token` in `cert-manager`, which is cert-manager's "cluster resource namespace" for `ClusterIssuer` secrets. A `ClusterIssuer` is cluster-scoped, so the namespace that `targetNamespace` sets on it is ignored.
 
 ### Routing an app
 
@@ -330,7 +329,7 @@ spec:
           port: 8080
 ```
 
-This replaces the Traefik `IngressRoute`s and per-app `Certificate`s from the k3s repo. TLS terminates at the Gateway with one wildcard certificate, as in Jonas's setup ([post 6](https://jonashietala.se/blog/2026/08/06/domains_certificates_and_dns)). `${SECRET_DOMAIN}` is substituted by Flux from `cluster-secrets`, so the app's `ks.yaml` needs `postBuild.substituteFrom: cluster-secrets`. The backend port is illustrative.
+Apps have no `Certificate`s of their own. TLS terminates at the Gateway with one wildcard certificate, as in Jonas's setup ([post 6](https://jonashietala.se/blog/2026/08/06/domains_certificates_and_dns)). `${SECRET_DOMAIN}` is substituted by Flux from `cluster-secrets`, so the app's `ks.yaml` needs `postBuild.substituteFrom: cluster-secrets`. The backend port is illustrative.
 
 - **Always `sectionName: https`.** The `http` listener only accepts routes from `kube-system`, where one `HTTPRoute` sends every plain-HTTP request to HTTPS with a `301`. A route from another namespace that targets `http` is rejected (`NotAllowedByListeners`), so no app serves plaintext.
 - **One label under the domain.** The certificate covers the apex and `*.<domain>`, so `glance.<domain>` works but `a.b.<domain>` would need a new SAN.
