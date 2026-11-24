@@ -9,7 +9,6 @@ My homelab: a Talos Linux Kubernetes cluster on Proxmox, managed with Terraform,
 | `infrastructure/` | Terraform (`bpg/proxmox`): the Talos VMs on Proxmox |
 | `talos/` | Talos config for topf: cluster, patches, schematic, SOPS-encrypted secrets bundle |
 | `kubernetes/` | Manifests Flux syncs into the cluster |
-| `docker/` | Docker Compose stacks outside the cluster |
 | `docs/` | Documentation site |
 | `justfile`, `*/mod.just` | Task runner |
 | `devenv.nix` | Every CLI tool the repo needs |
