@@ -1,0 +1,15 @@
+---
+# yaml-language-server: $schema=https://kubernetes-schemas.pages.dev/v1/persistentvolumeclaim.json
+# Actual's /data: server-files (account.sqlite: users, sessions, OIDC config)
+# and user-files (the budget files). Backed up by the volsync component
+# (sourcePVC: ${APP}).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: actual
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi

@@ -38,6 +38,9 @@ pages:
                   - title: Orbit
                     url: https://board.${SECRET_DOMAIN}
                     icon: mdi:view-dashboard-outline
+                  - title: Actual Budget
+                    url: https://budget.${SECRET_DOMAIN}
+                    icon: sh:actual-budget
               - title: Proxmox
                 links:
                   - title: hecate

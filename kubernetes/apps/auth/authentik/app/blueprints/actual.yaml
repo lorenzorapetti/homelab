@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://goauthentik.io/blueprints/schema.json
+# Actual Budget logs in against authentik with native OIDC
+# (ACTUAL_OPENID_*). Only `authentik Admins` may log in; the first login
+# becomes Actual's owner.
+# Docs: docs/docs/kubernetes/actual.md
+#
+# The client secret is ACTUAL_OIDC_CLIENT_SECRET in the SOPS Secret
+# authentik-actual-oidc, and the same value is ACTUAL_OPENID_CLIENT_SECRET in
+# Secret actual-secrets in `actual`. The worker reads its env at start:
+# restart it after changing the secret.
+version: 1
+metadata:
+  name: Actual OIDC
+entries:
+  - model: authentik_providers_oauth2.oauth2provider
+    id: provider-actual
+    identifiers:
+      name: Actual
+    attrs:
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      client_type: confidential
+      client_id: actual
+      client_secret: !Env ACTUAL_OIDC_CLIENT_SECRET
+      # Required: a blueprint-created provider defaults to none (see grafana.yaml).
+      grant_types:
+        - authorization_code
+        - refresh_token
+      redirect_uris:
+        - matching_mode: strict
+          url: https://budget.${SECRET_DOMAIN}/openid/callback
+          redirect_uri_type: authorization
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      sub_mode: hashed_user_id
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [managed, goauthentik.io/providers/oauth2/scope-profile]]
+  - model: authentik_core.application
+    id: app-actual
+    identifiers:
+      slug: actual                  # in the discovery URL Actual reads
+    attrs:
+      name: Actual Budget
+      provider: !KeyOf provider-actual
+      meta_launch_url: https://budget.${SECRET_DOMAIN}
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf app-actual
+      order: 0
+    attrs:
+      group: !Find [authentik_core.group, [name, authentik Admins]]
