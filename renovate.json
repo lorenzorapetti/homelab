@@ -1,6 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "enabled": false,
   "extends": [
     "config:recommended",
     "docker:enableMajor",
@@ -9,7 +8,10 @@
     ":dependencyDashboard",
     ":timezone(Europe/Rome)"
   ],
-  "dependencyDashboardTitle": "Renovate Dashboard 🤖",
+  "dependencyDashboard": {
+    "title": "Renovate Dashboard 🤖"
+  },
+  "schedule": ["on saturday"],
   "flux": {
     "managerFilePatterns": ["/^kubernetes\\/.*\\.ya?ml$/"]
   },
@@ -18,5 +20,94 @@
   },
   "helm-values": {
     "managerFilePatterns": ["/^kubernetes\\/.*\\.ya?ml$/"]
-  }
+  },
+  "customManagers": [
+    {
+      "description": "Versions annotated with `# renovate: datasource=... depName=...` on the line above (Talos, Kubernetes, image tags in Helm values)",
+      "customType": "regex",
+      "managerFilePatterns": ["/^kubernetes\\/.*\\.ya?ml$/", "/^talos\\/.*\\.ya?ml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?( extractVersion=(?<extractVersion>\\S+))?\\n\\s*[\\w-]+:\\s*\"?(?<currentValue>[^\"\\s]+)\"?"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}",
+      "extractVersionTemplate": "{{#if extractVersion}}{{{extractVersion}}}{{else}}^v?(?<version>.*)${{/if}}"
+    },
+    {
+      "description": "CloudNativePG Cluster spec.imageName (the kubernetes manager only reads `image:`)",
+      "customType": "regex",
+      "managerFilePatterns": ["/^kubernetes\\/.*\\.ya?ml$/"],
+      "matchStrings": ["imageName:\\s*\"?(?<depName>[^\"\\s:]+):(?<currentValue>[^\"\\s@]+)\"?"],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Apps: every minor/patch/digest update in one weekly PR. Platform components are excluded and get their own PRs below.",
+      "matchFileNames": [
+        "kubernetes/**",
+        "!kubernetes/apps/{flux-system,cnpg-system,longhorn-system,cert-manager}/**",
+        "!kubernetes/apps/kube-system/{cilium,gateway-api-crds,snapshot-crds}/**"
+      ],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "apps (non-major)"
+    },
+    {
+      "description": "Majors: one PR per dependency, only once approved on the dashboard",
+      "matchFileNames": ["kubernetes/**", "talos/**"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Flux operator + instance move together",
+      "matchFileNames": ["kubernetes/apps/flux-system/**"],
+      "groupName": "flux"
+    },
+    {
+      "description": "CNPG operator + Barman Cloud plugin",
+      "matchFileNames": ["kubernetes/apps/cnpg-system/**"],
+      "groupName": "cloudnative-pg"
+    },
+    {
+      "description": "Postgres image of every CNPG Cluster: all databases move together",
+      "matchDepNames": ["ghcr.io/cloudnative-pg/postgresql"],
+      "groupName": "postgres"
+    },
+    {
+      "matchFileNames": ["kubernetes/apps/kube-system/cilium/**"],
+      "groupName": "cilium"
+    },
+    {
+      "matchFileNames": ["kubernetes/apps/longhorn-system/**"],
+      "groupName": "longhorn"
+    },
+    {
+      "description": "Talos and Kubernetes in topf.yaml. Merging doesn't upgrade anything: run `just talos::upgrade` / `just talos::upgrade-k8s` afterwards.",
+      "matchFileNames": ["talos/**"],
+      "groupName": "talos",
+      "prBodyNotes": ["⚠️ Merging changes nothing on the nodes: run `just talos::upgrade` and/or `just talos::upgrade-k8s` afterwards."]
+    },
+    {
+      "description": "Platform tier (cert-manager and the CRDs fall through to one PR per dependency): wait a week, never automerge. GHCR gives no release timestamps (Flux charts, Postgres image): timestamp-optional lets those through instead of pending forever.",
+      "matchFileNames": [
+        "kubernetes/apps/{flux-system,cnpg-system,longhorn-system,cert-manager}/**",
+        "kubernetes/apps/kube-system/{cilium,gateway-api-crds,snapshot-crds}/**",
+        "talos/**"
+      ],
+      "minimumReleaseAge": "7 days",
+      "minimumReleaseAgeBehaviour": "timestamp-optional",
+      "automerge": false
+    },
+    {
+      "matchDepNames": ["ghcr.io/cloudnative-pg/postgresql"],
+      "minimumReleaseAge": "7 days",
+      "minimumReleaseAgeBehaviour": "timestamp-optional",
+      "automerge": false
+    },
+    {
+      "description": "Docusaurus site: non-major npm updates in one PR",
+      "matchFileNames": ["docs/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "docs (non-major)"
+    }
+  ]
 }

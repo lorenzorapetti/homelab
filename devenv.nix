@@ -44,6 +44,7 @@ in {
     cilium-cli
     fluxcd
     k9s
+    renovate # renovate-config-validator, and `renovate --platform=local --dry-run=lookup`
   ];
 
   # Node for the Docusaurus site in docs/ (package.json engines: >=26).
