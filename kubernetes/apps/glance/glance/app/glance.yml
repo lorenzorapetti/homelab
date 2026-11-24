@@ -56,3 +56,56 @@ pages:
             location: Rome, Italy
             units: metric
             hour-format: 24h
+
+  # Inventory: replaces NetBox. Mirrors the network map and hardware in
+  # docs/docs/kubernetes/intro.md and infrastructure/variables.auto.tfvars; update them together.
+  - name: Network
+    columns:
+      - size: full
+        widgets:
+          - type: html
+            title: Address plan
+            source: |
+              <p class="color-subdue margin-bottom-10">Flat <code>10.0.0.0/16</code> LAN behind <code>10.0.0.1</code>. DHCP only hands out <code>10.0.0.x</code>; everything else is static.</p>
+              <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr class="color-highlight" style="text-align: left;">
+                    <th style="padding: 6px 10px 6px 0;">Range / address</th>
+                    <th style="padding: 6px 10px 6px 0;">What</th>
+                    <th style="padding: 6px 0;">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>10.0.0.1</code></td><td>Router / default gateway</td><td></td></tr>
+                  <tr><td><code>10.0.0.0/24</code></td><td>DHCP clients</td><td>Nothing static here</td></tr>
+                  <tr><td><code>10.0.1.30</code></td><td><code>nyx</code>: Technitium (Home DNS), Traefik for <code>*.home.${SECRET_DOMAIN}</code></td><td>Talos nameserver; ExternalDNS writes app records here</td></tr>
+                  <tr><td><code>10.0.10.0/24</code></td><td>Proxmox hosts</td><td>Cluster <code>underworld</code></td></tr>
+                  <tr><td><code>10.0.10.1</code></td><td><code>hecate</code></td><td>Terraform API endpoint, Tailscale subnet router</td></tr>
+                  <tr><td><code>10.0.10.2</code></td><td><code>persephone</code></td><td>On the tailnet, not a subnet router</td></tr>
+                  <tr><td><code>10.0.11.0/24</code></td><td>Talos VMs</td><td>Static via Terraform cloud-init, netmask <code>/16</code></td></tr>
+                  <tr><td><code>10.0.11.1</code>–<code>.3</code></td><td><code>talos-1</code>…<code>talos-3</code></td><td>Control plane + workloads</td></tr>
+                  <tr><td><code>10.0.11.10</code></td><td>Kubernetes API VIP</td><td>Talos <code>Layer2VIPConfig</code></td></tr>
+                  <tr><td><code>10.0.12.0/24</code></td><td>Cilium LB pool <code>.1</code>–<code>.254</code></td><td>L2 announcements (ARP), no BGP</td></tr>
+                  <tr><td><code>10.0.12.1</code></td><td>Shared Cilium Gateway</td><td>HTTP/HTTPS entry for all apps</td></tr>
+                  <tr><td><code>10.244.0.0/16</code></td><td>Pod CIDR</td><td>Cluster-internal only</td></tr>
+                  <tr><td><code>10.96.0.0/12</code></td><td>Service CIDR</td><td>Cluster-internal only</td></tr>
+                </tbody>
+              </table>
+              <p class="color-subdue margin-top-10">Routed from the tailnet via hecate: <code>10.0.1.30/32</code>, <code>10.0.10.1/32</code>, <code>10.0.11.0/24</code>, <code>10.0.12.0/24</code>.</p>
+      - size: small
+        widgets:
+          - type: html
+            title: Proxmox hosts
+            source: |
+              <ul class="list list-gap-10">
+                <li><span class="color-highlight">hecate</span> <code>10.0.10.1</code><br>Intel N100, 4 cores, 16GB, 1TB SSD<br>Runs talos-1, talos-2</li>
+                <li><span class="color-highlight">persephone</span> <code>10.0.10.2</code><br>Intel N100, 4 cores, 16GB, 1TB SSD<br>Runs talos-3</li>
+              </ul>
+          - type: html
+            title: Talos VMs
+            source: |
+              <ul class="list list-gap-10">
+                <li><span class="color-highlight">talos-1</span> <code>10.0.11.1</code><br>hecate · 2 cores · 6.5GB · 50 + 200GB</li>
+                <li><span class="color-highlight">talos-2</span> <code>10.0.11.2</code><br>hecate · 2 cores · 6.5GB · 50 + 200GB</li>
+                <li><span class="color-highlight">talos-3</span> <code>10.0.11.3</code><br>persephone · 4 cores · 8GB · 50 + 200GB</li>
+              </ul>
