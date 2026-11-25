@@ -11,7 +11,7 @@ Whenever a change gives anything a new or changed IP (a service on a LoadBalance
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues for `lorenzorapetti/homelab`, managed with the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues are tracked in Orbit, in the Kubernetes project (`K8S`), managed with the `orbit` MCP tools. PRs stay on GitHub. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
