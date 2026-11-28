@@ -6,7 +6,7 @@ clusterEndpoint: https://10.0.11.10:6443   # the API VIP (control-plane/00-clust
 # renovate: datasource=github-releases depName=kubernetes/kubernetes
 kubernetesVersion: 1.37.2
 # renovate: datasource=github-releases depName=siderolabs/talos
-talosVersion: 1.14.5                      # bump + `just talos::upgrade`; talos_version in the tfvars only seeds new VMs (docs: Upgrades)
+talosVersion: 1.14.6                      # bump + `just talos::upgrade`; talos_version in the tfvars only seeds new VMs (docs: Upgrades)
 schematicId: "@schematic.yaml"
 platform: nocloud                          # matches the nocloud image Terraform boots
 secretsPath: secrets.sops.yaml             # SOPS-encrypted (rule 2 in .sops.yaml)
