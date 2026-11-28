@@ -26,7 +26,7 @@ spec:
         - operator: Exists          # every node, control plane included
       containers:
         - name: fstrim
-          image: busybox:1.37.0
+          image: busybox:1.38.0
           command:
             - sh
             - -c
